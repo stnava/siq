@@ -23,7 +23,7 @@ import tensorflow as tf
 
 from multiprocessing import Pool
 
-DATA_PATH = os.path.expanduser('~/.antspydpr/')
+DATA_PATH = os.path.expanduser('~/.siq/')
 
 def get_data( name=None, force_download=False, version=0, target_extension='.csv' ):
     """
@@ -93,7 +93,6 @@ def get_data( name=None, force_download=False, version=0, target_extension='.csv
             datapath = os.path.join(DATA_PATH, fname)
 
     return datapath
-
 
 
 
@@ -300,7 +299,7 @@ def get_random_base_ind( full_dims, off = 10, patchWidth = 96 ):
 
 
 # extract a random patch
-def get_random_patch( img, patchWidth=psz ):
+def get_random_patch( img, patchWidth ):
     mystd = 0
     while mystd == 0:
         inds = get_random_base_ind( full_dims = img.shape )
@@ -311,7 +310,7 @@ def get_random_patch( img, patchWidth=psz ):
         mystd = myimg.std()
     return myimg
 
-def get_random_patch_pair( img, img2, patchWidth=psz ):
+def get_random_patch_pair( img, img2, patchWidth ):
     mystd = mystd2 = 0
     ct = 0
     while mystd == 0 or mystd2 == 0:
@@ -329,58 +328,88 @@ def get_random_patch_pair( img, img2, patchWidth=psz ):
     return myimg, myimg2
 
 
-# set up qc features
-# myvgg = tf.keras.l
+def get_grader_feature_network( layer=6 ):
 # perceptual features - one can explore different layers and features
 # these layers - or combinations of these - are commonly used in the literature
 # as feature spaces for loss functions.  weighting terms relative to MSE are
 # also given in several papers which can help guide parameter setting.
-grader = antspynet.create_resnet_model_3d(
-    [None,None,None,1],
-    lowest_resolution = 32,
-    number_of_classification_labels = 4,
-    cardinality = 1,
-    squeeze_and_excite = False )
-# the folder and data below as available from antspyt1w get_data
-graderfn = os.path.expanduser( "~/.antspyt1w/resnet_grader.h5" )
-grader.load_weights( graderfn)
-feature_extractor = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[6].output )
-feature_extractor_23 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[23].output )
-feature_extractor_44 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[44].output )
+    grader = antspynet.create_resnet_model_3d(
+        [None,None,None,1],
+        lowest_resolution = 32,
+        number_of_classification_labels = 4,
+        cardinality = 1,
+        squeeze_and_excite = False )
+    # the folder and data below as available from antspyt1w get_data
+    graderfn = os.path.expanduser( "~/.antspyt1w/resnet_grader.h5" )
+    if not exists( graderfn ):
+        raise Exception("graderfn " + graderfn + " does not exist")
+    grader.load_weights( graderfn)
+    #    feature_extractor_23 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[23].output )
+    #   feature_extractor_44 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[44].output )
+    return tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[layer].output )
 
 
-def my_loss_msq(y_true, y_pred  ):
-    squared_difference = tf.square(y_true - y_pred)
-    myax = [1,2,3,4]
-    msqTerm = tf.reduce_mean(squared_difference, axis=myax)
-    return ( msqTerm  )
-
-
-def default_dbpn( dimensionality = 3 ):
+def default_dbpn( 
+    strider, # length should equal dimensionality
+    dimensionality = 3,
+    nfilt=64,
+    nff = 256,
+    convn = 6,
+    lastconv = 3,
+    nbp=7
+ ):
+    if len(strider) != dimensionality:
+        raise Exception("len(strider) != dimensionality")
     # **model instantiation**: these are close to defaults for the 2x network.<br>
     # empirical evidence suggests that making covolutions and strides evenly<br>
     # divisible by each other reduces artifacts.  2*3=6.
-    nfilt=64
-    nff = 256
-    convn = 6
-    lastconv = 3
-    nbp=7
-    ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.h5'
-    if plaindb:
-        mdl = dbpn_arch.dbpn( (None,None,None,1),
-        number_of_outputs=1,
-        number_of_base_filters=nfilt,
-        number_of_feature_filters=nff,
-        number_of_back_projection_stages=nbp,
-        convolution_kernel_size=(convn, convn, convn),
-        strides=(strider, strider, strider),
-        last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
-    else:
-        mdl = src.dbpn_arch.dbpn( (None,None,None,1),
-        number_of_outputs=1,
-        number_of_base_filters=nfilt,
-        number_of_feature_filters=nff,
-        number_of_back_projection_stages=nbp,
-        convolution_kernel_size=(convn, convn, convn),
-        strides=(strider, strider, strider),
-        last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
+    # ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.h5'
+    if dimensionality == 2:
+        mdl = dbpn( (None,None,1),
+            number_of_outputs=1,
+            number_of_base_filters=nfilt,
+            number_of_feature_filters=nff,
+            number_of_back_projection_stages=nbp,
+            convolution_kernel_size=(convn, convn),
+            strides=(strider[0], strider[1]),
+            last_convolution=(lastconv, lastconv), 
+            number_of_loss_functions=1, 
+            interpolation='nearest')
+    if dimensionality == 3:
+        mdl = dbpn( (None,None,None,1),
+            number_of_outputs=1,
+            number_of_base_filters=nfilt,
+            number_of_feature_filters=nff,
+            number_of_back_projection_stages=nbp,
+            convolution_kernel_size=(convn, convn, convn),
+            strides=(strider[0], strider[1], strider[2]),
+            last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
+    return mdl
+
+
+def image_patch_training_data_from_filenames( filenames ):
+    return x, y
+
+def auto_weight_loss( mdl, x, y ):
+    msqw = 1
+    tvw = 1e-8
+    featw = 10
+    wts = [msqw,tvw,featw]
+    return wts
+
+def train( mdl, x, y, xte=None, yte=None, lin=None, linte=None  ):
+    wts = auto_weight_loss( mdl, x, y )
+    return training_path, evaluation_results
+
+def inference( 
+    mdl,
+    image, 
+    segmentation ):
+    return NULL
+
+def write_training( 
+    output_prefix, 
+    mdl, 
+    training_path,   
+    evaluation_results):
+    return

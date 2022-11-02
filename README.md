@@ -43,20 +43,21 @@ os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
 
 import ants
 import antspynet
-import antspydpr
+import siq
 
-x, y, lin = antspydpr.sr_training_data( "HCPT1T2", "train" )
-xte, yte, linte = antspydpr.sr_training_data( "HCPT1T2", "test" )
+strider = [2,2,2]
+x, y, lin = siq.get_data( "HCPT1T2", "train", strider )
+xte, yte, linte = siq.get_data( "HCPT1T2", "test", strider )
 
-mdl = antspydpr.dbpn_arch( )
+mdl = siq.default_dbpn( strider )
 
-training_path, evaluation_results = antspydpr.train( mdl, x, y, xte, yte, lin, lte )
+training_path, evaluation_results = siq.train( mdl, x, y, xte, yte, lin, lte )
 
-antspydpr.write_training( '/tmp/test_output', mdl, training_path,   
+siq.write_training( '/tmp/test_output', mdl, training_path,   
     evaluation_results )
 
 image = ants.image_read( example_fn )
-antspydpr.inference( image, mdl )
+siq.inference( image, mdl )
 
 ```
 
