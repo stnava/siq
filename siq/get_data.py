@@ -305,7 +305,7 @@ def get_random_patch( img, patchWidth ):
         inds = get_random_base_ind( full_dims = img.shape )
         hinds = [None,None,None]
         for k in range(len(inds)):
-            hinds[k] = inds[k] + patchWidth
+            hinds[k] = inds[k] + patchWidth[k]
         myimg = ants.crop_indices( img, inds, hinds )
         mystd = myimg.std()
     return myimg
@@ -317,7 +317,7 @@ def get_random_patch_pair( img, img2, patchWidth ):
         inds = get_random_base_ind( full_dims = img.shape )
         hinds = [None,None,None]
         for k in range(len(inds)):
-            hinds[k] = inds[k] + patchWidth
+            hinds[k] = inds[k] + patchWidth[k]
         myimg = ants.crop_indices( img, inds, hinds )
         myimg2 = ants.crop_indices( img2, inds, hinds )
         mystd = myimg.std()
@@ -387,18 +387,205 @@ def default_dbpn(
     return mdl
 
 
-def image_patch_training_data_from_filenames( filenames ):
-    return x, y
+def image_patch_training_data_from_filenames( 
+    filenames,
+    target_patch_size,
+    target_patch_size_low,
+    nPatches = 128, 
+    istest   = False,
+    patch_scaler=True, 
+    to_tensorflow = False,
+    verbose = False 
+    ):
+    # **data generation**<br>
+    # recent versions of tensorflow/keras allow data generators to be passed<br>
+    # directly to the fit function.  underneath, this does a fairly efficient split<br>
+    # between GPU and CPU usage and data transfer.<br>
+    # this generator randomly chooses between linear and nearest neighbor downsampling.<br>
+    # the *patch_scale* option can also be seen here which impacts how the network<br>
+    # sees/learns from image intensity.
+    if verbose:
+        print("begin image_patch_training_data_from_filenames")
+    tardim = len( target_patch_size )
+    strider = []
+    for j in range( tardim ):
+        strider.append( np.round( target_patch_size[j]/target_patch_size_low[j]) )
+    if tardim == 3:
+        shaperhi = (nPatches,target_patch_size[0],target_patch_size[1],target_patch_size[2],1)
+        shaperlo = (nPatches,target_patch_size_low[0],target_patch_size_low[1],target_patch_size_low[2],1)
+    if tardim == 2:
+        shaperhi = (nPatches,target_patch_size[0],target_patch_size[1],1)
+        shaperlo = (nPatches,target_patch_size_low[0],target_patch_size_low[1],1)
+    patchesOrig = np.zeros(shape=shaperhi)
+    patchesResam = np.zeros(shape=shaperlo)
+    patchesUp = None
+    if istest:
+        patchesUp = np.zeros(shape=patchesOrig.shape)    
+    for myn in range(nPatches):
+            if verbose:
+                print(myn)
+            imgfn = random.sample( filenames, 1 )[0]
+            if verbose:
+                print(imgfn)
+            img = ants.image_read( imgfn ).iMath("Normalize")
+            if img.components > 1:
+                img = ants.split_channels(img)[0]
+            img = ants.crop_image( img, ants.threshold_image( img, 0.05, 1 ) )
+            ants.set_origin( img, ants.get_center_of_mass(img) )
+            img = ants.iMath(img,"Normalize")
+            spc = ants.get_spacing( img )
+            newspc = []
+            for jj in range(len(spc)):
+                newspc.append(spc[jj]*strider[jj])
+            interp_type = random.choice( [0,1] )
+            if True:
+                imgp = get_random_patch( img, target_patch_size )
+                imgpmin = imgp.min()
+                if patch_scaler:
+                    imgp = imgp - imgpmin
+                    imgpmax = imgp.max()
+                    if imgpmax > 0 :
+                        imgp = imgp / imgpmax
+                rimgp = ants.resample_image( imgp, newspc, use_voxels = False, interp_type=interp_type  )
+                if istest:
+                    rimgbi = ants.resample_image( rimgp, spc, use_voxels = False, interp_type=0  )
+                if tardim == 3:
+                    patchesOrig[myn,:,:,:,0] = imgp.numpy()
+                    patchesResam[myn,:,:,:,0] = rimgp.numpy()
+                    if istest:
+                        patchesUp[myn,:,:,:,0] = rimgbi.numpy()
+                if tardim == 2:
+                    patchesOrig[myn,:,:,0] = imgp.numpy()
+                    patchesResam[myn,:,:,0] = rimgp.numpy()
+                    if istest:
+                        patchesUp[myn,:,:,0] = rimgbi.numpy()
+    if to_tensorflow:
+        patchesOrig = tf.cast( patchesOrig, "float32")
+        patchesResam = tf.cast( patchesResam, "float32")
+    if istest:
+        if to_tensorflow:
+            patchesUp = tf.cast( patchesUp, "float32")
+    return patchesResam, patchesOrig, patchesUp
+
+def numpy_generator( filenames ):
+    patchesResam=patchesOrig=patchesUp=None
+    yield (patchesResam, patchesOrig,patchesUp)
 
 def auto_weight_loss( mdl, x, y ):
-    msqw = 1
-    tvw = 1e-8
-    featw = 10
+    y_pred = mdl( y )
+    squared_difference = tf.square( y - y_pred)
+    if len( y.shape ) == 5:
+            tdim = 3
+            myax = [1,2,3,4]
+    if len( y.shape ) == 4:
+            tdim = 2
+            myax = [1,2,3]
+    msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+    temp1 = feature_extractor(y_true)
+    temp2 = feature_extractor(y_pred)
+    feature_difference = tf.square(temp1-temp2)
+    featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+    msqw = 10
+    featw = 2.0 * msqw * msqTerm / featureTerm
+    mytv = tf.cast( 0.0, 'float32')
+    if tdim == 3:
+        for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
+            sqzd = y_pred[k,:,:,:,:]
+            mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
+    if tdim == 2:
+        mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
+    tvw = 0.1 * msqw * msqTerm / mytv
     wts = [msqw,tvw,featw]
     return wts
 
-def train( mdl, x, y, xte=None, yte=None, lin=None, linte=None  ):
-    wts = auto_weight_loss( mdl, x, y )
+def image_generator( 
+    filenames,
+    nPatches,
+    target_patch_size,
+    target_patch_size_low,
+    patch_scaler=True, 
+    istest=False,
+    verbose = False ):
+    while True:
+        patchesResam, patchesOrig, patchesUp = image_patch_training_data_from_filenames( 
+            filenames,
+            target_patch_size = target_patch_size,
+            target_patch_size_low = target_patch_size_low,
+            nPatches = nPatches, 
+            istest   = istest,
+            patch_scaler=patch_scaler, 
+            to_tensorflow = True,
+            verbose = verbose )
+        if istest:
+            yield (patchesResam, patchesOrig,patchesUp)
+        yield (patchesResam, patchesOrig)
+
+
+def train( mdl, filenames_train, filenames_test, n_test = 8,
+    learning_rate=5e-5, feature_layer = 6, verbose = False  ):
+    feature_extractor = get_grader_feature_network( feature_layer )
+    mydatgen = image_generator( 1, mybs, istest=False , verbose=False)
+    mydatgenTest = image_generator( 1, mybs, istest=True, verbose=True)
+    patchesResamTeTf, patchesOrigTeTf, patchesUpTeTf = next( mydatgenTest )
+    mydatgenTest = image_generator( 1, mybs, istest=True, verbose=True)
+    patchesResamTeTfB, patchesOrigTeTfB, patchesUpTeTfB = next( mydatgenTest )
+    for k in range( n_test - 1 ):
+        mydatgenTest = my_generator( 1, mybs, istest=True, verbose=True) # FIXME for a real training run
+        temp0, temp1, temp2 = next( mydatgenTest )
+        patchesResamTeTfB = tf.concat( [patchesResamTeTfB,temp0],axis=0)
+        patchesOrigTeTfB = tf.concat( [patchesOrigTeTfB,temp1],axis=0)
+        patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
+    wts = auto_weight_loss( mdl, patchesResamTeTf, patchesOrigTeTf )
+    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2] ): 
+        squared_difference = tf.square(y_true - y_pred)
+        if len( y_true.shape ) == 5:
+            tdim = 3
+            myax = [1,2,3,4]
+        if len( y_true.shape ) == 4:
+            tdim = 2
+            myax = [1,2,3]
+        msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+        temp1 = feature_extractor(y_true)
+        temp2 = feature_extractor(y_pred)
+        feature_difference = tf.square(temp1-temp2)
+        featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+        loss = msqTerm * msqwt + featureTerm * fw
+        mytv = tf.cast( 0.0, 'float32')
+        if tdim == 3:
+            for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
+                sqzd = y_pred[k,:,:,:,:]
+                mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
+        if tdim == 2:
+            mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
+        return( loss + mytv )
+    opt = tf.keras.optimizers.Adam( learning_rate=learning_rate )
+    mdl.compile(optimizer=opt, loss=my_loss_6)
+    # set up some parameters for tracking performance
+    bestValLoss=1e12
+    bestSSIM=0.0
+    bestQC0 = -1000
+    bestQC1 = -1000
+    if verbose:
+        print( "begin training", flush=True  )
+    for myrs in range( 100000 ):
+        tracker = mdl.fit( mydatgen,  epochs=2, steps_per_epoch=4, verbose=1,
+            validation_data=(patchesResamTeTf,patchesOrigTeTf),
+            workers = 1, use_multiprocessing=False )
+        print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
+        if myrs % 20 == 0:
+            with tf.device("/cpu:0"):
+                tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
+                if ( tester < bestValLoss ):
+                    print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) , flush=True )
+                    bestValLoss = tester
+                    tf.keras.models.save_model( mdl, ofn )
+                pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
+                myssimSR = tf.image.psnr( pp * 220, patchesOrigTeTfB* 220, max_val=255 )
+                myssimSR = tf.reduce_mean( myssimSR ).numpy()
+                myssimBI = tf.image.psnr( patchesUpTeTfB * 220, patchesOrigTeTfB* 220, max_val=255 )
+                myssimBI = tf.reduce_mean( myssimBI ).numpy()
+                print( "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
+
     return training_path, evaluation_results
 
 def inference( 

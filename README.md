@@ -40,14 +40,29 @@ import os
 os.environ["TF_NUM_INTEROP_THREADS"] = "8"
 os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
-
-import ants
-import antspynet
+import glob
 import siq
-
+fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) ) # antspyt1w.get_data
 strider = [2,2,2]
-x, y, lin = siq.get_data( "HCPT1T2", "train", strider )
-xte, yte, linte = siq.get_data( "HCPT1T2", "test", strider )
+psz = [32,32,32]
+pszlo = [16,16,16]
+x,y = siq.image_patch_training_data_from_filenames(
+    filenames=fns,
+    target_patch_size=psz,
+    target_patch_size_low=pszlo,
+    nPatches = 3,
+    istest   = False,
+    patch_scaler=True,
+    verbose = True )
+
+xte,yte = siq.image_patch_training_data_from_filenames(
+    filenames=fns,
+    target_patch_size=psz,
+    target_patch_size_low=pszlo,
+    nPatches = 3,
+    istest   = False,
+    patch_scaler=True,
+    verbose = True )
 
 mdl = siq.default_dbpn( strider )
 

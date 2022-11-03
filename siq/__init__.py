@@ -16,3 +16,6 @@ from .get_data import write_training
 from .get_data import train
 from .get_data import auto_weight_loss
 from .get_data import image_patch_training_data_from_filenames
+from .get_data import image_generator
+from .get_data import numpy_generator
+from .get_data import read
