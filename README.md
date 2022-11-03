@@ -1,4 +1,4 @@
-# ANTsPyDPR
+# SIQ - super-resolution image quantification
 
 ## deep perceptual resampling and super-resolution for (medical) imaging
 
@@ -8,7 +8,7 @@ install by calling (within the source directory):
 python setup.py install
 ```
 
-or install via `pip install antspydpr`
+or install via `pip install siq`
 
 # what this will do
 
@@ -22,12 +22,11 @@ facilitates:
 
 * evaluation strategies for the above
 
-
 # first time setup
 
 ```python
-import antspydpr
-antspydpr.get_data()
+import siq
+siq.get_data()
 ```
 
 NOTE: `get_data` has a `force_download` option to make sure the latest
@@ -64,6 +63,8 @@ xte,yte = siq.image_patch_training_data_from_filenames(
     patch_scaler=True,
     verbose = True )
 
+# write these to numpy - then we can train in a reproducible way
+
 mdl = siq.default_dbpn( strider )
 
 training_path, evaluation_results = siq.train( mdl, x, y, xte, yte, lin, lte )
@@ -80,6 +81,7 @@ siq.inference( image, mdl )
 ## to publish a release
 
 ```
-python3 -m build
+rm -r -f build/ antspymm.egg-info/ dist/
+python3 setup.py sdist bdist_wheel
 python -m twine upload -u username -p password  dist/*
 ```

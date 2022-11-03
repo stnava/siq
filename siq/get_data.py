@@ -6,6 +6,7 @@ import pandas as pd
 import math
 import os.path
 from os import path
+from os.path import exists
 import pickle
 import sys
 import numpy as np
@@ -480,7 +481,7 @@ def numpy_generator( filenames ):
     patchesResam=patchesOrig=patchesUp=None
     yield (patchesResam, patchesOrig,patchesUp)
 
-def auto_weight_loss( mdl, x, y, feature=2.0, tv=0.1 ):
+def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1 ):
     y_pred = mdl( x )
     squared_difference = tf.square( y - y_pred)
     if len( y.shape ) == 5:
@@ -490,21 +491,21 @@ def auto_weight_loss( mdl, x, y, feature=2.0, tv=0.1 ):
             tdim = 2
             myax = [1,2,3]
     msqTerm = tf.reduce_mean(squared_difference, axis=myax)
-    temp1 = feature_extractor(y_true)
+    temp1 = feature_extractor(y)
     temp2 = feature_extractor(y_pred)
     feature_difference = tf.square(temp1-temp2)
     featureTerm = tf.reduce_mean(feature_difference, axis=myax)
-    msqw = 10
+    msqw = 10.0
     featw = feature * msqw * msqTerm / featureTerm
     mytv = tf.cast( 0.0, 'float32')
     if tdim == 3:
-        for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
+        for k in range( y_pred.shape[0] ): # BUG not sure why myr fails .... might be old TF version
             sqzd = y_pred[k,:,:,:,:]
-            mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
+            mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) )
     if tdim == 2:
-        mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
+        mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) )
     tvw = tv * msqw * msqTerm / mytv
-    wts = [msqw,tvw,featw]
+    wts = [msqw,featw.numpy().mean(),tvw.numpy().mean()]
     return wts
 
 def image_generator( 
@@ -531,7 +532,11 @@ def image_generator(
 
 
 def train( mdl, filenames_train, filenames_test, n_test = 8,
-    learning_rate=5e-5, feature_layer = 6, verbose = False  ):
+    learning_rate=5e-5, 
+    feature_layer = 6, 
+    feature = 2,
+    tv = 0.1,
+    verbose = False  ):
     feature_extractor = get_grader_feature_network( feature_layer )
     mydatgen = image_generator( 1, mybs, istest=False , verbose=False)
     mydatgenTest = image_generator( 1, mybs, istest=True, verbose=True)
@@ -544,7 +549,7 @@ def train( mdl, filenames_train, filenames_test, n_test = 8,
         patchesResamTeTfB = tf.concat( [patchesResamTeTfB,temp0],axis=0)
         patchesOrigTeTfB = tf.concat( [patchesOrigTeTfB,temp1],axis=0)
         patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
-    wts = auto_weight_loss( mdl, patchesResamTeTf, patchesOrigTeTf )
+    wts = auto_weight_loss( mdl, patchesResamTeTf, patchesOrigTeTf, feature=feature, tv=tv )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2] ): 
         squared_difference = tf.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
@@ -561,7 +566,7 @@ def train( mdl, filenames_train, filenames_test, n_test = 8,
         loss = msqTerm * msqwt + featureTerm * fw
         mytv = tf.cast( 0.0, 'float32')
         if tdim == 3:
-            for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
+            for k in range( y_pred.shape[0] ): # BUG not sure why myr fails .... might be old TF version
                 sqzd = y_pred[k,:,:,:,:]
                 mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
         if tdim == 2:
