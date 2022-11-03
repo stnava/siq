@@ -467,6 +467,15 @@ def image_patch_training_data_from_filenames(
             patchesUp = tf.cast( patchesUp, "float32")
     return patchesResam, patchesOrig, patchesUp
 
+def read( filename ):
+    import re
+    isnpy = len( re.sub( ".npy", "", filename ) ) != len( filename )
+    if not isnpy:
+        myoutput = ants.image_read( filename )
+    else:
+        myoutput = np.load( filename )
+    return myoutput
+
 def numpy_generator( filenames ):
     patchesResam=patchesOrig=patchesUp=None
     yield (patchesResam, patchesOrig,patchesUp)
