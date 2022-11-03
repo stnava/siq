@@ -471,8 +471,8 @@ def numpy_generator( filenames ):
     patchesResam=patchesOrig=patchesUp=None
     yield (patchesResam, patchesOrig,patchesUp)
 
-def auto_weight_loss( mdl, x, y ):
-    y_pred = mdl( y )
+def auto_weight_loss( mdl, x, y, feature=2.0, tv=0.1 ):
+    y_pred = mdl( x )
     squared_difference = tf.square( y - y_pred)
     if len( y.shape ) == 5:
             tdim = 3
@@ -486,7 +486,7 @@ def auto_weight_loss( mdl, x, y ):
     feature_difference = tf.square(temp1-temp2)
     featureTerm = tf.reduce_mean(feature_difference, axis=myax)
     msqw = 10
-    featw = 2.0 * msqw * msqTerm / featureTerm
+    featw = feature * msqw * msqTerm / featureTerm
     mytv = tf.cast( 0.0, 'float32')
     if tdim == 3:
         for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
@@ -494,7 +494,7 @@ def auto_weight_loss( mdl, x, y ):
             mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
     if tdim == 2:
         mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
-    tvw = 0.1 * msqw * msqTerm / mytv
+    tvw = tv * msqw * msqTerm / mytv
     wts = [msqw,tvw,featw]
     return wts
 
