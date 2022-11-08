@@ -477,10 +477,6 @@ def read( filename ):
         myoutput = np.load( filename )
     return myoutput
 
-def numpy_generator( filenames ):
-    patchesResam=patchesOrig=patchesUp=None
-    yield (patchesResam, patchesOrig,patchesUp)
-
 def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1 ):
     y_pred = mdl( x )
     squared_difference = tf.square( y - y_pred)
@@ -508,6 +504,10 @@ def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1 ):
     wts = [msqw,featw.numpy().mean(),tvw.numpy().mean()]
     return wts
 
+def numpy_generator( filenames ):
+    patchesResam=patchesOrig=patchesUp=None
+    yield (patchesResam, patchesOrig,patchesUp)
+
 def image_generator( 
     filenames,
     nPatches,
@@ -531,26 +531,63 @@ def image_generator(
         yield (patchesResam, patchesOrig)
 
 
-def train( mdl, filenames_train, filenames_test, n_test = 8,
+def train( 
+    mdl, 
+    filenames_train, 
+    filenames_test, 
+    target_patch_size,
+    target_patch_size_low,
+    output_prefix,
+    n_test = 8,
     learning_rate=5e-5, 
     feature_layer = 6, 
     feature = 2,
     tv = 0.1,
+    max_iterations = 1000,
+    batch_size = 1,
     verbose = False  ):
+    if verbose:
+        print("begin get feature extractor")
     feature_extractor = get_grader_feature_network( feature_layer )
-    mydatgen = image_generator( 1, mybs, istest=False , verbose=False)
-    mydatgenTest = image_generator( 1, mybs, istest=True, verbose=True)
+    if verbose:
+        print("begin train generator")
+    mydatgen = image_generator( 
+        filenames_train, 
+        nPatches=1,
+        target_patch_size=target_patch_size,
+        target_patch_size_low=target_patch_size_low,
+        istest=False , verbose=False)
+    if verbose:
+        print("begin test generator")
+    mydatgenTest = image_generator( filenames_test, nPatches=1,
+        target_patch_size=target_patch_size,
+        target_patch_size_low=target_patch_size_low,
+        istest=True, verbose=True)
     patchesResamTeTf, patchesOrigTeTf, patchesUpTeTf = next( mydatgenTest )
-    mydatgenTest = image_generator( 1, mybs, istest=True, verbose=True)
+    if verbose:
+        print("begin train generator #2")
+    mydatgenTest = image_generator( filenames_test, nPatches=1,
+        target_patch_size=target_patch_size,
+        target_patch_size_low=target_patch_size_low,
+        istest=True, verbose=True)
     patchesResamTeTfB, patchesOrigTeTfB, patchesUpTeTfB = next( mydatgenTest )
     for k in range( n_test - 1 ):
-        mydatgenTest = my_generator( 1, mybs, istest=True, verbose=True) # FIXME for a real training run
+        mydatgenTest = image_generator( filenames_test, nPatches=1,
+            target_patch_size=target_patch_size,
+            target_patch_size_low=target_patch_size_low,
+            istest=True, verbose=True)
         temp0, temp1, temp2 = next( mydatgenTest )
         patchesResamTeTfB = tf.concat( [patchesResamTeTfB,temp0],axis=0)
         patchesOrigTeTfB = tf.concat( [patchesOrigTeTfB,temp1],axis=0)
         patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
-    wts = auto_weight_loss( mdl, patchesResamTeTf, patchesOrigTeTf, feature=feature, tv=tv )
-    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2] ): 
+    if verbose:
+        print("begin auto_weight_loss")
+    wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+        feature=feature, tv=tv )
+    if verbose:
+        print( "automatic weights:" )
+        print( wts )
+    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ): 
         squared_difference = tf.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
             tdim = 3
@@ -565,13 +602,16 @@ def train( mdl, filenames_train, filenames_test, n_test = 8,
         featureTerm = tf.reduce_mean(feature_difference, axis=myax)
         loss = msqTerm * msqwt + featureTerm * fw
         mytv = tf.cast( 0.0, 'float32')
+        # mybs =  int( y_pred.shape[0] ) --- should work but ... ?
         if tdim == 3:
-            for k in range( y_pred.shape[0] ): # BUG not sure why myr fails .... might be old TF version
+            for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
                 sqzd = y_pred[k,:,:,:,:]
                 mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
         if tdim == 2:
             mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
         return( loss + mytv )
+    if verbose:
+        print("begin model compilation")
     opt = tf.keras.optimizers.Adam( learning_rate=learning_rate )
     mdl.compile(optimizer=opt, loss=my_loss_6)
     # set up some parameters for tracking performance
@@ -581,26 +621,27 @@ def train( mdl, filenames_train, filenames_test, n_test = 8,
     bestQC1 = -1000
     if verbose:
         print( "begin training", flush=True  )
-    for myrs in range( 100000 ):
+    for myrs in range( max_iterations ):
         tracker = mdl.fit( mydatgen,  epochs=2, steps_per_epoch=4, verbose=1,
             validation_data=(patchesResamTeTf,patchesOrigTeTf),
             workers = 1, use_multiprocessing=False )
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % 20 == 0:
             with tf.device("/cpu:0"):
+                myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
                 tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
                 if ( tester < bestValLoss ):
-                    print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) , flush=True )
+                    print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
                     bestValLoss = tester
-                    tf.keras.models.save_model( mdl, ofn )
+                    tf.keras.models.save_model( mdl, myofn )
                 pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
                 myssimSR = tf.image.psnr( pp * 220, patchesOrigTeTfB* 220, max_val=255 )
                 myssimSR = tf.reduce_mean( myssimSR ).numpy()
                 myssimBI = tf.image.psnr( patchesUpTeTfB * 220, patchesOrigTeTfB* 220, max_val=255 )
                 myssimBI = tf.reduce_mean( myssimBI ).numpy()
-                print( "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
-
-    return training_path, evaluation_results
+                print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
+    return 0, 0
+    # return training_path, evaluation_results
 
 def inference( 
     mdl,

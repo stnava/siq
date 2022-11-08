@@ -41,37 +41,18 @@ os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
 import glob
 import siq
-fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) ) # antspyt1w.get_data
-strider = [2,2,2]
-psz = [32,32,32]
-pszlo = [16,16,16]
-x,y = siq.image_patch_training_data_from_filenames(
-    filenames=fns,
-    target_patch_size=psz,
-    target_patch_size_low=pszlo,
-    nPatches = 3,
-    istest   = False,
-    patch_scaler=True,
-    verbose = True )
-
-xte,yte = siq.image_patch_training_data_from_filenames(
-    filenames=fns,
-    target_patch_size=psz,
-    target_patch_size_low=pszlo,
-    nPatches = 3,
-    istest   = False,
-    patch_scaler=True,
-    verbose = True )
-
-# write these to numpy - then we can train in a reproducible way
-
+fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )[0:3]
 mdl = siq.default_dbpn( strider )
-
-training_path, evaluation_results = siq.train( mdl, x, y, xte, yte, lin, lte )
-
+training_path, evaluation_results = siq.train(
+    mdl, 
+    fns[0:3], fns[0:3], 
+    target_patch_size=[32,32,32],
+    target_patch_size_low=[16,16,16],
+    n_test=2, 
+    learning_rate=5e-05, feature_layer=6, 
+    feature=2, tv=0.1, max_iterations=5, verbose=True)
 siq.write_training( '/tmp/test_output', mdl, training_path,   
     evaluation_results )
-
 image = ants.image_read( example_fn )
 siq.inference( image, mdl )
 
