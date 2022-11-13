@@ -42,17 +42,21 @@ os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
 import glob
 import siq
 fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )[0:3]
-mdl = siq.default_dbpn( strider )
+mdl = siq.default_dbpn( [2,2,2] ) # should match ratio of high to low size patches
 training_path, evaluation_results = siq.train(
-    mdl, 
-    fns[0:3], fns[0:3], 
-    target_patch_size=[32,32,32],
-    target_patch_size_low=[16,16,16],
-    n_test=2, 
-    learning_rate=5e-05, feature_layer=6, 
-    feature=2, tv=0.1, max_iterations=5, verbose=True)
-siq.write_training( '/tmp/test_output', mdl, training_path,   
-    evaluation_results )
+    mdl,
+    fns[0:3], # train files
+    fns[0:3], # test files
+    target_patch_size=[32,32,32],      # patch sizes at high res
+    target_patch_size_low=[16,16,16],  # patch sizes at low res
+    n_test=2,                          # number of test examples
+    learning_rate=5e-05,               #
+    feature_layer=6,                   #
+    feature=2,
+    tv=0.1,
+    max_iterations=5,
+    verbose=True)
+siq.write_training( '/tmp/test_output', mdl, training_path, evaluation_results )
 image = ants.image_read( example_fn )
 siq.inference( image, mdl )
 

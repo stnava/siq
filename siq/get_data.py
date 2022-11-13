@@ -357,7 +357,9 @@ def default_dbpn(
     nff = 256,
     convn = 6,
     lastconv = 3,
-    nbp=7
+    nbp=7, 
+    nChannelsIn=1,
+    nChannelsOut=1
  ):
     if len(strider) != dimensionality:
         raise Exception("len(strider) != dimensionality")
@@ -366,8 +368,8 @@ def default_dbpn(
     # divisible by each other reduces artifacts.  2*3=6.
     # ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.h5'
     if dimensionality == 2:
-        mdl = dbpn( (None,None,1),
-            number_of_outputs=1,
+        mdl = dbpn( (None,None,nChannelsIn),
+            number_of_outputs=nChannelsOut,
             number_of_base_filters=nfilt,
             number_of_feature_filters=nff,
             number_of_back_projection_stages=nbp,
@@ -377,8 +379,8 @@ def default_dbpn(
             number_of_loss_functions=1, 
             interpolation='nearest')
     if dimensionality == 3:
-        mdl = dbpn( (None,None,None,1),
-            number_of_outputs=1,
+        mdl = dbpn( (None,None,None,nChannelsIn),
+            number_of_outputs=nChannelsOut,
             number_of_base_filters=nfilt,
             number_of_feature_filters=nff,
             number_of_back_projection_stages=nbp,
@@ -386,7 +388,6 @@ def default_dbpn(
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
     return mdl
-
 
 def image_patch_training_data_from_filenames( 
     filenames,
