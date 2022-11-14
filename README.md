@@ -73,11 +73,7 @@ test = siq.inference( image, mdl )
 
 ## todo
 
-1. segmentation
-
-2. numpy read/write
-
-3. dice
+1. numpy read/write
 
 ## to publish a release
 
