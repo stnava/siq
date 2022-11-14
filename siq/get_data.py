@@ -944,7 +944,7 @@ def inference(
         if truncation is not None:
             pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
         mynp=segmentation.numpy()
-        mynp=list(np.unique(mynp)[1:len(mynp)].astype(np.int))
+        mynp=list(np.unique(mynp)[1:len(mynp)].astype(int))
         upFactor=[]
         if len(mdl.inputs[0].shape) == 5:
             testarr = np.zeros( [1,8,8,8,2 ] )
