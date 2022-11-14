@@ -25,8 +25,10 @@ facilitates:
 # first time setup
 
 ```python
-import siq
-siq.get_data()
+import antspyt1w
+antspyt1w.get_data( force_download=True )
+# import siq     # FIXME - for later
+# siq.get_data( force_download=True )
 ```
 
 NOTE: `get_data` has a `force_download` option to make sure the latest
@@ -36,14 +38,19 @@ package data is installed.
 
 ```python
 import os
-os.environ["TF_NUM_INTEROP_THREADS"] = "8"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
-os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
-import glob
 import siq
-fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )[0:3]
-mdl = siq.default_dbpn( [2,2,2] ) # should match ratio of high to low size patches
-myoutprefix = "/tmp/XXX"
+import glob
+import ants
+fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
+import tensorflow as tf
+ofn = os.path.expanduser("~/code/DPR/models/dsr3d_2up_64_256_6_3_v0.0zzz.h5")
+if os.path.exists( ofn ):
+    print("existing model") # should always initialize with pre-trained model
+    mdl = tf.keras.models.load_model( ofn, compile=False )
+else:
+    print("default model - initialized with random weights")
+    mdl = siq.default_dbpn( [2,2,2] ) # should match ratio of high to low size patches
+myoutprefix = '/tmp/XXX'
 training_path = siq.train(
     mdl, 
     fns[0:3], 
@@ -55,14 +62,13 @@ training_path = siq.train(
     learning_rate=5e-05, 
     feature_layer=6, 
     feature=2, 
-    tv=0.1, 
-    dice=1.0,
-    max_iterations=5, 
+    tv=0.1,
+    max_iterations=2, 
     verbose=True)
 training_path.to_csv( myoutprefix + "_training.csv" )
-image = ants.image_read( example_fn )
-siq.inference( image, mdl )
-
+image = ants.image_read( fns[0] )
+image = ants.resample_image( image, [48,48,48] ) # downsample for speed in testing
+test = siq.inference( image, mdl )
 ```
 
 ## todo
@@ -72,7 +78,6 @@ siq.inference( image, mdl )
 2. numpy read/write
 
 3. dice
-
 
 ## to publish a release
 

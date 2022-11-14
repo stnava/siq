@@ -28,10 +28,10 @@ DATA_PATH = os.path.expanduser('~/.siq/')
 
 def get_data( name=None, force_download=False, version=0, target_extension='.csv' ):
     """
-    Get ANTsPyDPR data filename
+    Get SIQ data filename
 
-    The first time this is called, it will download data to ~/.antspydpr.
-    After, it will just read data from disk.  The ~/.antspydpr may need to
+    The first time this is called, it will download data to ~/.siq.
+    After, it will just read data from disk.  The ~/.siq may need to
     be periodically deleted in order to ensure data is current.
 
     Arguments
@@ -52,8 +52,8 @@ def get_data( name=None, force_download=False, version=0, target_extension='.csv
 
     Example
     -------
-    >>> import antspydpr
-    >>> antspydpr.get_data()
+    >>> import siq
+    >>> siq.get_data()
     """
     os.makedirs(DATA_PATH, exist_ok=True)
 

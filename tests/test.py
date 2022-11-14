@@ -4,7 +4,7 @@ import glob
 import ants
 fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
 import tensorflow as tf
-ofn = "/Users/stnava/code/DPR/models/dsr3d_2up_64_256_6_3_v0.0zzz.h5"
+ofn = os.path.expanduser("~/code/DPR/models/dsr3d_2up_64_256_6_3_v0.0zzz.h5")
 if os.path.exists( ofn ):
     print("existing model")
     mdl = tf.keras.models.load_model( ofn, compile=False )
