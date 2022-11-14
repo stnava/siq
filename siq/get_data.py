@@ -617,7 +617,8 @@ def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dic
     tvw = tv * msqw * msqTerm / mytv
     mydice = binary_dice_loss( y_seg, y_seg_p )
     dicew = dice * msqw * msqTerm / mydice
-    wts = [msqw,featw.numpy().mean(),tvw.numpy().mean(),dicew.numpy().mean()]
+    dicewt = np.abs( dicew.numpy().mean() )
+    wts = [msqw,featw.numpy().mean(),tvw.numpy().mean(), dicewt ]
     return wts
 
 def numpy_generator( filenames ):
@@ -859,30 +860,32 @@ def train_seg(
     if verbose:
         print( "automatic weights:" )
         print( wts )
-    myderka
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], dicewt=wts[3], mybs = batch_size ): 
-        squared_difference = tf.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
             tdim = 3
             myax = [1,2,3,4]
         if len( y_true.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
+        y_intensity = tf.split( y_true, 2, axis=tdim+1 )[0]
+        y_seg = tf.split( y_true, 2, axis=tdim+1 )[1]
+        y_intensity_p = tf.split( y_pred, 2, axis=tdim+1 )[0]
+        y_seg_p = tf.split( y_pred, 2, axis=tdim+1 )[1]
+        squared_difference = tf.square(y_intensity - y_intensity_p)
         msqTerm = tf.reduce_mean(squared_difference, axis=myax)
-        temp1 = feature_extractor(y_true)
-        temp2 = feature_extractor(y_pred)
+        temp1 = feature_extractor(y_intensity)
+        temp2 = feature_extractor(y_intensity_p)
         feature_difference = tf.square(temp1-temp2)
         featureTerm = tf.reduce_mean(feature_difference, axis=myax)
         loss = msqTerm * msqwt + featureTerm * fw
-        dicer = tf.cast( 0.0, 'float32')
         mytv = tf.cast( 0.0, 'float32')
-        # mybs =  int( y_pred.shape[0] ) --- should work but ... ?
         if tdim == 3:
             for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
-                sqzd = y_pred[k,:,:,:,:]
+                sqzd = y_pred[k,:,:,:,0]
                 mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
         if tdim == 2:
-            mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
+            mytv = tf.reduce_mean( tf.image.total_variation( y_pred[:,:,:,0] ) ) * tvwt
+        dicer = dicewt * binary_dice_loss( y_seg, y_seg_p )
         return( loss + mytv + dicer )
     if verbose:
         print("begin model compilation")
