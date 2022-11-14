@@ -14,8 +14,12 @@ from .get_data import default_dbpn
 from .get_data import inference
 # from .get_data import write_training
 from .get_data import train
+from .get_data import train_seg
 from .get_data import auto_weight_loss
 from .get_data import image_patch_training_data_from_filenames
+from .get_data import seg_patch_training_data_from_filenames
 from .get_data import image_generator
-from .get_data import numpy_generator
+from .get_data import seg_generator
+from .get_data import numpy_generator # will build on image/seg generator
 from .get_data import read
+from .get_data import binary_dice_loss
