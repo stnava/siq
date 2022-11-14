@@ -940,12 +940,10 @@ def inference(
             pimg, mdl, target_range=[0,1], regression_order=None, verbose=verbose
             )
     else:
-        #  upFactor, sr_model, segmentation_numbers, dilation_amount=0, 
-        # probability_images=None, probability_labels=None, max_lab_plus_one=True, verbose=False)
         pimg = ants.image_clone( image )
         if truncation is not None:
             pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
-        mynp=seg.numpy()
+        mynp=segmentation.numpy()
         mynp=np.unique(mynp)[1:len(mynp)].astype(np.int)
         upFactor=[]
         if len(mdl.inputs[0].shape) == 5:
@@ -958,7 +956,7 @@ def inference(
             testarrout = mdl( testarr )
             for k in range(2):
                 upFactor.append( int( testarrout.shape[k+1]/testarr.shape[k+1]  )  )
-        return antspynet.apply_super_resolution_model_to_image(
+        return antspyt1w.super_resolution_segmentation_per_label(
             pimg, segmentation, upFactor, mdl,
             segmentation_numbers=mynp,
             dilation_amount=0,
