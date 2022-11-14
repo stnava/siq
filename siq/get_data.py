@@ -547,6 +547,8 @@ def train(
     max_iterations = 1000,
     batch_size = 1,
     verbose = False  ):
+    colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
+    training_path = np.zeros( [ max_iterations, len(colnames) ] )
     if verbose:
         print("begin get feature extractor")
     feature_extractor = get_grader_feature_network( feature_layer )
@@ -626,6 +628,9 @@ def train(
         tracker = mdl.fit( mydatgen,  epochs=2, steps_per_epoch=4, verbose=1,
             validation_data=(patchesResamTeTf,patchesOrigTeTf),
             workers = 1, use_multiprocessing=False )
+        training_path[myrs,0]=tracker.history['loss'][0]
+        training_path[myrs,1]=tracker.history['val_loss'][0]
+        training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % 20 == 0:
             with tf.device("/cpu:0"):
@@ -635,24 +640,31 @@ def train(
                     print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
                     bestValLoss = tester
                     tf.keras.models.save_model( mdl, myofn )
+                    training_path[myrs,2]=1
                 pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
                 myssimSR = tf.image.psnr( pp * 220, patchesOrigTeTfB* 220, max_val=255 )
                 myssimSR = tf.reduce_mean( myssimSR ).numpy()
                 myssimBI = tf.image.psnr( patchesUpTeTfB * 220, patchesOrigTeTfB* 220, max_val=255 )
                 myssimBI = tf.reduce_mean( myssimBI ).numpy()
                 print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
-    return 0, 0
-    # return training_path, evaluation_results
+                training_path[myrs,3]=myssimSR # psnr
+                training_path[myrs,4]=myssimBI # psnrlin
+    training_path = pd.DataFrame(training_path, columns = colnames )
+    return training_path
 
 def inference( 
-    mdl,
     image, 
-    segmentation ):
-    return NULL
-
-def write_training( 
-    output_prefix, 
-    mdl, 
-    training_path,   
-    evaluation_results):
-    return
+    mdl,
+    truncation = [0.001,0.999],
+    segmentation=None, 
+    verbose=False):
+    if segmentation is None:
+        pimg = ants.image_clone( image )
+        if truncation is not None:
+            pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
+        return antspynet.apply_super_resolution_model_to_image(
+            pimg, mdl, target_range=[0,1], regression_order=None, verbose=verbose
+            )
+    else:
+        return None
+    return None
