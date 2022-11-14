@@ -595,10 +595,10 @@ def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dic
     if len( y.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
-    y_intensity = tf.split( y, 2, axis=tdim+1 )
-    y_seg = tf.split( y, 2, axis=tdim+1 )
-    y_intensity_p = tf.split( y_pred, 2, axis=tdim+1 )
-    y_seg_p = tf.split( y_pred, 2, axis=tdim+1 )
+    y_intensity = tf.split( y, 2, axis=tdim+1 )[0]
+    y_seg = tf.split( y, 2, axis=tdim+1 )[1]
+    y_intensity_p = tf.split( y_pred, 2, axis=tdim+1 )[0]
+    y_seg_p = tf.split( y_pred, 2, axis=tdim+1 )[1]
     squared_difference = tf.square( y_intensity - y_intensity_p )
     msqTerm = tf.reduce_mean(squared_difference, axis=myax)
     temp1 = feature_extractor(y_intensity)
