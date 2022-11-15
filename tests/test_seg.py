@@ -11,6 +11,9 @@ import tensorflow as tf
 mdl = siq.default_dbpn( [2,2,2], 
     nChannelsIn=2, nChannelsOut=2, 
     sigmoid_second_channel=True) # should match ratio of high to low size patches
+# import numpy as np
+# testarr = np.zeros( [1,8,8,8,2 ] )
+# testarrout = mdl( testarr )
 myoutprefix = '/tmp/XXX'
 mdlfn = myoutprefix + "_best_mdl.h5"
 if exists( mdlfn ):

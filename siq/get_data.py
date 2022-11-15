@@ -392,6 +392,7 @@ def default_dbpn(
         mdlout = tf.split( mdl.outputs[0], 2, dimensionality+1)
         mdlout[1] = tf.nn.sigmoid( mdlout [1] )
         mdl.outputs[0] = tf.concat( mdlout, axis=dimensionality+1 )
+        mdl = Model(inputs=mdl.inputs, outputs=mdl.outputs )
     return mdl
 
 def image_patch_training_data_from_filenames( 
