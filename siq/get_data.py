@@ -359,7 +359,8 @@ def default_dbpn(
     lastconv = 3,
     nbp=7, 
     nChannelsIn=1,
-    nChannelsOut=1
+    nChannelsOut=1,
+    sigmoid_second_channel=False
  ):
     if len(strider) != dimensionality:
         raise Exception("len(strider) != dimensionality")
@@ -387,6 +388,10 @@ def default_dbpn(
             convolution_kernel_size=(convn, convn, convn),
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
+    if sigmoid_second_channel:
+        mdlout = tf.split( mdl.outputs[0], 2, dimensionality+1)
+        mdlout[1] = tf.nn.sigmoid( mdlout [1] )
+        mdl.outputs[0] = tf.concat( mdlout, axis=dimensionality+1 )
     return mdl
 
 def image_patch_training_data_from_filenames( 

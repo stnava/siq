@@ -8,7 +8,9 @@ import glob
 import ants
 fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
 import tensorflow as tf
-mdl = siq.default_dbpn( [2,2,2], nChannelsIn=2, nChannelsOut=2 ) # should match ratio of high to low size patches
+mdl = siq.default_dbpn( [2,2,2], 
+    nChannelsIn=2, nChannelsOut=2, 
+    sigmoid_second_channel=True) # should match ratio of high to low size patches
 myoutprefix = '/tmp/XXX'
 mdlfn = myoutprefix + "_best_mdl.h5"
 if exists( mdlfn ):
