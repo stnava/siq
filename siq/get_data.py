@@ -560,7 +560,7 @@ def read( filename ):
         myoutput = np.load( filename )
     return myoutput
 
-def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1 ):
+def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose=True ):
     y_pred = mdl( x )
     squared_difference = tf.square( y - y_pred)
     if len( y.shape ) == 5:
@@ -584,10 +584,14 @@ def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1 ):
     if tdim == 2:
         mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) )
     tvw = tv * msqw * msqTerm / mytv
+    if verbose :
+        print( "MSQ: " + str( msqw * msqTerm ) )
+        print( "Feat: " + str( featw * featureTerm ) )
+        print( "Tv: " + str(  mytv * tvw ) )
     wts = [msqw,featw.numpy().mean(),tvw.numpy().mean()]
     return wts
 
-def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dice=0.5 ):
+def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dice=0.5, verbose=True ):
     y_pred = mdl( x )
     if len( y.shape ) == 5:
             tdim = 3
@@ -616,8 +620,14 @@ def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dic
         mytv = tf.reduce_mean( tf.image.total_variation( y_pred[:,:,:,0] ) )
     tvw = tv * msqw * msqTerm / mytv
     mydice = binary_dice_loss( y_seg, y_seg_p )
+    mydice = tf.reduce_mean( mydice )
     dicew = dice * msqw * msqTerm / mydice
     dicewt = np.abs( dicew.numpy().mean() )
+    if verbose :
+        print( "MSQ: " + str( msqw * msqTerm ) )
+        print( "Feat: " + str( featw * featureTerm ) )
+        print( "Tv: " + str(  mytv * tvw ) )
+        print( "Dice: " + str( mydice * dicewt ) )
     wts = [msqw,featw.numpy().mean(),tvw.numpy().mean(), dicewt ]
     return wts
 
@@ -685,6 +695,7 @@ def train(
     tv = 0.1,
     max_iterations = 1000,
     batch_size = 1,
+    save_all_best = False,
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
@@ -706,8 +717,14 @@ def train(
         target_patch_size_low=target_patch_size_low,
         istest=True, verbose=True)
     patchesResamTeTf, patchesOrigTeTf, patchesUpTeTf = next( mydatgenTest )
+    if len( patchesOrigTeTf.shape ) == 5:
+            tdim = 3
+            myax = [1,2,3,4]
+    if len( patchesOrigTeTf.shape ) == 4:
+            tdim = 2
+            myax = [1,2,3]
     if verbose:
-        print("begin train generator #2")
+        print("begin train generator #2 at dim: " + str( tdim))
     mydatgenTest = image_generator( filenames_test, nPatches=1,
         target_patch_size=target_patch_size,
         target_patch_size_low=target_patch_size_low,
@@ -773,7 +790,9 @@ def train(
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % 20 == 0:
             with tf.device("/cpu:0"):
-                myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
+                myofn = output_prefix + "_best_mdl.h5"
+                if save_all_best:
+                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
                 tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
                 if ( tester < bestValLoss ):
                     print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
@@ -816,8 +835,9 @@ def train_seg(
     dice = 0.5,
     max_iterations = 1000,
     batch_size = 1,
+    save_all_best = False,
     verbose = False  ):
-    colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
+    colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     if verbose:
         print("begin get feature extractor")
@@ -837,8 +857,14 @@ def train_seg(
         target_patch_size_low=target_patch_size_low,
         istest=True, verbose=True)
     patchesResamTeTf, patchesOrigTeTf, patchesUpTeTf = next( mydatgenTest )
+    if len( patchesOrigTeTf.shape ) == 5:
+            tdim = 3
+            myax = [1,2,3,4]
+    if len( patchesOrigTeTf.shape ) == 4:
+            tdim = 2
+            myax = [1,2,3]
     if verbose:
-        print("begin train generator #2")
+        print("begin train generator #2 at dim: " + str( tdim))
     mydatgenTest = seg_generator( filenames_test, nPatches=1,
         target_patch_size=target_patch_size,
         target_patch_size_low=target_patch_size_low,
@@ -885,7 +911,7 @@ def train_seg(
                 mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
         if tdim == 2:
             mytv = tf.reduce_mean( tf.image.total_variation( y_pred[:,:,:,0] ) ) * tvwt
-        dicer = dicewt * binary_dice_loss( y_seg, y_seg_p )
+        dicer = tf.reduce_mean( dicewt * binary_dice_loss( y_seg, y_seg_p ) )
         return( loss + mytv + dicer )
     if verbose:
         print("begin model compilation")
@@ -908,7 +934,9 @@ def train_seg(
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % 20 == 0:
             with tf.device("/cpu:0"):
-                myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
+                myofn = output_prefix + "_best_mdl.h5"
+                if save_all_best:
+                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
                 tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
                 if ( tester < bestValLoss ):
                     print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
@@ -916,13 +944,22 @@ def train_seg(
                     tf.keras.models.save_model( mdl, myofn )
                     training_path[myrs,2]=1
                 pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
-                myssimSR = tf.image.psnr( pp * 220, patchesOrigTeTfB* 220, max_val=255 )
+                pp = tf.split( pp, 2, axis=tdim+1 )
+                patchesOrigTeTfB = tf.split( patchesOrigTeTfB, 2, axis=tdim+1 )
+                patchesUpTeTfB = tf.split( patchesUpTeTfB, 2, axis=tdim+1 )
+                myssimSR = tf.image.psnr( pp[0] * 220, patchesOrigTeTfB[0]* 220, max_val=255 )
                 myssimSR = tf.reduce_mean( myssimSR ).numpy()
-                myssimBI = tf.image.psnr( patchesUpTeTfB * 220, patchesOrigTeTfB* 220, max_val=255 )
+                myssimBI = tf.image.psnr( patchesUpTeTfB[0] * 220, patchesOrigTeTfB[0]* 220, max_val=255 )
                 myssimBI = tf.reduce_mean( myssimBI ).numpy()
-                print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
+                squared_difference = tf.square(patchesOrigTeTfB[0] - pp[0])
+                msqTerm = tf.reduce_mean(squared_difference).numpy()
+                dicer = binary_dice_loss( patchesOrigTeTfB[1], pp[1] )
+                dicer = tf.reduce_mean( dicer ).numpy()
+                print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ) + " MSQ: " + str(msqTerm) + " DICE: " + str(dicer), flush=True  )
                 training_path[myrs,3]=myssimSR # psnr
                 training_path[myrs,4]=myssimBI # psnrlin
+                training_path[myrs,5]=msqTerm # psnr
+                training_path[myrs,6]=dicer # psnrlin
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 

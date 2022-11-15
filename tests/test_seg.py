@@ -1,4 +1,8 @@
 import os
+os.environ["TF_NUM_INTEROP_THREADS"] = "8"
+os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
+os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
+from os.path import exists
 import siq
 import glob
 import ants
@@ -6,8 +10,11 @@ fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
 import tensorflow as tf
 mdl = siq.default_dbpn( [2,2,2], nChannelsIn=2, nChannelsOut=2 ) # should match ratio of high to low size patches
 myoutprefix = '/tmp/XXX'
-
-if False:
+mdlfn = myoutprefix + "_best_mdl.h5"
+if exists( mdlfn ):
+        print( mdlfn + " exists! " )
+        mdl=tf.keras.models.load_model( mdlfn, compile=False )
+if True:
     training_path = siq.train_seg(
         mdl, 
         fns[0:3], 
