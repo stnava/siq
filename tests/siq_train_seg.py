@@ -13,6 +13,8 @@ import os
 os.environ["TF_NUM_INTEROP_THREADS"] = nthreads
 os.environ["TF_NUM_INTRAOP_THREADS"] = nthreads
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = nthreads
+os.environ["OPENBLAS_NUM_THREADS"] = nthreads
+os.environ["MKL_NUM_THREADS"] = nthreads
 from os.path import exists
 import siq
 import random
