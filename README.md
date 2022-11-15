@@ -75,6 +75,8 @@ image = ants.resample_image( image, [48,48,48] ) # downsample for speed in testi
 test = siq.inference( image, mdl )
 ```
 
+see also: the training scripts in `tests`.
+
 ## todo
 
 1. numpy read/write
