@@ -81,6 +81,8 @@ see also: the training scripts in `tests`.
 
 1. numpy read/write
 
+2. test/fix 2D
+
 ## to publish a release
 
 ```
