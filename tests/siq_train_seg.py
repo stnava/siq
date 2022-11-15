@@ -21,7 +21,6 @@ import random
 import glob
 import ants
 import tensorflow as tf
-rootdir = "FIXME"
 globber = rootdir + "*nii.gz"
 imgfns = glob.glob( globber )
 upper = []
