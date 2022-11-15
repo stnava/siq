@@ -20,6 +20,10 @@ facilitates:
 
 * general training and inference functions for deep networks
 
+* intuitive weighting of multiple losses
+
+* anisotropic super-resolution
+
 * evaluation strategies for the above
 
 # first time setup
