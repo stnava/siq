@@ -328,7 +328,7 @@ def get_random_patch_pair( img, img2, patchWidth ):
             return myimg, myimg2
     return myimg, myimg2
 
-def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=2 ):
+def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True ):
     def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
         myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
         return myfact
@@ -386,10 +386,11 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=2 ):
                 wts[ww][2,:,:,:,:]=wts_2d[ww]/3.0
         else:
             wts[ww][:,:,:,0,:]=wts_2d[ww]
-    feature_extractor.set_weights( wts )
-    newinput = tf.keras.layers.Rescaling(  255.0, -127.5  )( feature_extractor.input )
-    feature_extractor2 = feature_extractor( newinput )
-    feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
+    if pretrained:
+        feature_extractor.set_weights( wts )
+        newinput = tf.keras.layers.Rescaling(  255.0, -127.5  )( feature_extractor.input )
+        feature_extractor2 = feature_extractor( newinput )
+        feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
     return feature_extractor
 
 def get_grader_feature_network( layer=6 ):
@@ -773,8 +774,10 @@ def train(
         print("begin get feature extractor")
     if feature_type == 'grader':
         feature_extractor = get_grader_feature_network( feature_layer )
+    elif feature_type == 'vggrandom':
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     else:
-        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer )
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=True )
     if verbose:
         print("begin train generator")
     mydatgen = image_generator( 
@@ -917,8 +920,10 @@ def train_seg(
         print("begin get feature extractor")
     if feature_type == 'grader':
         feature_extractor = get_grader_feature_network( feature_layer )
+    elif feature_type == 'vggrandom':
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     else:
-        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer )
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=True  )
     if verbose:
         print("begin train generator")
     mydatgen = seg_generator( 
