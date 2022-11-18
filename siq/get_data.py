@@ -393,6 +393,18 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
         feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
     return feature_extractor
 
+def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4 ):
+    feature_extractor0 = pseudo_3d_vgg_features( inshape, layer, angle=0, pretrained=True )
+    feature_extractor1 = pseudo_3d_vgg_features( inshape, layer, angle=1, pretrained=True )
+    feature_extractor2 = pseudo_3d_vgg_features( inshape, layer, angle=2, pretrained=True )
+    f1=f[0].inputs
+    f0o=f[0]( f1 )
+    f1o=f[1]( f1 )
+    f2o=f[2]( f1 )
+    catter = tf.keras.layers.concatenate( [f0o, f1o, f2o ])
+    feature_extractor = tf.keras.Model( f1, catter )
+    return feature_extractor
+
 def get_grader_feature_network( layer=6 ):
 # perceptual features - one can explore different layers and features
 # these layers - or combinations of these - are commonly used in the literature
@@ -777,7 +789,7 @@ def train(
     elif feature_type == 'vggrandom':
         feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     else:
-        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=True )
+        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
     if verbose:
         print("begin train generator")
     mydatgen = image_generator( 
@@ -923,7 +935,7 @@ def train_seg(
     elif feature_type == 'vggrandom':
         feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     else:
-        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=True  )
+        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer, pretrained=True  )
     if verbose:
         print("begin train generator")
     mydatgen = seg_generator( 
