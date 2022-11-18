@@ -23,3 +23,4 @@ from .get_data import seg_generator
 from .get_data import numpy_generator # will build on image/seg generator
 from .get_data import read
 from .get_data import binary_dice_loss
+from .get_data import pseudo_3d_vgg_features

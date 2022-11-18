@@ -328,6 +328,69 @@ def get_random_patch_pair( img, img2, patchWidth ):
             return myimg, myimg2
     return myimg, myimg2
 
+def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=2 ):
+    def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
+        myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
+        return myfact
+    vgg19 = tf.keras.applications.VGG19( 
+            include_top = False, weights = "imagenet",
+            input_shape = [inshape[0],inshape[1],3],
+            classes = 1000 )
+    def findLayerIndex( layerName, mdl ):
+          for k in range( len( mdl.layers ) ):
+            if layerName == mdl.layers[k].name :
+                return k - 1
+          return None
+    layer_index = findLayerIndex( 'block2_conv2', vgg19 )
+    vggmodelRaw = antspynet.create_vgg_model_3d(
+            [inshape[0],inshape[1],inshape[2],1],
+            number_of_classification_labels = 1000,
+            layers = [1, 2, 3, 4, 4], 
+            lowest_resolution = 64,
+            convolution_kernel_size= (3, 3, 3), pool_size = (2, 2, 2),
+            strides = (2, 2, 2), number_of_dense_units= 4096, dropout_rate = 0,
+            style = 19, mode = "classification")
+    feature_extractor_2d = tf.keras.Model( 
+            inputs = vgg19.input,
+            outputs = vgg19.layers[layer_index].output)
+    feature_extractor = tf.keras.Model( 
+            inputs = vggmodelRaw.input,
+            outputs = vggmodelRaw.layers[layer_index].output)
+    wts_2d = feature_extractor_2d.weights
+    wts = feature_extractor.weights
+    def checkwtshape( a, b ):
+        if len(a.shape) != len(b.shape):
+                return False
+        for j in range(len(a.shape)):
+            if a.shape[j] != b.shape[j]: 
+                return False
+        return True
+    for ww in range(len(wts)):
+        wts[ww]=wts[ww].numpy()
+        wts_2d[ww]=wts_2d[ww].numpy()
+        if checkwtshape( wts[ww], wts_2d[ww] ) and ww != 0:
+            wts[ww]=wts_2d[ww]
+        elif ww != 0:
+            # FIXME - should allow doing this across different angles
+            if angle == 0:
+                wts[ww][:,:,0,:,:]=wts_2d[ww]/3.0
+                wts[ww][:,:,1,:,:]=wts_2d[ww]/3.0
+                wts[ww][:,:,2,:,:]=wts_2d[ww]/3.0
+            if angle == 1:
+                wts[ww][:,0,:,:,:]=wts_2d[ww]/3.0
+                wts[ww][:,1,:,:,:]=wts_2d[ww]/3.0
+                wts[ww][:,2,:,:,:]=wts_2d[ww]/3.0
+            if angle == 2:
+                wts[ww][0,:,:,:,:]=wts_2d[ww]/3.0
+                wts[ww][1,:,:,:,:]=wts_2d[ww]/3.0
+                wts[ww][2,:,:,:,:]=wts_2d[ww]/3.0
+        else:
+            wts[ww][:,:,:,0,:]=wts_2d[ww]
+    feature_extractor.set_weights( wts )
+    newinput = tf.keras.layers.Rescaling(  255.0, -127.5  )( feature_extractor.input )
+    feature_extractor2 = feature_extractor( newinput )
+    feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
+    return feature_extractor
 
 def get_grader_feature_network( layer=6 ):
 # perceptual features - one can explore different layers and features
@@ -702,12 +765,16 @@ def train(
     max_iterations = 1000,
     batch_size = 1,
     save_all_best = False,
+    feature_type = 'grader',
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     if verbose:
         print("begin get feature extractor")
-    feature_extractor = get_grader_feature_network( feature_layer )
+    if feature_type == 'grader':
+        feature_extractor = get_grader_feature_network( feature_layer )
+    else:
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer )
     if verbose:
         print("begin train generator")
     mydatgen = image_generator( 
@@ -842,12 +909,16 @@ def train_seg(
     max_iterations = 1000,
     batch_size = 1,
     save_all_best = False,
+    feature_type = 'grader',
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     if verbose:
         print("begin get feature extractor")
-    feature_extractor = get_grader_feature_network( feature_layer )
+    if feature_type == 'grader':
+        feature_extractor = get_grader_feature_network( feature_layer )
+    else:
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer )
     if verbose:
         print("begin train generator")
     mydatgen = seg_generator( 
