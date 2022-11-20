@@ -11,6 +11,12 @@ if len(sys.argv) > 1:
         imagefllename = sys.argv[3]
         outimagefllename = sys.argv[4]
 import os
+# see https://www.intel.com/content/www/us/en/developer/articles/technical/maximize-tensorflow-performance-on-cpu-considerations-and-recommendations-for-inference.html
+os.environ["KMP_SETTINGS"]="TRUE"
+os.environ["KMP_BLOCKTIME"]="0"
+os.environ["KMP_AFFINITY"]="granularity=fine,compact,1,0"
+os.environ["TF_ENABLE_ONEDNN_OPTS"]="1"
+os.environ["OMP_NUM_THREADS"]=nthreads
 os.environ["TF_NUM_INTEROP_THREADS"] = nthreads
 os.environ["TF_NUM_INTRAOP_THREADS"] = nthreads
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = nthreads
