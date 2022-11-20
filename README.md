@@ -83,6 +83,31 @@ see also: the training scripts in `tests`.
 
 2. test/fix 2D
 
+## your compute environment
+
+```bash
+export TF_ENABLE_ONEDNN_OPTS=1 # for CPU
+
+total_cpu_cores=$(nproc)
+number_sockets=$(($(grep "^physical id" /proc/cpuinfo | awk '{print $4}' | sort -un | tail -1)+1))
+number_cpu_cores=$(( (total_cpu_cores/2) / number_sockets))
+
+echo "number of CPU cores per socket: $number_cpu_cores";
+echo "number of socket: $number_sockets";
+
+echo "Physical cores:"
+egrep '^core id' /proc/cpuinfo | sort -u | wc -l
+
+echo "Logical cores:"
+
+egrep '^processor' /proc/cpuinfo | sort -u | wc -l
+
+echo "Physical cpus (separate chips):"
+
+egrep '^physical id' /proc/cpuinfo | sort -u | wc -l
+
+```
+
 ## to publish a release
 
 ```
