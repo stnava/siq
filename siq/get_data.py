@@ -328,7 +328,7 @@ def get_random_patch_pair( img, img2, patchWidth ):
             return myimg, myimg2
     return myimg, myimg2
 
-def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True ):
+def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True, verbose=False ):
     def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
         myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
         return myfact
@@ -341,7 +341,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
             if layerName == mdl.layers[k].name :
                 return k - 1
           return None
-    layer_index = findLayerIndex( 'block2_conv2', vgg19 )
+    layer_index = layer-1 # findLayerIndex( 'block2_conv2', vgg19 )
     vggmodelRaw = antspynet.create_vgg_model_3d(
             [inshape[0],inshape[1],inshape[2],1],
             number_of_classification_labels = 1000,
@@ -350,6 +350,11 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
             convolution_kernel_size= (3, 3, 3), pool_size = (2, 2, 2),
             strides = (2, 2, 2), number_of_dense_units= 4096, dropout_rate = 0,
             style = 19, mode = "classification")
+    if verbose:
+        print( vggmodelRaw.layers[layer_index] )
+        print( vggmodelRaw.layers[layer_index].name )
+        print( vgg19.layers[layer_index] ) 
+        print( vgg19.layers[layer_index].name ) 
     feature_extractor_2d = tf.keras.Model( 
             inputs = vgg19.input,
             outputs = vgg19.layers[layer_index].output)
@@ -393,10 +398,11 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
         feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
     return feature_extractor
 
-def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4 ):
-    feature_extractor0 = pseudo_3d_vgg_features( inshape, layer, angle=0, pretrained=True )
-    feature_extractor1 = pseudo_3d_vgg_features( inshape, layer, angle=1, pretrained=True )
-    feature_extractor2 = pseudo_3d_vgg_features( inshape, layer, angle=2, pretrained=True )
+def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose=False ):
+    f = [
+        pseudo_3d_vgg_features( inshape, layer, angle=0, pretrained=True, verbose=verbose ),
+        pseudo_3d_vgg_features( inshape, layer, angle=1, pretrained=True ),
+        pseudo_3d_vgg_features( inshape, layer, angle=2, pretrained=True ) ]
     f1=f[0].inputs
     f0o=f[0]( f1 )
     f1o=f[1]( f1 )
