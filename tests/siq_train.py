@@ -6,7 +6,7 @@ import tensorflow as tf
 import sys
 if len(sys.argv) <= 1:
         print("usage:")
-        print(sys.argv[0]+ " n  paramfile.csv  output_prefix  cudanum ")
+        print(sys.argv[0]+ " n  paramfile.csv rootdir  cudanum index output_prefix ")
         print( "n : number of threads for multi-threaded systems")
         print( "paramfile.csv : see tests/make_training_params.R")
         print( "rootdir : path from which to glob *nii.gz on which we train")
