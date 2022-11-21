@@ -789,13 +789,15 @@ def train(
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     if verbose:
-        print("begin get feature extractor")
+        print("begin get feature extractor " + feature_type)
     if feature_type == 'grader':
         feature_extractor = get_grader_feature_network( feature_layer )
     elif feature_type == 'vggrandom':
         feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
-    else:
+    elif feature_type == 'vgg':
         feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
+    else:
+        raise Exception("feature type does not exist")
     if verbose:
         print("begin train generator")
     mydatgen = image_generator( 

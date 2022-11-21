@@ -1,5 +1,5 @@
 paramdf=data.frame()
-szs=data.frame( x=c(1,1,1,2,2,4), y=c(1,1,1,2,2,4), z=c(2,4,6,2,4,4) )
+szs=data.frame( sz=rep(72,6), x=c(1,1,1,2,2,4), y=c(1,1,1,2,2,4), z=c(2,4,6,2,4,4) )
 feats=data.frame( layer=c(6,6,6,25,21,21), feat=c("vgg","vggrandom","grader","grader","vgg","vggrandom") )
 # vgg layers = 4, 19
 # grader layers 6, 25
