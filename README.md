@@ -115,3 +115,31 @@ rm -r -f build/ antspymm.egg-info/ dist/
 python3 setup.py sdist bdist_wheel
 python3 -m twine upload -u username -p password  dist/*
 ```
+
+
+## notes on cpu environment
+
+```
+# dd=/home/ubuntu/miniconda3/condabin/conda
+# conda update -n base -c defaults conda
+# conda init bash
+# conda create -n ai3 python=3.9
+# conda activate ai3 
+# pip3 install --upgrade pip
+py=python3 # "sudo /opt/parallelcluster/pyenv/versions/3.7.10/envs/awsbatch_virtualenv/bin/python3.7"
+
+$py -m pip install --upgrade pip
+
+# python3.7 -m pip uninstall tensorflow antspynet dipy patsy tensorboard tensorflow-probability -y
+$py -m pip install nibabel PyNomaly scipy 
+$py -m pip install antspyx 
+$py -m pip install dipy 
+$py -m pip install antspyt1w 
+$py -m pip install antspymm 
+$py -m pip install antspynet
+$py -m pip install siq
+$py -m pip uninstall tensorflow -y
+$py -m pip install intel-tensorflow # -avx512==2.9.1
+$py -m pip install tensorflow_probability
+$py -m pip install keras
+```
