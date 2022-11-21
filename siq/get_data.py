@@ -943,7 +943,7 @@ def train_seg(
     elif feature_type == 'vggrandom':
         feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     else:
-        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer, pretrained=True  )
+        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer  )
     if verbose:
         print("begin train generator")
     mydatgen = seg_generator( 
