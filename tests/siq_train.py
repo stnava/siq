@@ -28,13 +28,15 @@ if len(sys.argv) > 5:
 if len(sys.argv) > 6:
         outimageflename = sys.argv[6]
 # see https://www.intel.com/content/www/us/en/developer/articles/technical/maximize-tensorflow-performance-on-cpu-considerations-and-recommendations-for-inference.html
+import subprocess
+cpu_sockets =  int(subprocess.check_output('cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l', shell=True))
 os.environ["CUDA_VISIBLE_DEVICES"]=cudanum
 os.environ["KMP_SETTINGS"]="TRUE"
 os.environ["KMP_BLOCKTIME"]="0"
 os.environ["KMP_AFFINITY"]="granularity=fine,compact,1,0"
 os.environ["TF_ENABLE_ONEDNN_OPTS"]="1"
 os.environ["OMP_NUM_THREADS"]=nthreads
-os.environ["TF_NUM_INTEROP_THREADS"] = nthreads
+os.environ["TF_NUM_INTEROP_THREADS"] = str(cpu_sockets)
 os.environ["TF_NUM_INTRAOP_THREADS"] = nthreads
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = nthreads
 os.environ["OPENBLAS_NUM_THREADS"] = nthreads
