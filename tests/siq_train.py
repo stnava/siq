@@ -30,6 +30,8 @@ if len(sys.argv) > 6:
 # see https://www.intel.com/content/www/us/en/developer/articles/technical/maximize-tensorflow-performance-on-cpu-considerations-and-recommendations-for-inference.html
 import subprocess
 cpu_sockets =  int(subprocess.check_output('cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l', shell=True))
+if cpu_sockets == 0:
+	cpu_sockets = nthreads # or should we try another way?  or set to 1?
 os.environ["CUDA_VISIBLE_DEVICES"]=cudanum
 os.environ["KMP_SETTINGS"]="TRUE"
 os.environ["KMP_BLOCKTIME"]="0"
