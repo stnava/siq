@@ -33,9 +33,10 @@ cpu_sockets =  int(subprocess.check_output('cat /proc/cpuinfo | grep "physical i
 if cpu_sockets == 0:
 	cpu_sockets = nthreads # or should we try another way?  or set to 1?
 os.environ["CUDA_VISIBLE_DEVICES"]=cudanum
-os.environ["KMP_SETTINGS"]="TRUE"
+os.environ["TF_ENABLE_MKL_NATIVE_FORMAT"]="1"
+os.environ["KMP_SETTINGS"]="true"
 os.environ["KMP_BLOCKTIME"]="0"
-os.environ["KMP_AFFINITY"]="granularity=fine,compact,1,0"
+os.environ["KMP_AFFINITY"]="granularity=fine,verbose,compact,1,0"
 os.environ["TF_ENABLE_ONEDNN_OPTS"]="1"
 os.environ["OMP_NUM_THREADS"]=nthreads
 os.environ["TF_NUM_INTEROP_THREADS"] = str(cpu_sockets)
