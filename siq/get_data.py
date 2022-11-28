@@ -903,6 +903,7 @@ def train(
                 print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
                 training_path[myrs,3]=myssimSR # psnr
                 training_path[myrs,4]=myssimBI # psnrlin
+                pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
@@ -1062,6 +1063,7 @@ def train_seg(
                 training_path[myrs,4]=myssimBI # psnrlin
                 training_path[myrs,5]=msqTerm # psnr
                 training_path[myrs,6]=dicer # psnrlin
+                pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
