@@ -788,6 +788,7 @@ def train(
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
+    training_weights = np.zeros( 3 )
     if verbose:
         print("begin get feature extractor " + feature_type)
     if feature_type == 'grader':
@@ -839,6 +840,9 @@ def train(
         print("begin auto_weight_loss")
     wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
         feature=feature, tv=tv )
+    for k in range(len(wts)):
+        training_weights[k]=wts[k]
+    pd.DataFrame(training_weights, columns = ["msq","feat","tv"] ).to_csv( output_prefix + "_training_weights.csv" )
     if verbose:
         print( "automatic weights:" )
         print( wts )
@@ -937,6 +941,7 @@ def train_seg(
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
+    training_weights = np.zeros( 4 )
     if verbose:
         print("begin get feature extractor")
     if feature_type == 'grader':
@@ -986,6 +991,9 @@ def train_seg(
         print("begin auto_weight_loss_seg")
     wts = auto_weight_loss_seg( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
         feature=feature, tv=tv, dice=dice )
+    for k in range(len(wts)):
+        training_weights[k]=wts[k]
+    pd.DataFrame(training_weights, columns = ["msq","feat","tv","dice"] ).to_csv( output_prefix + "_training_weights.csv" )
     if verbose:
         print( "automatic weights:" )
         print( wts )
