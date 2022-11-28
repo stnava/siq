@@ -788,7 +788,7 @@ def train(
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
-    training_weights = np.zeros( 3 )
+    training_weights = np.zeros( [1,3] )
     if verbose:
         print("begin get feature extractor " + feature_type)
     if feature_type == 'grader':
@@ -838,13 +838,21 @@ def train(
         patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
     if verbose:
         print("begin auto_weight_loss")
-    wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
-        feature=feature, tv=tv )
-    for k in range(len(wts)):
-        training_weights[k]=wts[k]
-    pd.DataFrame(training_weights, columns = ["msq","feat","tv"] ).to_csv( output_prefix + "_training_weights.csv" )
+    wts_csv = output_prefix + "_training_weights.csv"
+    if exists( wts_csv ):
+        wtsdf = pd.read_csv( wts_csv )
+        wts = [wtsdf['msq'][0], wtsdf['feat'][0], wtsdf['tv'][0]]
+        if verbose:
+            print( "preset weights:" )
+    else:
+        wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+            feature=feature, tv=tv )
+        for k in range(len(wts)):
+            training_weights[0,k]=wts[k]
+        pd.DataFrame(training_weights, columns = ["msq","feat","tv"] ).to_csv( wts_csv )
+        if verbose:
+            print( "automatic weights:" )
     if verbose:
-        print( "automatic weights:" )
         print( wts )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ): 
         squared_difference = tf.square(y_true - y_pred)
@@ -941,7 +949,7 @@ def train_seg(
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
-    training_weights = np.zeros( 4 )
+    training_weights = np.zeros( [1,4] )
     if verbose:
         print("begin get feature extractor")
     if feature_type == 'grader':
@@ -989,13 +997,21 @@ def train_seg(
         patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
     if verbose:
         print("begin auto_weight_loss_seg")
-    wts = auto_weight_loss_seg( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
-        feature=feature, tv=tv, dice=dice )
-    for k in range(len(wts)):
-        training_weights[k]=wts[k]
-    pd.DataFrame(training_weights, columns = ["msq","feat","tv","dice"] ).to_csv( output_prefix + "_training_weights.csv" )
+    wts_csv = output_prefix + "_training_weights.csv"
+    if exists( wts_csv ):
+        wtsdf = pd.read_csv( wts_csv )
+        wts = [wtsdf['msq'][0], wtsdf['feat'][0], wtsdf['tv'][0], wtsdf['dice'][0]]
+        if verbose:
+            print( "preset weights:" )
+    else:
+        wts = auto_weight_loss_seg( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+            feature=feature, tv=tv, dice=dice )
+        for k in range(len(wts)):
+            training_weights[0,k]=wts[k]
+        pd.DataFrame(training_weights, columns = ["msq","feat","tv","dice"] ).to_csv( wts_csv )
+        if verbose:
+            print( "automatic weights:" )
     if verbose:
-        print( "automatic weights:" )
         print( wts )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], dicewt=wts[3], mybs = batch_size ): 
         if len( y_true.shape ) == 5:

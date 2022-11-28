@@ -95,7 +95,6 @@ myoutprefix = './models/siq_default_sisr_'+uppername+'_' + str(nchan) + feetext
 if outimageflename == "":
         outimageflename=myoutprefix
 print( outimageflename )
-mdlfn = outimageflename + "_best_mdl.h5"
 if len( imgfns ) < 10:
         raise Exception("Too few images")
 random.shuffle(imgfns)
@@ -113,7 +112,7 @@ if not doseg:
                 mdl,
                 fnsTrain,
                 fnsTest,
-                output_prefix=outimageflename,
+                output_prefix=outimageflename+"_pretraining",
                 target_patch_size=patch,
                 target_patch_size_low=patchlow,
                 n_test=6,
@@ -124,7 +123,6 @@ if not doseg:
                 tv=0.1 * small,
                 max_iterations=200,
                 verbose=True)
-        training_path.to_csv( outimageflename + "_pretraining.csv" )
         # then reweight and do full training
         training_path = siq.train(
                 mdl,
@@ -141,7 +139,6 @@ if not doseg:
                 tv=0.1,
                 max_iterations=20000,
                 verbose=True)
-        training_path.to_csv( outimageflename + "_training.csv" )
 else:
         mdl = siq.default_dbpn( upper,
         	nChannelsIn=nchan, nChannelsOut=nchan,
@@ -150,7 +147,7 @@ else:
                 mdl,
                 fnsTrain,
                 fnsTest,
-                output_prefix=outimageflename,
+                output_prefix=outimageflename+"_pretraining",
                 target_patch_size=patch,
                 target_patch_size_low=patchlow,
                 n_test=6,
@@ -162,7 +159,6 @@ else:
                 dice=0.1,
                 max_iterations=200,
                 verbose=True)
-        training_path.to_csv( outimageflename + "_pretraining.csv" )
         # then reweight and do full training
         training_path = siq.train_seg(
                 mdl,
@@ -180,4 +176,3 @@ else:
                 dice=1.0,
                 max_iterations=20000,
                 verbose=True)
-        training_path.to_csv( outimageflename + "_training.csv" )
