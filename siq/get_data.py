@@ -1128,3 +1128,112 @@ def inference(
             probability_images=None,
             probability_labels=None, max_lab_plus_one=True, verbose=verbose)
     return None
+
+
+def read_srmodel( srfilename ):
+    """
+    read a sr model with tf and return the model and the shape
+
+    Arguments
+    ---------
+    srfilename : string typically ending in .h5 extension
+
+    Returns
+    -------
+
+    tfmodel, upsampling_factor
+
+    upsampling_factor is [x_up, y_up, z_up, n_channels ] where these are integer values
+
+    Example
+    -------
+    >>> import siq
+    >>> mdl, upshape = siq.read_srmodel( "temp.h5" )
+    """
+    srmdl = tf.keras.models.load_model( srfilename , compile=False )
+    chanindex = 3
+    if len( srmdl.input.shape ) == 5:
+        chanindex = 4
+    nchan = int(srmdl.input.shape[chanindex])
+    if len( srmdl.input.shape ) == 5:
+        outshap = srmdl( np.zeros([1,8,8,8,nchan]) ).shape
+        return srmdl, [int(outshap[1]/8),int(outshap[2]/8),int(outshap[3]/8),nchan]
+    else:
+        outshap = srmdl( np.zeros([1,8,8,nchan]) ).shape
+        return srmdl, [int(outshap[1]/8),int(outshap[2]/8),nchan]
+
+
+
+def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
+    """
+    generate an image of given shape and number of levels
+
+    Arguments
+    ---------
+    shaper : [x,y,z] or [x,y]
+
+    n_levels : int
+
+    multiply : boolean
+
+    Returns
+    -------
+
+    ants.image
+
+    """
+    img = ants.from_numpy( np.random.normal( 0, 1.0, size=shaper ) ) * 0
+    for k in range(n_levels):
+        temp = ants.from_numpy( np.random.normal( 0, 1.0, size=shaper ) )
+        temp = ants.smooth_image( temp, n_levels )
+        temp = ants.threshold_image( temp, "Otsu", 1 )
+        if multiply:
+            temp = temp * k
+        img = img + temp
+    return img
+
+
+def compare_models( model_filenames, img, verbose=False ):
+    """
+    generate a dataframe computing some basic intensity metrics PSNR and SSIM
+    """
+    mydf = pd.DataFrame()
+    for k in range( len( model_filenames ) ):
+        srmdl, upshape = read_srmodel( model_filenames[k] )
+        if verbose:
+            print( model_filenames[k] )
+            print( upshape )
+        tarshape = []
+        for j in range(len(img.shape)):
+            tarshape.append(np.round(img.shape[j]/upshape[j]))
+        dimg=ants.resample_image( img, tarshape, use_voxels=True )
+#        if verbose:
+#            print( dimg )
+        if upshape[3] == 2:
+            dimgotsu = ants.threshold_image( dimg,"Otsu",2)
+            dimgup=inference( dimg, srmdl, segmentation = dimgotsu, verbose=False )['super_resolution']
+        else:
+            dimgup=inference( dimg, srmdl, verbose=False  )
+#        if verbose:
+#            print( dimgup )
+        dimglin = ants.resample_image_to_target( dimg, dimgup )
+        imgblock = ants.resample_image_to_target( img, dimgup )
+        temp = os.path.basename( model_filenames[k] )
+        temp = re.sub( "siq_default_sisr_", "", temp )
+        temp = re.sub( "_best_mdl.h5", "", temp )
+        if verbose:
+            print( temp )
+        a=[]
+        for aa in range(len(upshape)):
+            a.append( str(upshape[aa]) )
+        mydict = {
+            "mdl": temp,
+            "shape":"x".join(a),
+            "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
+            "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
+            "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
+            "SSIM.SR": antspynet.ssim( imgblock, dimgup ) }
+        if verbose:
+            print( mydict )
+        mydf = pd.DataFrame.from_records( [mydict], index=[0] )
+        return mydf
