@@ -1218,19 +1218,25 @@ def compare_models( model_filenames, img, verbose=False ):
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
         padder = []
+        dimwarning=False
         for jj in range(img.dimension):
             padder.append( -2 )
+            if img.shape[jj] != imgblock.shape[jj]:
+                dimwarning=True
+        if dimwarning:
+            print("NOTE: dimensions of downsampled to upsampled image do not match!!!")
+            print("we force them to match but this suggests results may not be reliable.")
 #        dimgup = ants.pad_image( dimgup, padder )
  #       dimglin = ants.pad_image( dimglin, padder )
   #      imgblock = ants.pad_image( imgblock, padder )
         temp = os.path.basename( model_filenames[k] )
         temp = re.sub( "siq_default_sisr_", "", temp )
         temp = re.sub( "_best_mdl.h5", "", temp )
-        if verbose:
-            print( temp )
-            print( imgblock )
-            print( dimgup )
-            print( dimglin )
+        if verbose and dimwarning:
+            print( "original img shape" )
+            print( img.shape )
+            print( "resampled img shape" )
+            print( imgblock.shape )
         a=[]
         for aa in range(len(upshape)):
             a.append( str(upshape[aa]) )
@@ -1240,7 +1246,8 @@ def compare_models( model_filenames, img, verbose=False ):
             "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
             "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
             "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
-            "SSIM.SR": antspynet.ssim( imgblock, dimgup ) }
+            "SSIM.SR": antspynet.ssim( imgblock, dimgup ),
+            "dimwarning": dimwarning }
         if verbose:
             print( mydict )
         # end loop
