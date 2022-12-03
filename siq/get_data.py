@@ -1216,10 +1216,7 @@ def compare_models( model_filenames, img, verbose=False ):
         else:
             dimgup=inference( dimg, srmdl, verbose=False  )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
-        if not ants.image_physical_space_consistency(img,dimgup ) :
-            imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
-        else:
-            imgblock = img
+        imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
         padder = []
         for jj in range(img.dimension):
             padder.append( -2 )
