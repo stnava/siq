@@ -1231,6 +1231,9 @@ def compare_models( model_filenames, img, verbose=False ):
         temp = re.sub( "_best_mdl.h5", "", temp )
         if verbose:
             print( temp )
+            print( imgblock )
+            print( dimgup )
+            print( dimglin )
         a=[]
         for aa in range(len(upshape)):
             a.append( str(upshape[aa]) )
