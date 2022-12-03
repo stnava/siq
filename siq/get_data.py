@@ -1204,20 +1204,26 @@ def compare_models( model_filenames, img, verbose=False ):
             print( model_filenames[k] )
             print( upshape )
         tarshape = []
+        inspc = ants.get_spacing(img)
         for j in range(len(img.shape)):
-            tarshape.append(np.round(img.shape[j]/upshape[j]))
-        dimg=ants.resample_image( img, tarshape, use_voxels=True )
-#        if verbose:
-#            print( dimg )
+            tarshape.append( float(upshape[j]) * inspc[j] )
+        dimg=ants.resample_image( img, tarshape, use_voxels=False )
+        if verbose:
+            print( dimg )
         if upshape[3] == 2:
             dimgotsu = ants.threshold_image( dimg,"Otsu",2)
             dimgup=inference( dimg, srmdl, segmentation = dimgotsu, verbose=False )['super_resolution']
         else:
             dimgup=inference( dimg, srmdl, verbose=False  )
-#        if verbose:
-#            print( dimgup )
         dimglin = ants.resample_image_to_target( dimg, dimgup )
-        imgblock = ants.resample_image_to_target( img, dimgup )
+        # imgblock = ants.resample_image_to_target( img, dimgup )
+        imgblock = img
+        padder = []
+        for jj in range(img.dimension):
+            padder.append( -2 )
+        dimgup = ants.pad_image( dimgup, padder )
+        dimglin = ants.pad_image( dimglin, padder )
+        imgblock = ants.pad_image( imgblock, padder )
         temp = os.path.basename( model_filenames[k] )
         temp = re.sub( "siq_default_sisr_", "", temp )
         temp = re.sub( "_best_mdl.h5", "", temp )
@@ -1235,5 +1241,6 @@ def compare_models( model_filenames, img, verbose=False ):
             "SSIM.SR": antspynet.ssim( imgblock, dimgup ) }
         if verbose:
             print( mydict )
-        mydf = pd.DataFrame.from_records( [mydict], index=[0] )
-        return mydf
+        # end loop
+    mydf = pd.DataFrame.from_records( [mydict], index=[0] )
+    return mydf
