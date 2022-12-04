@@ -1250,6 +1250,7 @@ def compare_models( model_filenames, img, verbose=False ):
             "dimwarning": dimwarning }
         if verbose:
             print( mydict )
+        temp = pd.DataFrame.from_records( [mydict], index=[0] )
+        mydf = pd.concat( [mydf,temp], axis=0 )
         # end loop
-    mydf = pd.DataFrame.from_records( [mydict], index=[0] )
     return mydf
