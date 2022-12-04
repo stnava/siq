@@ -1224,11 +1224,7 @@ def compare_models( model_filenames, img, verbose=False ):
             seglow = ants.resample_image( seghigh, tarshape, use_voxels=False, interp_type=1 )
             dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=False )
             dimgupseg = dimgup['super_resolution_segmentation']
-            segimgnn = ants.resample_image_to_target( seglow, dimgup, interp_type='nearestNeighbor' )
-            print( seghigh )
-            print( segimgnn )
-            print( dimgupseg )
-            print("OVERLAP")
+            segimgnn = ants.resample_image_to_target( seglow, dimgupseg, interp_type='nearestNeighbor' )
             dicenn = ants.label_overlap_measures(seghigh, segimgnn)['MeanOverlap'][0]
             dicesr = ants.label_overlap_measures(seghigh, dimgupseg)['MeanOverlap'][0]
             dimgup=dimgup['super_resolution']
