@@ -1213,18 +1213,24 @@ def compare_models( model_filenames, img, verbose=False ):
         inspc = ants.get_spacing(img)
         for j in range(len(img.shape)):
             tarshape.append( float(upshape[j]) * inspc[j] )
-        dimg=ants.resample_image( img, tarshape, use_voxels=False )
+        # uses linear interp
+        dimg=ants.resample_image( img, tarshape, use_voxels=False, interp_type=0 )
         dicesr=0
         dicenn=0
         if verbose:
             print( dimg )
         if upshape[3] == 2:
-            dimgotsu = ants.threshold_image( dimg,"Otsu",2)
-            dimgup=inference( dimg, srmdl, segmentation = dimgotsu, verbose=False )
+            seghigh = ants.threshold_image( img,"Otsu",2)
+            seglow = ants.resample_image( seghigh, tarshape, use_voxels=False, interp_type=1 )
+            dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=False )
             dimgupseg = dimgup['super_resolution_segmentation']
-            segimgnn = ants.resample_image_to_target( dimg, dimgup, interp_type='nearestNeighbor' )
-            dicenn = ants.label_overlap_measures(dimgotsu, segimgnn)['MeanOverlap'][0]
-            dicesr = ants.label_overlap_measures(dimgotsu, dimgupseg)['MeanOverlap'][0]
+            segimgnn = ants.resample_image_to_target( seglow, dimgup, interp_type='nearestNeighbor' )
+            print( seghigh )
+            print( segimgnn )
+            print( dimgupseg )
+            print("OVERLAP")
+            dicenn = ants.label_overlap_measures(seghigh, segimgnn)['MeanOverlap'][0]
+            dicesr = ants.label_overlap_measures(seghigh, dimgupseg)['MeanOverlap'][0]
             dimgup=dimgup['super_resolution']
         else:
             dimgup=inference( dimg, srmdl, verbose=False  )
@@ -1239,9 +1245,6 @@ def compare_models( model_filenames, img, verbose=False ):
         if dimwarning:
             print("NOTE: dimensions of downsampled to upsampled image do not match!!!")
             print("we force them to match but this suggests results may not be reliable.")
-#        dimgup = ants.pad_image( dimgup, pad_width=padder )
- #       dimglin = ants.pad_image( dimglin, pad_width=padder )
-  #      imgblock = ants.pad_image( imgblock, pad_width=padder )
         temp = os.path.basename( model_filenames[k] )
         temp = re.sub( "siq_default_sisr_", "", temp )
         temp = re.sub( "_best_mdl.h5", "", temp )
