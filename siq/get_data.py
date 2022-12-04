@@ -1097,6 +1097,7 @@ def inference(
     truncation = [0.001,0.999],
     segmentation=None, 
     target_range=[1,0],
+    match_intensity=True,
     verbose=False):
     if segmentation is None:
         pimg = ants.image_clone( image )
@@ -1130,6 +1131,7 @@ def inference(
             probability_labels=None, 
             max_lab_plus_one=True, 
             target_range=target_range,
+            match_intensity=match_intensity,
             verbose=verbose)
     return None
 
