@@ -1126,7 +1126,10 @@ def inference(
             segmentation_numbers=mynp,
             dilation_amount=0,
             probability_images=None,
-            probability_labels=None, max_lab_plus_one=True, verbose=verbose)
+            probability_labels=None, 
+            max_lab_plus_one=True, 
+            target_range=[0,1],
+            verbose=verbose)
     return None
 
 
