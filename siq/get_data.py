@@ -1214,11 +1214,18 @@ def compare_models( model_filenames, img, verbose=False ):
         for j in range(len(img.shape)):
             tarshape.append( float(upshape[j]) * inspc[j] )
         dimg=ants.resample_image( img, tarshape, use_voxels=False )
+        dicesr=0
+        dicenn=0
         if verbose:
             print( dimg )
         if upshape[3] == 2:
             dimgotsu = ants.threshold_image( dimg,"Otsu",2)
-            dimgup=inference( dimg, srmdl, segmentation = dimgotsu, verbose=False )['super_resolution']
+            dimgup=inference( dimg, srmdl, segmentation = dimgotsu, verbose=False )
+            dimgupseg = dimgup['super_resolution_segmentation']
+            segimgnn = ants.resample_image_to_target( dimg, dimgup, interp_type='nearestNeighbor' )
+            dicenn = ants.label_overlap_measures(dimgotsu, segimgnn)['MeanOverlap'][0]
+            dicesr = ants.label_overlap_measures(dimgotsu, dimgupseg)['MeanOverlap'][0]
+            dimgup=dimgup['super_resolution']
         else:
             dimgup=inference( dimg, srmdl, verbose=False  )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
@@ -1232,9 +1239,9 @@ def compare_models( model_filenames, img, verbose=False ):
         if dimwarning:
             print("NOTE: dimensions of downsampled to upsampled image do not match!!!")
             print("we force them to match but this suggests results may not be reliable.")
-#        dimgup = ants.pad_image( dimgup, padder )
- #       dimglin = ants.pad_image( dimglin, padder )
-  #      imgblock = ants.pad_image( imgblock, padder )
+#        dimgup = ants.pad_image( dimgup, pad_width=padder )
+ #       dimglin = ants.pad_image( dimglin, pad_width=padder )
+  #      imgblock = ants.pad_image( imgblock, pad_width=padder )
         temp = os.path.basename( model_filenames[k] )
         temp = re.sub( "siq_default_sisr_", "", temp )
         temp = re.sub( "_best_mdl.h5", "", temp )
@@ -1253,6 +1260,8 @@ def compare_models( model_filenames, img, verbose=False ):
             "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
             "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
             "SSIM.SR": antspynet.ssim( imgblock, dimgup ),
+            "DICE.NN": dicenn,
+            "DICE.SR": dicesr,
             "dimwarning": dimwarning }
         if verbose:
             print( mydict )
