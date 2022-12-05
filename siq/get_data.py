@@ -472,7 +472,17 @@ def default_dbpn(
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
     if sigmoid_second_channel:
         mdlout = tf.split( mdl.outputs[0], 2, dimensionality+1)
-        mdlout[1] = tf.nn.sigmoid( mdlout [1] )
+        L0 = Conv3D(filters=64,
+                    kernel_size=(convn,convn,convn),
+                    strides=(1,1,1),
+                    kernel_initializer='glorot_uniform',
+                    padding='same')(mdlout)
+        L1 = Conv3D(filters=64,
+                    kernel_size=(convn,convn,convn),
+                    strides=(1,1,1),
+                    kernel_initializer='glorot_uniform',
+                    padding='same')(L0)
+        mdlout[1] = tf.nn.sigmoid( L1 )
         mdl.outputs[0] = tf.concat( mdlout, axis=dimensionality+1 )
         mdl = Model(inputs=mdl.inputs, outputs=mdl.outputs )
     return mdl
