@@ -476,7 +476,7 @@ def default_dbpn(
                     kernel_size=(convn,convn,convn),
                     strides=(1,1,1),
                     kernel_initializer='glorot_uniform',
-                    padding='same')(mdlout)
+                    padding='same')(mdlout[1])
         L1 = Conv3D(filters=64,
                     kernel_size=(convn,convn,convn),
                     strides=(1,1,1),
