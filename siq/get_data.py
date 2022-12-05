@@ -482,7 +482,12 @@ def default_dbpn(
                     strides=(1,1,1),
                     kernel_initializer='glorot_uniform',
                     padding='same')(L0)
-        mdlout[1] = tf.nn.sigmoid( L1 )
+        L2 = Conv3D(filters=1,
+                    kernel_size=(1,1,1),
+                    strides=(1,1,1),
+                    kernel_initializer='glorot_uniform',
+                    padding='same')(L1)
+        mdlout[1] = tf.nn.sigmoid( L2 )
         mdl.outputs[0] = tf.concat( mdlout, axis=dimensionality+1 )
         mdl = Model(inputs=mdl.inputs, outputs=mdl.outputs )
     return mdl
