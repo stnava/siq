@@ -471,20 +471,30 @@ def default_dbpn(
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
     if sigmoid_second_channel:
+        if dimensionality == 2:
+            myconv = Conv2D
+            firstConv = (convn,convn)
+            firstStrides=(1,1)
+            smashConv=(1,1)
+        if dimensionality == 3:
+            myconv = Conv3D
+            firstConv = (convn,convn,convn)
+            firstStrides=(1,1,1)
+            smashConv=(1,1,1)
         mdlout = tf.split( mdl.outputs[0], 2, dimensionality+1)
-        L0 = Conv3D(filters=64,
-                    kernel_size=(convn,convn,convn),
-                    strides=(1,1,1),
+        L0 = myconv(filters=64,
+                    kernel_size=firstConv,
+                    strides=firstStrides,
                     kernel_initializer='glorot_uniform',
                     padding='same')(mdlout[1])
-        L1 = Conv3D(filters=64,
-                    kernel_size=(convn,convn,convn),
-                    strides=(1,1,1),
+        L1 = myconv(filters=64,
+                    kernel_size=firstConv,
+                    strides=firstStrides,
                     kernel_initializer='glorot_uniform',
                     padding='same')(L0)
-        L2 = Conv3D(filters=1,
-                    kernel_size=(1,1,1),
-                    strides=(1,1,1),
+        L2 = myconv(filters=1,
+                    kernel_size=smashConv,
+                    strides=firstStrides,
                     kernel_initializer='glorot_uniform',
                     padding='same')(L1)
         mdlout[1] = tf.nn.sigmoid( L2 )
