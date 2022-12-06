@@ -450,7 +450,7 @@ def default_dbpn(
     # empirical evidence suggests that making covolutions and strides evenly<br>
     # divisible by each other reduces artifacts.  2*3=6.
     # ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.h5'
-    if dimensionality == 2:
+    if dimensionality == 2 :
         mdl = dbpn( (None,None,nChannelsIn),
             number_of_outputs=nChannelsOut,
             number_of_base_filters=nfilt,
@@ -461,7 +461,7 @@ def default_dbpn(
             last_convolution=(lastconv, lastconv), 
             number_of_loss_functions=1, 
             interpolation='nearest')
-    if dimensionality == 3:
+    if dimensionality == 3 :
         mdl = dbpn( (None,None,None,nChannelsIn),
             number_of_outputs=nChannelsOut,
             number_of_base_filters=nfilt,
@@ -471,6 +471,51 @@ def default_dbpn(
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
     if sigmoid_second_channel:
+        if dimensionality == 2 :
+            input_image_size = (None,None,2)
+            imdl = dbpn( (None,None,1),
+                number_of_outputs=1,
+                number_of_base_filters=nfilt,
+                number_of_feature_filters=nff,
+                number_of_back_projection_stages=nbp,
+                convolution_kernel_size=(convn, convn),
+                strides=(strider[0], strider[1]),
+                last_convolution=(lastconv, lastconv), 
+                number_of_loss_functions=1, 
+                interpolation='nearest')
+            smdl = dbpn( (None,None,1),
+                    number_of_outputs=1,
+                    number_of_base_filters=32,
+                    number_of_feature_filters=64,
+                    number_of_back_projection_stages=2,
+                    convolution_kernel_size=(convn, convn),
+                    strides=(strider[0], strider[1]),
+                    last_convolution=(lastconv, lastconv), 
+                    number_of_loss_functions=1, interpolation='nearest')
+        if dimensionality == 3 :
+            input_image_size = (None,None,None,2)
+            imdl = dbpn( (None,None,None,1),
+                number_of_outputs=1,
+                number_of_base_filters=nfilt,
+                number_of_feature_filters=nff,
+                number_of_back_projection_stages=nbp,
+                convolution_kernel_size=(convn, convn, convn),
+                strides=(strider[0], strider[1], strider[2]),
+                last_convolution=(lastconv, lastconv, lastconv), 
+                number_of_loss_functions=1, interpolation='nearest')
+            smdl = dbpn( (None,None,None,1),
+                    number_of_outputs=1,
+                    number_of_base_filters=32,
+                    number_of_feature_filters=64,
+                    number_of_back_projection_stages=2,
+                    convolution_kernel_size=(convn, convn, convn),
+                    strides=(strider[0], strider[1], strider[2]),
+                    last_convolution=(lastconv, lastconv, lastconv), 
+                    number_of_loss_functions=1, interpolation='nearest')
+        inputs = tf.keras.Input(shape=input_image_size)
+        insplit = tf.split( inputs, 2, dimensionality+1)
+        mdlout = tf.concat( [imdl( insplit[0] ),smdl( insplit[0] )], axis=dimensionality+1 )
+        return Model(inputs=inputs, outputs=mdlout )
         if dimensionality == 2:
             myconv = Conv2D
             firstConv = (convn,convn)
