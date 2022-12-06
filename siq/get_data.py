@@ -487,11 +487,11 @@ def default_dbpn(
                     number_of_outputs=1,
                     number_of_base_filters=32,
                     number_of_feature_filters=64,
-                    number_of_back_projection_stages=2,
+                    number_of_back_projection_stages=4,
                     convolution_kernel_size=(convn, convn),
                     strides=(strider[0], strider[1]),
                     last_convolution=(lastconv, lastconv), 
-                    number_of_loss_functions=1, interpolation='nearest')
+                    number_of_loss_functions=1, interpolation='linear')
         if dimensionality == 3 :
             input_image_size = (None,None,None,2)
             imdl = dbpn( (None,None,None,1),
@@ -507,11 +507,11 @@ def default_dbpn(
                     number_of_outputs=1,
                     number_of_base_filters=32,
                     number_of_feature_filters=64,
-                    number_of_back_projection_stages=2,
+                    number_of_back_projection_stages=4,
                     convolution_kernel_size=(convn, convn, convn),
                     strides=(strider[0], strider[1], strider[2]),
                     last_convolution=(lastconv, lastconv, lastconv), 
-                    number_of_loss_functions=1, interpolation='nearest')
+                    number_of_loss_functions=1, interpolation='linear')
         inputs = tf.keras.Input(shape=input_image_size)
         insplit = tf.split( inputs, 2, dimensionality+1)
         mdlout = tf.concat( [imdl( insplit[0] ),smdl( insplit[0] )], axis=dimensionality+1 )
