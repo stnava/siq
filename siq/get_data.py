@@ -514,7 +514,8 @@ def default_dbpn(
                     number_of_loss_functions=1, interpolation='linear')
         inputs = tf.keras.Input(shape=input_image_size)
         insplit = tf.split( inputs, 2, dimensionality+1)
-        mdlout = tf.concat( [imdl( insplit[0] ),smdl( insplit[0] )], axis=dimensionality+1 )
+        outputs = [ imdl( insplit[0] ), tf.nn.sigmoid( smdl( insplit[1] ) ) ]
+        mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
         if dimensionality == 2:
             myconv = Conv2D
