@@ -855,6 +855,7 @@ def train(
     batch_size = 1,
     save_all_best = False,
     feature_type = 'grader',
+    check_eval_data_iteration = 20,
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
@@ -966,7 +967,7 @@ def train(
         training_path[myrs,1]=tracker.history['val_loss'][0]
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
-        if myrs % 20 == 0:
+        if myrs % check_eval_data_iteration == 0:
             with tf.device("/cpu:0"):
                 myofn = output_prefix + "_best_mdl.h5"
                 if save_all_best:
@@ -1016,6 +1017,7 @@ def train_seg(
     batch_size = 1,
     save_all_best = False,
     feature_type = 'grader',
+    check_eval_data_iteration = 20,
     verbose = False  ):
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
@@ -1129,7 +1131,7 @@ def train_seg(
         training_path[myrs,1]=tracker.history['val_loss'][0]
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
-        if myrs % 20 == 0:
+        if myrs % check_eval_data_iteration == 0:
             with tf.device("/cpu:0"):
                 myofn = output_prefix + "_best_mdl.h5"
                 if save_all_best:
