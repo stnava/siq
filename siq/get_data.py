@@ -447,6 +447,7 @@ def default_dbpn(
     segmentation_model=None,
     sigmoid_second_channel=False,
     clone_intensity_to_segmentation=False,
+    pro_seg = False,
     verbose=False
  ):
     if option == 'tiny':
@@ -502,7 +503,7 @@ def default_dbpn(
             convolution_kernel_size=(convn, convn, convn),
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
-    if sigmoid_second_channel:
+    if sigmoid_second_channel and not pro_seg:
         if dimensionality == 2 :
             input_image_size = (None,None,2)
             if intensity_model is None:
@@ -577,6 +578,15 @@ def default_dbpn(
             tf.nn.sigmoid( segmentation_model( insplit[1] ) ) ]
         mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
+    if pro_seg and intensity_model is not None:
+        if verbose:
+            print("Add a segmentation arm to the end. freeze intensity. intensity_model(seg) => conv => sigmoid")
+        for layer in intensity_model.layers:
+            layer.trainable = False
+        if dimensionality == 2 :
+            input_image_size = (None,None,2)
+        elif dimensionality == 3 :
+            input_image_size = (None, None,None,2)
         if dimensionality == 2:
             myconv = Conv2D
             firstConv = (convn,convn)
@@ -587,13 +597,16 @@ def default_dbpn(
             firstConv = (convn,convn,convn)
             firstStrides=(1,1,1)
             smashConv=(1,1,1)
-        mdlout = tf.split( mdl.outputs[0], 2, dimensionality+1)
-        L0 = myconv(filters=64,
+        inputs = tf.keras.Input(shape=input_image_size)
+        insplit = tf.split( inputs, 2, dimensionality+1)
+        # define segmentation arm
+        seggit = intensity_model( insplit[1] )
+        L0 = myconv(filters=nff,
                     kernel_size=firstConv,
                     strides=firstStrides,
                     kernel_initializer='glorot_uniform',
-                    padding='same')(mdlout[1])
-        L1 = myconv(filters=64,
+                    padding='same')(seggit)
+        L1 = myconv(filters=nff,
                     kernel_size=firstConv,
                     strides=firstStrides,
                     kernel_initializer='glorot_uniform',
@@ -603,9 +616,11 @@ def default_dbpn(
                     strides=firstStrides,
                     kernel_initializer='glorot_uniform',
                     padding='same')(L1)
-        mdlout[1] = tf.nn.sigmoid( L2 )
-        mdl.outputs[0] = tf.concat( mdlout, axis=dimensionality+1 )
-        mdl = Model(inputs=mdl.inputs, outputs=mdl.outputs )
+        outputs = [ 
+            intensity_model( insplit[0] ), 
+            tf.nn.sigmoid( L2 ) ]
+        mdlout = tf.concat( outputs, axis=dimensionality+1 )
+        return Model(inputs=inputs, outputs=mdlout )
     return mdl
 
 def image_patch_training_data_from_filenames( 
