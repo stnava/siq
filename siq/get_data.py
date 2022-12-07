@@ -1350,6 +1350,10 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
 def compare_models( model_filenames, img, n_classes=3, verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
+
+    NOTE: when evaluating a 2-channel (segmentation) model - the focus should 
+    be on the segmentation arm (DICE) alone ... the intensity component can 
+    be evaluated on its own separately.
     """
     padding=4
     mydf = pd.DataFrame()
