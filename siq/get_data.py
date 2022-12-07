@@ -1202,7 +1202,7 @@ def inference(
             dilation_amount=8,
             probability_images=None,
             probability_labels=None, 
-            max_lab_plus_one=False,
+            max_lab_plus_one=True,
             target_range=target_range,
             match_intensity=match_intensity,
             verbose=verbose)
