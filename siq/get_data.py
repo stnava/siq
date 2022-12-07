@@ -447,7 +447,7 @@ def default_dbpn(
     segmentation_model=None,
     sigmoid_second_channel=False,
     clone_intensity_to_segmentation=False,
-    pro_seg = False,
+    pro_seg = 0,
     verbose=False
  ):
     if option == 'tiny':
@@ -503,7 +503,7 @@ def default_dbpn(
             convolution_kernel_size=(convn, convn, convn),
             strides=(strider[0], strider[1], strider[2]),
             last_convolution=(lastconv, lastconv, lastconv), number_of_loss_functions=1, interpolation='nearest')
-    if sigmoid_second_channel and not pro_seg:
+    if sigmoid_second_channel and pro_seg != 0 :
         if dimensionality == 2 :
             input_image_size = (None,None,2)
             if intensity_model is None:
@@ -578,7 +578,7 @@ def default_dbpn(
             tf.nn.sigmoid( segmentation_model( insplit[1] ) ) ]
         mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
-    if pro_seg and intensity_model is not None:
+    if pro_seg > 0 and intensity_model is not None:
         if verbose:
             print("Add a segmentation arm to the end. freeze intensity. intensity_model(seg) => conv => sigmoid")
         for layer in intensity_model.layers:
@@ -591,12 +591,12 @@ def default_dbpn(
             myconv = Conv2D
             firstConv = (convn,convn)
             firstStrides=(1,1)
-            smashConv=(1,1)
+            smashConv=(pro_seg,pro_seg)
         if dimensionality == 3:
             myconv = Conv3D
             firstConv = (convn,convn,convn)
             firstStrides=(1,1,1)
-            smashConv=(1,1,1)
+            smashConv=(pro_seg,pro_seg,pro_seg)
         inputs = tf.keras.Input(shape=input_image_size)
         insplit = tf.split( inputs, 2, dimensionality+1)
         # define segmentation arm
