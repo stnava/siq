@@ -1167,7 +1167,7 @@ def train_seg(
 def inference( 
     image, 
     mdl,
-    truncation = [0.001,0.999],
+    truncation = None,
     segmentation=None, 
     target_range=[1,0],
     match_intensity=True,
@@ -1199,10 +1199,10 @@ def inference(
         return antspyt1w.super_resolution_segmentation_per_label(
             pimg, segmentation, upFactor, mdl,
             segmentation_numbers=mynp,
-            dilation_amount=0,
+            dilation_amount=8,
             probability_images=None,
             probability_labels=None, 
-            max_lab_plus_one=True, 
+            max_lab_plus_one=False,
             target_range=target_range,
             match_intensity=match_intensity,
             verbose=verbose)
@@ -1272,10 +1272,11 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     return img
 
 
-def compare_models( model_filenames, img, verbose=False ):
+def compare_models( model_filenames, img, n_classes=1, verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
     """
+    padding=4
     mydf = pd.DataFrame()
     for k in range( len( model_filenames ) ):
         srmdl, upshape = read_srmodel( model_filenames[k] )
@@ -1293,7 +1294,7 @@ def compare_models( model_filenames, img, verbose=False ):
         if verbose:
             print( dimg )
         if upshape[3] == 2:
-            seghigh = ants.threshold_image( img,"Otsu",2)
+            seghigh = ants.threshold_image( img,"Otsu",n_classes)
             seglow = ants.resample_image( seghigh, tarshape, use_voxels=False, interp_type=1 )
             dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=False )
             dimgupseg = dimgup['super_resolution_segmentation']
@@ -1308,7 +1309,7 @@ def compare_models( model_filenames, img, verbose=False ):
         padder = []
         dimwarning=False
         for jj in range(img.dimension):
-            padder.append( -2 )
+            padder.append( padding )
             if img.shape[jj] != imgblock.shape[jj]:
                 dimwarning=True
         if dimwarning:
