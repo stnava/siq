@@ -442,8 +442,40 @@ def default_dbpn(
     nbp=7, 
     nChannelsIn=1,
     nChannelsOut=1,
-    sigmoid_second_channel=False
+    option = None,
+    intensity_model=None,
+    segmentation_model=None,
+    sigmoid_second_channel=False,
+    clone_intensity_to_segmentation=False,
+    verbose=False
  ):
+    if option == 'tiny':
+        nfilt=32
+        nff = 64
+        convn = 3
+        lastconv = 1
+        nbp=2 
+    elif option == 'small':
+        nfilt=32
+        nff = 64
+        convn = 6
+        lastconv = 3
+        nbp=4 
+    elif option == 'medium':
+        nfilt=64
+        nff = 128
+        convn = 6
+        lastconv = 3
+        nbp=4 
+    else:
+        option='large'
+    if verbose:
+        print("Building mode of size: " + option)
+        if intensity_model is not None:
+            print("user-passed intensity model will be frozen - only segmentation will train")
+        if segmentation_model is not None:
+            print("user-passed segmentation model will be frozen - only intensity will train")
+
     if len(strider) != dimensionality:
         raise Exception("len(strider) != dimensionality")
     # **model instantiation**: these are close to defaults for the 2x network.<br>
@@ -473,48 +505,76 @@ def default_dbpn(
     if sigmoid_second_channel:
         if dimensionality == 2 :
             input_image_size = (None,None,2)
-            imdl = dbpn( (None,None,1),
-                number_of_outputs=1,
-                number_of_base_filters=nfilt,
-                number_of_feature_filters=nff,
-                number_of_back_projection_stages=nbp,
-                convolution_kernel_size=(convn, convn),
-                strides=(strider[0], strider[1]),
-                last_convolution=(lastconv, lastconv), 
-                number_of_loss_functions=1, 
-                interpolation='nearest')
-            smdl = dbpn( (None,None,1),
+            if intensity_model is None:
+                intensity_model = dbpn( (None,None,1),
                     number_of_outputs=1,
-                    number_of_base_filters=32,
-                    number_of_feature_filters=64,
-                    number_of_back_projection_stages=4,
+                    number_of_base_filters=nfilt,
+                    number_of_feature_filters=nff,
+                    number_of_back_projection_stages=nbp,
                     convolution_kernel_size=(convn, convn),
                     strides=(strider[0], strider[1]),
                     last_convolution=(lastconv, lastconv), 
-                    number_of_loss_functions=1, interpolation='linear')
+                    number_of_loss_functions=1, 
+                    interpolation='nearest')
+            else:
+                for layer in intensity_model.layers:
+                    layer.trainable = False
+            if segmentation_model is None:
+                segmentation_model = dbpn( (None,None,1),
+                        number_of_outputs=1,
+                        number_of_base_filters=nfilt,
+                        number_of_feature_filters=nff,
+                        number_of_back_projection_stages=nbp,
+                        convolution_kernel_size=(convn, convn),
+                        strides=(strider[0], strider[1]),
+                        last_convolution=(lastconv, lastconv), 
+                        number_of_loss_functions=1, interpolation='linear')
+            else:
+                for layer in segmentation_model.layers:
+                    layer.trainable = False
         if dimensionality == 3 :
             input_image_size = (None,None,None,2)
-            imdl = dbpn( (None,None,None,1),
-                number_of_outputs=1,
-                number_of_base_filters=nfilt,
-                number_of_feature_filters=nff,
-                number_of_back_projection_stages=nbp,
-                convolution_kernel_size=(convn, convn, convn),
-                strides=(strider[0], strider[1], strider[2]),
-                last_convolution=(lastconv, lastconv, lastconv), 
-                number_of_loss_functions=1, interpolation='nearest')
-            smdl = dbpn( (None,None,None,1),
+            if intensity_model is None:
+                intensity_model = dbpn( (None,None,None,1),
                     number_of_outputs=1,
-                    number_of_base_filters=32,
-                    number_of_feature_filters=64,
-                    number_of_back_projection_stages=4,
+                    number_of_base_filters=nfilt,
+                    number_of_feature_filters=nff,
+                    number_of_back_projection_stages=nbp,
                     convolution_kernel_size=(convn, convn, convn),
                     strides=(strider[0], strider[1], strider[2]),
                     last_convolution=(lastconv, lastconv, lastconv), 
-                    number_of_loss_functions=1, interpolation='linear')
+                    number_of_loss_functions=1, interpolation='nearest')
+            else:
+                for layer in intensity_model.layers:
+                    layer.trainable = False
+            if segmentation_model is None:
+                segmentation_model = dbpn( (None,None,None,1),
+                        number_of_outputs=1,
+                        number_of_base_filters=nfilt,
+                        number_of_feature_filters=nff,
+                        number_of_back_projection_stages=nbp,
+                        convolution_kernel_size=(convn, convn, convn),
+                        strides=(strider[0], strider[1], strider[2]),
+                        last_convolution=(lastconv, lastconv, lastconv), 
+                        number_of_loss_functions=1, interpolation='linear')
+            else:
+                for layer in segmentation_model.layers:
+                    layer.trainable = False
+        if verbose:
+            print( "len intensity_model layers : " + str( len( intensity_model.layers )))
+            print( "len intensity_model weights : " + str( len( intensity_model.weights )))
+            print( "len segmentation_model layers : " + str( len( segmentation_model.layers )))
+            print( "len segmentation_model weights : " + str( len( segmentation_model.weights )))
+        if clone_intensity_to_segmentation:
+            for k in range(len( segmentation_model.weights )):
+                if k < len( intensity_model.weights ):
+                    if intensity_model.weights[k].shape == segmentation_model.weights[k].shape:
+                        segmentation_model.weights[k] = intensity_model.weights[k]
         inputs = tf.keras.Input(shape=input_image_size)
         insplit = tf.split( inputs, 2, dimensionality+1)
-        outputs = [ imdl( insplit[0] ), tf.nn.sigmoid( smdl( insplit[1] ) ) ]
+        outputs = [ 
+            intensity_model( insplit[0] ), 
+            tf.nn.sigmoid( segmentation_model( insplit[1] ) ) ]
         mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
         if dimensionality == 2:
@@ -1272,7 +1332,7 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     return img
 
 
-def compare_models( model_filenames, img, n_classes=1, verbose=False ):
+def compare_models( model_filenames, img, n_classes=3, verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
     """
