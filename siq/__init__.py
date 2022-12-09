@@ -28,3 +28,4 @@ from .get_data import pseudo_3d_vgg_features_unbiased
 from .get_data import read_srmodel
 from .get_data import simulate_image
 from .get_data import compare_models
+from .get_data import optimize_upsampling_shape

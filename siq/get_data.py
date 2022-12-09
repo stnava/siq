@@ -1346,6 +1346,51 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
         img = img + temp
     return img
 
+def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=False ):
+    minspc = min( list( spacing ) )
+    maxspc = max( list( spacing ) )
+    ratio = maxspc/minspc
+    if ratio == 1.0:
+        ratio = 0.5
+    roundratio = np.round( ratio )
+    tarshaperaw = []
+    tarshape = []
+    tarshaperound = []
+    for k in range( len( spacing ) ):
+        locrat = spacing[k]/minspc
+        newspc = spacing[k] * roundratio
+        tarshaperaw.append( locrat )
+        if modality == "NM":
+            if verbose:
+                print("Using minspacing: 0.25")
+            if newspc < 0.25 :
+                locrat = spacing[k]/0.25
+        elif modality == "DTI":
+            if verbose:
+                print("Using minspacing: 1.0")
+            if newspc < 1.0 :
+                locrat = spacing[k]/1.0
+        else: # assume T1
+            if verbose:
+                print("Using minspacing: 0.35")
+            if newspc < 0.35 :
+                locrat = spacing[k]/0.35
+        tarshape.append( str( int( locrat ) ) )
+        tarshaperound.append( str( int(np.round( locrat )) ) )
+    if verbose:
+        print("before emendation:")
+        print( tarshaperaw )
+        print( tarshaperound )
+        print( tarshape )
+    allone = True
+    if roundit:
+        tarshape = tarshaperound
+    for k in range( len( tarshape ) ):
+        if tarshape[k] != "1":
+            allone=False
+    if allone:
+        tarshape = ["2","2","2"] # default
+    return "x".join(tarshape)
 
 def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=False ):
     """
