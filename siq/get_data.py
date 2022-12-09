@@ -1375,7 +1375,14 @@ def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=Fa
                 print("Using minspacing: 0.35")
             if newspc < 0.35 :
                 locrat = spacing[k]/0.35
-        tarshape.append( str( int( locrat ) ) )
+        myint = int( locrat )
+        if ( myint == 0 ):
+            myint = 1
+        if myint == 5:
+            myint = 4
+        if ( myint > 6 ):
+            myint = 6
+        tarshape.append( str( myint ) )
         tarshaperound.append( str( int(np.round( locrat )) ) )
     if verbose:
         print("before emendation:")
