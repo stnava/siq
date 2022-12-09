@@ -1406,7 +1406,8 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
         imgshape = []
         for aa in range(len(upshape)):
             a.append( str(upshape[aa]) )
-            imgshape.append( str( imgblock.shape[aa] ) )
+            if aa < len(imgblock.shape):
+                imgshape.append( str( imgblock.shape[aa] ) )
         if identifier is None:
             identifier=temp
         mydict = {
