@@ -1403,14 +1403,17 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             print( "resampled img shape" )
             print( imgblock.shape )
         a=[]
+        imgshape = []
         for aa in range(len(upshape)):
             a.append( str(upshape[aa]) )
+            imgshape.append( str( imgblock.shape[aa] ) )
         if identifier is None:
             identifier=temp
         mydict = {
             "identifier":identifier,
+            "imgshape":"x".join(imgshape),
             "mdl": temp,
-            "shape":"x".join(a),
+            "mdlshape":"x".join(a),
             "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
             "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
             "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
