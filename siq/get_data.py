@@ -1347,7 +1347,7 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     return img
 
 
-def compare_models( model_filenames, img, n_classes=3, verbose=False ):
+def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
 
@@ -1405,7 +1405,10 @@ def compare_models( model_filenames, img, n_classes=3, verbose=False ):
         a=[]
         for aa in range(len(upshape)):
             a.append( str(upshape[aa]) )
+        if identifier is None:
+            identifier=temp
         mydict = {
+            "identifier":identifier,
             "mdl": temp,
             "shape":"x".join(a),
             "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
