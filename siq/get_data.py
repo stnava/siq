@@ -21,7 +21,6 @@ import ants
 import antspynet
 import antspyt1w
 import tensorflow as tf
-import tensorflow.contrib.eager as tfe
 from tensorflow.python.eager.context import eager_mode, graph_mode
 
 from multiprocessing import Pool
