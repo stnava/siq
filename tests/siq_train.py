@@ -5,6 +5,8 @@ import ants
 import sys
 import contextlib
 import tensorflow as tf
+from tensorflow.python.framework.ops import disable_eager_execution
+disable_eager_execution()
 if len(sys.argv) <= 1:
         print("usage:")
         print(sys.argv[0]+ " n  paramfile.csv rootdir  cudanum index output_prefix ")
