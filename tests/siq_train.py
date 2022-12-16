@@ -2,8 +2,9 @@ import os
 import siq
 import glob
 import ants
-import tensorflow as tf
 import sys
+import contextlib
+import tensorflow as tf
 if len(sys.argv) <= 1:
         print("usage:")
         print(sys.argv[0]+ " n  paramfile.csv rootdir  cudanum index output_prefix ")
@@ -75,6 +76,15 @@ import random
 import glob
 import ants
 import tensorflow as tf
+@contextlib.contextmanager
+def options(options):
+  old_opts = tf.config.optimizer.get_experimental_options()
+  tf.config.optimizer.set_experimental_options(options)
+  try:
+    yield
+  finally:
+    tf.config.optimizer.set_experimental_options(old_opts)
+
 random.seed(0) # reproducibly sample images
 globber = rootdir + "*nii.gz"
 imgfns = glob.glob( globber )
@@ -108,37 +118,39 @@ if not doseg:
                 nChannelsIn=nchan, nChannelsOut=nchan,
                 sigmoid_second_channel=False ) # should match ratio of high to low size patches
         # first set up to do MSQ
-        training_path = siq.train(
-                mdl,
-                fnsTrain,
-                fnsTest,
-                output_prefix=outimageflename+"_pretraining",
-                target_patch_size=patch,
-                target_patch_size_low=patchlow,
-                n_test=6,
-                learning_rate=5e-05,
-                feature_type=feet,
-                feature_layer=f,
-                feature=small,
-                tv=0.1 * small,
-                max_iterations=200,
-                verbose=True)
+        with options({'constant_folding': True}):
+                training_path = siq.train(
+                        mdl,
+                        fnsTrain,
+                        fnsTest,
+                        output_prefix=outimageflename+"_pretraining",
+                        target_patch_size=patch,
+                        target_patch_size_low=patchlow,
+                        n_test=6,
+                        learning_rate=5e-05,
+                        feature_type=feet,
+                        feature_layer=f,
+                        feature=small,
+                        tv=0.1 * small,
+                        max_iterations=200,
+                        verbose=True)
         # then reweight and do full training
-        training_path = siq.train(
-                mdl,
-                fnsTrain,
-                fnsTest,
-                output_prefix=outimageflename,
-                target_patch_size=patch,
-                target_patch_size_low=patchlow,
-                n_test=6,
-                learning_rate=5e-05,
-                feature_type=feet,
-                feature_layer=f,
-                feature=2.0,
-                tv=0.1,
-                max_iterations=20000,
-                verbose=True)
+        with options({'constant_folding': True}):
+                training_path = siq.train(
+                        mdl,
+                        fnsTrain,
+                        fnsTest,
+                        output_prefix=outimageflename,
+                        target_patch_size=patch,
+                        target_patch_size_low=patchlow,
+                        n_test=6,
+                        learning_rate=5e-05,
+                        feature_type=feet,
+                        feature_layer=f,
+                        feature=2.0,
+                        tv=0.1,
+                        max_iterations=20000,
+                        verbose=True)
 else:
         mdl = siq.default_dbpn( upper,
         	nChannelsIn=nchan, nChannelsOut=nchan,
