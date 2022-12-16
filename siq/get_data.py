@@ -21,6 +21,8 @@ import ants
 import antspynet
 import antspyt1w
 import tensorflow as tf
+import tensorflow.contrib.eager as tfe
+from tensorflow.python.eager.context import eager_mode, graph_mode
 
 from multiprocessing import Pool
 
@@ -941,9 +943,11 @@ def train(
     if feature_type == 'grader':
         feature_extractor = get_grader_feature_network( feature_layer )
     elif feature_type == 'vggrandom':
-        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
+        with eager_mode():
+            feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     elif feature_type == 'vgg':
-        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
+        with eager_mode():
+            feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
     else:
         raise Exception("feature type does not exist")
     if verbose:
@@ -992,8 +996,9 @@ def train(
         if verbose:
             print( "preset weights:" )
     else:
-        wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
-            feature=feature, tv=tv )
+        with eager_mode():        
+            wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+                feature=feature, tv=tv )
         for k in range(len(wts)):
             training_weights[0,k]=wts[k]
         pd.DataFrame(training_weights, columns = ["msq","feat","tv"] ).to_csv( wts_csv )
