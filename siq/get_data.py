@@ -333,7 +333,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
         myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
         return myfact
-    vgg19 = tf.keras.applications.VGG19( 
+    vgg19 = tf.keras.applications.VGG19(
             include_top = False, weights = "imagenet",
             input_shape = [inshape[0],inshape[1],3],
             classes = 1000 )
@@ -346,7 +346,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     vggmodelRaw = antspynet.create_vgg_model_3d(
             [inshape[0],inshape[1],inshape[2],1],
             number_of_classification_labels = 1000,
-            layers = [1, 2, 3, 4, 4], 
+            layers = [1, 2, 3, 4, 4],
             lowest_resolution = 64,
             convolution_kernel_size= (3, 3, 3), pool_size = (2, 2, 2),
             strides = (2, 2, 2), number_of_dense_units= 4096, dropout_rate = 0,
@@ -354,12 +354,12 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     if verbose:
         print( vggmodelRaw.layers[layer_index] )
         print( vggmodelRaw.layers[layer_index].name )
-        print( vgg19.layers[layer_index] ) 
-        print( vgg19.layers[layer_index].name ) 
-    feature_extractor_2d = tf.keras.Model( 
+        print( vgg19.layers[layer_index] )
+        print( vgg19.layers[layer_index].name )
+    feature_extractor_2d = tf.keras.Model(
             inputs = vgg19.input,
             outputs = vgg19.layers[layer_index].output)
-    feature_extractor = tf.keras.Model( 
+    feature_extractor = tf.keras.Model(
             inputs = vggmodelRaw.input,
             outputs = vggmodelRaw.layers[layer_index].output)
     wts_2d = feature_extractor_2d.weights
@@ -368,7 +368,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
         if len(a.shape) != len(b.shape):
                 return False
         for j in range(len(a.shape)):
-            if a.shape[j] != b.shape[j]: 
+            if a.shape[j] != b.shape[j]:
                 return False
         return True
     for ww in range(len(wts)):
@@ -433,14 +433,14 @@ def get_grader_feature_network( layer=6 ):
     return tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[layer].output )
 
 
-def default_dbpn( 
+def default_dbpn(
     strider, # length should equal dimensionality
     dimensionality = 3,
     nfilt=64,
     nff = 256,
     convn = 6,
     lastconv = 3,
-    nbp=7, 
+    nbp=7,
     nChannelsIn=1,
     nChannelsOut=1,
     option = None,
@@ -449,6 +449,7 @@ def default_dbpn(
     sigmoid_second_channel=False,
     clone_intensity_to_segmentation=False,
     pro_seg = 0,
+    freeze = False,
     verbose=False
  ):
     if option == 'tiny':
@@ -456,19 +457,19 @@ def default_dbpn(
         nff = 64
         convn = 3
         lastconv = 1
-        nbp=2 
+        nbp=2
     elif option == 'small':
         nfilt=32
         nff = 64
         convn = 6
         lastconv = 3
-        nbp=4 
+        nbp=4
     elif option == 'medium':
         nfilt=64
         nff = 128
         convn = 6
         lastconv = 3
-        nbp=4 
+        nbp=4
     else:
         option='large'
     if verbose:
@@ -492,8 +493,8 @@ def default_dbpn(
             number_of_back_projection_stages=nbp,
             convolution_kernel_size=(convn, convn),
             strides=(strider[0], strider[1]),
-            last_convolution=(lastconv, lastconv), 
-            number_of_loss_functions=1, 
+            last_convolution=(lastconv, lastconv),
+            number_of_loss_functions=1,
             interpolation='nearest')
     if dimensionality == 3 :
         mdl = dbpn( (None,None,None,nChannelsIn),
@@ -515,12 +516,13 @@ def default_dbpn(
                     number_of_back_projection_stages=nbp,
                     convolution_kernel_size=(convn, convn),
                     strides=(strider[0], strider[1]),
-                    last_convolution=(lastconv, lastconv), 
-                    number_of_loss_functions=1, 
+                    last_convolution=(lastconv, lastconv),
+                    number_of_loss_functions=1,
                     interpolation='nearest')
             else:
-                for layer in intensity_model.layers:
-                    layer.trainable = False
+                if freeze:
+                    for layer in intensity_model.layers:
+                        layer.trainable = False
             if segmentation_model is None:
                 segmentation_model = dbpn( (None,None,1),
                         number_of_outputs=1,
@@ -529,11 +531,12 @@ def default_dbpn(
                         number_of_back_projection_stages=nbp,
                         convolution_kernel_size=(convn, convn),
                         strides=(strider[0], strider[1]),
-                        last_convolution=(lastconv, lastconv), 
+                        last_convolution=(lastconv, lastconv),
                         number_of_loss_functions=1, interpolation='linear')
             else:
-                for layer in segmentation_model.layers:
-                    layer.trainable = False
+                if freeze:
+                    for layer in segmentation_model.layers:
+                        layer.trainable = False
         if dimensionality == 3 :
             input_image_size = (None,None,None,2)
             if intensity_model is None:
@@ -544,11 +547,12 @@ def default_dbpn(
                     number_of_back_projection_stages=nbp,
                     convolution_kernel_size=(convn, convn, convn),
                     strides=(strider[0], strider[1], strider[2]),
-                    last_convolution=(lastconv, lastconv, lastconv), 
+                    last_convolution=(lastconv, lastconv, lastconv),
                     number_of_loss_functions=1, interpolation='nearest')
             else:
-                for layer in intensity_model.layers:
-                    layer.trainable = False
+                if freeze:
+                    for layer in intensity_model.layers:
+                        layer.trainable = False
             if segmentation_model is None:
                 segmentation_model = dbpn( (None,None,None,1),
                         number_of_outputs=1,
@@ -557,11 +561,12 @@ def default_dbpn(
                         number_of_back_projection_stages=nbp,
                         convolution_kernel_size=(convn, convn, convn),
                         strides=(strider[0], strider[1], strider[2]),
-                        last_convolution=(lastconv, lastconv, lastconv), 
+                        last_convolution=(lastconv, lastconv, lastconv),
                         number_of_loss_functions=1, interpolation='linear')
             else:
-                for layer in segmentation_model.layers:
-                    layer.trainable = False
+                if freeze:
+                    for layer in segmentation_model.layers:
+                        layer.trainable = False
         if verbose:
             print( "len intensity_model layers : " + str( len( intensity_model.layers )))
             print( "len intensity_model weights : " + str( len( intensity_model.weights )))
@@ -574,16 +579,19 @@ def default_dbpn(
                         segmentation_model.weights[k] = intensity_model.weights[k]
         inputs = tf.keras.Input(shape=input_image_size)
         insplit = tf.split( inputs, 2, dimensionality+1)
-        outputs = [ 
-            intensity_model( insplit[0] ), 
+        outputs = [
+            intensity_model( insplit[0] ),
             tf.nn.sigmoid( segmentation_model( insplit[1] ) ) ]
         mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
     if pro_seg > 0 and intensity_model is not None:
-        if verbose:
+        if verbose and freeze:
             print("Add a segmentation arm to the end. freeze intensity. intensity_model(seg) => conv => sigmoid")
-        for layer in intensity_model.layers:
-            layer.trainable = False
+        if verbose and not freeze:
+            print("Add a segmentation arm to the end. freeze intensity. intensity_model(seg) => conv => sigmoid")
+        if freeze:
+            for layer in intensity_model.layers:
+                layer.trainable = False
         if dimensionality == 2 :
             input_image_size = (None,None,2)
         elif dimensionality == 3 :
@@ -617,22 +625,22 @@ def default_dbpn(
                     strides=firstStrides,
                     kernel_initializer='glorot_uniform',
                     padding='same')(L1)
-        outputs = [ 
-            intensity_model( insplit[0] ), 
+        outputs = [
+            intensity_model( insplit[0] ),
             tf.nn.sigmoid( L2 ) ]
         mdlout = tf.concat( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
     return mdl
 
-def image_patch_training_data_from_filenames( 
+def image_patch_training_data_from_filenames(
     filenames,
     target_patch_size,
     target_patch_size_low,
-    nPatches = 128, 
+    nPatches = 128,
     istest   = False,
-    patch_scaler=True, 
+    patch_scaler=True,
     to_tensorflow = False,
-    verbose = False 
+    verbose = False
     ):
     # **data generation**<br>
     # recent versions of tensorflow/keras allow data generators to be passed<br>
@@ -657,7 +665,7 @@ def image_patch_training_data_from_filenames(
     patchesResam = np.zeros(shape=shaperlo)
     patchesUp = None
     if istest:
-        patchesUp = np.zeros(shape=patchesOrig.shape)    
+        patchesUp = np.zeros(shape=patchesOrig.shape)
     for myn in range(nPatches):
             if verbose:
                 print(myn)
@@ -705,15 +713,15 @@ def image_patch_training_data_from_filenames(
     return patchesResam, patchesOrig, patchesUp
 
 
-def seg_patch_training_data_from_filenames( 
+def seg_patch_training_data_from_filenames(
     filenames,
     target_patch_size,
     target_patch_size_low,
-    nPatches = 128, 
+    nPatches = 128,
     istest   = False,
-    patch_scaler=True, 
+    patch_scaler=True,
     to_tensorflow = False,
-    verbose = False 
+    verbose = False
     ):
     if verbose:
         print("begin seg_patch_training_data_from_filenames")
@@ -732,7 +740,7 @@ def seg_patch_training_data_from_filenames(
     patchesResam = np.zeros(shape=shaperlo)
     patchesUp = None
     if istest:
-        patchesUp = np.zeros(shape=patchesOrig.shape)    
+        patchesUp = np.zeros(shape=patchesOrig.shape)
     for myn in range(nPatches):
             if verbose:
                 print(myn)
@@ -870,22 +878,22 @@ def numpy_generator( filenames ):
     patchesResam=patchesOrig=patchesUp=None
     yield (patchesResam, patchesOrig,patchesUp)
 
-def image_generator( 
+def image_generator(
     filenames,
     nPatches,
     target_patch_size,
     target_patch_size_low,
-    patch_scaler=True, 
+    patch_scaler=True,
     istest=False,
     verbose = False ):
     while True:
-        patchesResam, patchesOrig, patchesUp = image_patch_training_data_from_filenames( 
+        patchesResam, patchesOrig, patchesUp = image_patch_training_data_from_filenames(
             filenames,
             target_patch_size = target_patch_size,
             target_patch_size_low = target_patch_size_low,
-            nPatches = nPatches, 
+            nPatches = nPatches,
             istest   = istest,
-            patch_scaler=patch_scaler, 
+            patch_scaler=patch_scaler,
             to_tensorflow = True,
             verbose = verbose )
         if istest:
@@ -893,22 +901,22 @@ def image_generator(
         yield (patchesResam, patchesOrig)
 
 
-def seg_generator( 
+def seg_generator(
     filenames,
     nPatches,
     target_patch_size,
     target_patch_size_low,
-    patch_scaler=True, 
+    patch_scaler=True,
     istest=False,
     verbose = False ):
     while True:
-        patchesResam, patchesOrig, patchesUp = seg_patch_training_data_from_filenames( 
+        patchesResam, patchesOrig, patchesUp = seg_patch_training_data_from_filenames(
             filenames,
             target_patch_size = target_patch_size,
             target_patch_size_low = target_patch_size_low,
-            nPatches = nPatches, 
+            nPatches = nPatches,
             istest   = istest,
-            patch_scaler=patch_scaler, 
+            patch_scaler=patch_scaler,
             to_tensorflow = True,
             verbose = verbose )
         if istest:
@@ -916,16 +924,16 @@ def seg_generator(
         yield (patchesResam, patchesOrig)
 
 
-def train( 
-    mdl, 
-    filenames_train, 
-    filenames_test, 
+def train(
+    mdl,
+    filenames_train,
+    filenames_test,
     target_patch_size,
     target_patch_size_low,
     output_prefix,
     n_test = 8,
-    learning_rate=5e-5, 
-    feature_layer = 6, 
+    learning_rate=5e-5,
+    feature_layer = 6,
     feature = 2,
     tv = 0.1,
     max_iterations = 1000,
@@ -951,8 +959,8 @@ def train(
         raise Exception("feature type does not exist")
     if verbose:
         print("begin train generator")
-    mydatgen = image_generator( 
-        filenames_train, 
+    mydatgen = image_generator(
+        filenames_train,
         nPatches=1,
         target_patch_size=target_patch_size,
         target_patch_size_low=target_patch_size_low,
@@ -995,8 +1003,8 @@ def train(
         if verbose:
             print( "preset weights:" )
     else:
-        with eager_mode():        
-            wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+        with eager_mode():
+            wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf,
                 feature=feature, tv=tv )
         for k in range(len(wts)):
             training_weights[0,k]=wts[k]
@@ -1005,7 +1013,7 @@ def train(
             print( "automatic weights:" )
     if verbose:
         print( wts )
-    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ): 
+    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ):
         squared_difference = tf.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
             tdim = 3
@@ -1078,18 +1086,18 @@ def binary_dice_loss(y_true, y_pred):
   y_pred_f = K.flatten(y_pred)
   intersection = K.sum(y_true_f * y_pred_f)
   return -1 * (2 * intersection + smoothing_factor)/(K.sum(y_true_f) +
-        K.sum(y_pred_f) + smoothing_factor) 
+        K.sum(y_pred_f) + smoothing_factor)
 
 def train_seg(
-    mdl, 
-    filenames_train, 
-    filenames_test, 
+    mdl,
+    filenames_train,
+    filenames_test,
     target_patch_size,
     target_patch_size_low,
     output_prefix,
     n_test = 8,
-    learning_rate=5e-5, 
-    feature_layer = 6, 
+    learning_rate=5e-5,
+    feature_layer = 6,
     feature = 2,
     tv = 0.1,
     dice = 0.5,
@@ -1112,8 +1120,8 @@ def train_seg(
         feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer  )
     if verbose:
         print("begin train generator")
-    mydatgen = seg_generator( 
-        filenames_train, 
+    mydatgen = seg_generator(
+        filenames_train,
         nPatches=1,
         target_patch_size=target_patch_size,
         target_patch_size_low=target_patch_size_low,
@@ -1156,7 +1164,7 @@ def train_seg(
         if verbose:
             print( "preset weights:" )
     else:
-        wts = auto_weight_loss_seg( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf, 
+        wts = auto_weight_loss_seg( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf,
             feature=feature, tv=tv, dice=dice )
         for k in range(len(wts)):
             training_weights[0,k]=wts[k]
@@ -1165,7 +1173,7 @@ def train_seg(
             print( "automatic weights:" )
     if verbose:
         print( wts )
-    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], dicewt=wts[3], mybs = batch_size ): 
+    def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], dicewt=wts[3], mybs = batch_size ):
         if len( y_true.shape ) == 5:
             tdim = 3
             myax = [1,2,3,4]
@@ -1243,11 +1251,11 @@ def train_seg(
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
-def inference( 
-    image, 
+def inference(
+    image,
     mdl,
     truncation = None,
-    segmentation=None, 
+    segmentation=None,
     target_range=[1,0],
     match_intensity=True,
     verbose=False):
@@ -1275,12 +1283,21 @@ def inference(
             testarrout = mdl( testarr )
             for k in range(2):
                 upFactor.append( int( testarrout.shape[k+1]/testarr.shape[k+1]  )  )
+
+        return antspyt1w.super_resolution_segmentation_per_label(
+                pimg,
+                segmentation,
+                upFactor,
+                mdl,
+                segmentation_numbers=mynp,
+                target_range=target_range,
+                max_lab_plus_one=True  )
         return antspyt1w.super_resolution_segmentation_per_label(
             pimg, segmentation, upFactor, mdl,
             segmentation_numbers=mynp,
             dilation_amount=8,
             probability_images=None,
-            probability_labels=None, 
+            probability_labels=None,
             max_lab_plus_one=True,
             target_range=target_range,
             match_intensity=match_intensity,
@@ -1407,8 +1424,8 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
 
-    NOTE: when evaluating a 2-channel (segmentation) model - the focus should 
-    be on the segmentation arm (DICE) alone ... the intensity component can 
+    NOTE: when evaluating a 2-channel (segmentation) model - the focus should
+    be on the segmentation arm (DICE) alone ... the intensity component can
     be evaluated on its own separately.
     """
     padding=4
