@@ -293,10 +293,10 @@ def dbpn(input_image_size,
 
 # generate a random corner index for a patch
 
-def get_random_base_ind( full_dims, off = 10, patchWidth = 96 ):
+def get_random_base_ind( full_dims, patchWidth, off=8 ):
     baseInd = [None,None,None]
     for k in range(3):
-        baseInd[k]=random.sample( range( off, full_dims[k]-1-patchWidth ), 1 )[0]
+        baseInd[k]=random.sample( range( off, full_dims[k]-1-patchWidth[k] ), 1 )[0]
     return baseInd
 
 
@@ -304,7 +304,7 @@ def get_random_base_ind( full_dims, off = 10, patchWidth = 96 ):
 def get_random_patch( img, patchWidth ):
     mystd = 0
     while mystd == 0:
-        inds = get_random_base_ind( full_dims = img.shape )
+        inds = get_random_base_ind( full_dims = img.shape, patchWidth=patchWidth, off=8 )
         hinds = [None,None,None]
         for k in range(len(inds)):
             hinds[k] = inds[k] + patchWidth[k]
@@ -316,7 +316,7 @@ def get_random_patch_pair( img, img2, patchWidth ):
     mystd = mystd2 = 0
     ct = 0
     while mystd == 0 or mystd2 == 0:
-        inds = get_random_base_ind( full_dims = img.shape )
+        inds = get_random_base_ind( full_dims = img.shape, patchWidth=patchWidth, off=8  )
         hinds = [None,None,None]
         for k in range(len(inds)):
             hinds[k] = inds[k] + patchWidth[k]
