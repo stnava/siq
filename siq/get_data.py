@@ -1257,14 +1257,14 @@ def inference(
     truncation = None,
     segmentation=None,
     target_range=[1,0],
-    match_intensity=True,
+    poly_order=1,
     verbose=False):
     if segmentation is None:
         pimg = ants.image_clone( image )
         if truncation is not None:
             pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
         return antspynet.apply_super_resolution_model_to_image(
-            pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
+            pimg, mdl, target_range=target_range, regression_order=poly_order, verbose=verbose
             )
     else:
         pimg = ants.image_clone( image )
@@ -1291,18 +1291,8 @@ def inference(
                 mdl,
                 segmentation_numbers=mynp,
                 target_range=target_range,
-                poly_order=2,
+                poly_order=poly_order,
                 max_lab_plus_one=True  )
-        return antspyt1w.super_resolution_segmentation_per_label(
-            pimg, segmentation, upFactor, mdl,
-            segmentation_numbers=mynp,
-            dilation_amount=8,
-            probability_images=None,
-            probability_labels=None,
-            max_lab_plus_one=True,
-            target_range=target_range,
-            match_intensity=match_intensity,
-            verbose=verbose)
     return None
 
 
