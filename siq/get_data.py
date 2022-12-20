@@ -1291,6 +1291,7 @@ def inference(
                 mdl,
                 segmentation_numbers=mynp,
                 target_range=target_range,
+                poly_order=2,
                 max_lab_plus_one=True  )
         return antspyt1w.super_resolution_segmentation_per_label(
             pimg, segmentation, upFactor, mdl,
@@ -1441,8 +1442,9 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             tarshape.append( float(upshape[j]) * inspc[j] )
         # uses linear interp
         dimg=ants.resample_image( img, tarshape, use_voxels=False, interp_type=0 )
-        dicesr=0
-        dicenn=0
+        import math
+        dicesr=math.nan
+        dicenn=math.nan
         if verbose:
             print( dimg )
         if upshape[3] == 2:
@@ -1458,6 +1460,10 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             dimgup=inference( dimg, srmdl, verbose=False  )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
+        dimgup[ imgblock == 0 ]=0
+        dimglin[ imgblock == 0 ]=0
+        dimglinh = ants.histogram_match_image( dimglin, imgblock )
+        dimguph = ants.histogram_match_image( dimgup, imgblock )
         padder = []
         dimwarning=False
         for jj in range(img.dimension):
@@ -1488,10 +1494,10 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             "imgshape":"x".join(imgshape),
             "mdl": temp,
             "mdlshape":"x".join(a),
-            "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
-            "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
-            "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
-            "SSIM.SR": antspynet.ssim( imgblock, dimgup ),
+            "PSNR.LIN": antspynet.psnr( imgblock, dimglinh ),
+            "PSNR.SR": antspynet.psnr( imgblock, dimguph ),
+            "SSIM.LIN": antspynet.ssim( imgblock, dimglinh ),
+            "SSIM.SR": antspynet.ssim( imgblock, dimguph ),
             "DICE.NN": dicenn,
             "DICE.SR": dicesr,
             "dimwarning": dimwarning }
