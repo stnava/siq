@@ -1263,9 +1263,20 @@ def inference(
         pimg = ants.image_clone( image )
         if truncation is not None:
             pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
-        return antspynet.apply_super_resolution_model_to_image(
-            pimg, mdl, target_range=target_range, regression_order=poly_order, verbose=verbose
+        imgsr = antspynet.apply_super_resolution_model_to_image(
+            pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
             )
+        bilin = ants.resample_image_to_target( pimg, imgsr )
+        if poly_order is not None:
+            if verbose:
+                print("match intensity")
+            if poly_order == 'hist':
+                imgsr = ants.histogram_match_image( imgsr, pimg )
+            else:
+                imgsr = antspynet.regression_match_image( imgsr, bilin,
+                    poly_order=poly_order )
+        imgsr[ bilin == 0 ] = 0
+        return imgsr
     else:
         pimg = ants.image_clone( image )
         if truncation is not None:
