@@ -1257,7 +1257,7 @@ def inference(
     truncation = None,
     segmentation=None,
     target_range=[1,0],
-    poly_order=1,
+    poly_order='hist',
     verbose=False):
     if segmentation is None:
         pimg = ants.image_clone( image )
@@ -1269,13 +1269,12 @@ def inference(
         bilin = ants.resample_image_to_target( pimg, imgsr )
         if poly_order is not None:
             if verbose:
-                print("match intensity")
+                print("match intensity with " + str( poly_order ) )
             if poly_order == 'hist':
                 imgsr = ants.histogram_match_image( imgsr, pimg )
             else:
                 imgsr = antspynet.regression_match_image( imgsr, bilin,
                     poly_order=poly_order )
-        imgsr[ bilin == 0 ] = 0
         return imgsr
     else:
         pimg = ants.image_clone( image )
@@ -1294,8 +1293,7 @@ def inference(
             testarrout = mdl( testarr )
             for k in range(2):
                 upFactor.append( int( testarrout.shape[k+1]/testarr.shape[k+1]  )  )
-
-        return antspyt1w.super_resolution_segmentation_per_label(
+        temp = antspyt1w.super_resolution_segmentation_per_label(
                 pimg,
                 segmentation,
                 upFactor,
@@ -1304,6 +1302,18 @@ def inference(
                 target_range=target_range,
                 poly_order=poly_order,
                 max_lab_plus_one=True  )
+        imgsr = temp['super_resolution' ]
+        bilin = ants.resample_image_to_target( pimg, imgsr )
+        if poly_order is not None:
+            if verbose:
+                print("match intensity with " + str( poly_order ) )
+            if poly_order == 'hist':
+                imgsr = ants.histogram_match_image( imgsr, pimg )
+            else:
+                imgsr = antspynet.regression_match_image( imgsr, bilin,
+                    poly_order=poly_order )
+        temp['super_resolution' ] = imgsr
+        return temp
     return None
 
 
@@ -1446,25 +1456,20 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
         import math
         dicesr=math.nan
         dicenn=math.nan
-        if verbose:
-            print( dimg )
         if upshape[3] == 2:
             seghigh = ants.threshold_image( img,"Otsu",n_classes)
             seglow = ants.resample_image( seghigh, tarshape, use_voxels=False, interp_type=1 )
-            dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=False )
+            dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=verbose )
             dimgupseg = dimgup['super_resolution_segmentation']
             segimgnn = ants.resample_image_to_target( seglow, dimgupseg, interp_type='nearestNeighbor' )
             dicenn = ants.label_overlap_measures(seghigh, segimgnn)['MeanOverlap'][0]
             dicesr = ants.label_overlap_measures(seghigh, dimgupseg)['MeanOverlap'][0]
-            dimgup=dimgup['super_resolution']
         else:
-            dimgup=inference( dimg, srmdl, verbose=False  )
+            dimgup=inference( dimg, srmdl, verbose=verbose )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
         dimgup[ imgblock == 0 ]=0
         dimglin[ imgblock == 0 ]=0
-        dimglinh = ants.histogram_match_image( dimglin, imgblock )
-        dimguph = ants.histogram_match_image( dimgup, imgblock )
         padder = []
         dimwarning=False
         for jj in range(img.dimension):
@@ -1495,10 +1500,10 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             "imgshape":"x".join(imgshape),
             "mdl": temp,
             "mdlshape":"x".join(a),
-            "PSNR.LIN": antspynet.psnr( imgblock, dimglinh ),
-            "PSNR.SR": antspynet.psnr( imgblock, dimguph ),
-            "SSIM.LIN": antspynet.ssim( imgblock, dimglinh ),
-            "SSIM.SR": antspynet.ssim( imgblock, dimguph ),
+            "PSNR.LIN": antspynet.psnr( imgblock, dimglin ),
+            "PSNR.SR": antspynet.psnr( imgblock, dimgup ),
+            "SSIM.LIN": antspynet.ssim( imgblock, dimglin ),
+            "SSIM.SR": antspynet.ssim( imgblock, dimgup ),
             "DICE.NN": dicenn,
             "DICE.SR": dicesr,
             "dimwarning": dimwarning }
