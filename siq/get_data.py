@@ -1300,6 +1300,7 @@ def inference(
                 mdl,
                 segmentation_numbers=mynp,
                 target_range=target_range,
+                dilation_amount=2,
                 poly_order=poly_order,
                 max_lab_plus_one=True  )
         imgsr = temp['super_resolution' ]
