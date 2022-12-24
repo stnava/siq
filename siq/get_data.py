@@ -1432,9 +1432,11 @@ def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=Fa
         tarshape = ["2","2","2"] # default
     return "x".join(tarshape)
 
-def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=False ):
+def compare_models( model_filenames, img, n_classes=3, identifier=None, noise_sd=0.1,verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
+
+    by default, will add noise to downsampled image.
 
     NOTE: when evaluating a 2-channel (segmentation) model - the focus should
     be on the segmentation arm (DICE) alone ... the intensity component can
@@ -1453,6 +1455,7 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             tarshape.append( float(upshape[j]) * inspc[j] )
         # uses linear interp
         dimg=ants.resample_image( img, tarshape, use_voxels=False, interp_type=0 )
+        dimg = ants.add_noise_to_image( dimg,'additivegaussian', [0,noise_sd] )
         import math
         dicesr=math.nan
         dicenn=math.nan
@@ -1462,9 +1465,12 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=verbose )
             dimgupseg = dimgup['super_resolution_segmentation']
             dimgup = dimgup['super_resolution']
+            segblock = ants.resample_image_to_target( seghigh, dimgupseg, interp_type='nearestNeighbor'  )
             segimgnn = ants.resample_image_to_target( seglow, dimgupseg, interp_type='nearestNeighbor' )
-            dicenn = ants.label_overlap_measures(seghigh, segimgnn)['MeanOverlap'][0]
-            dicesr = ants.label_overlap_measures(seghigh, dimgupseg)['MeanOverlap'][0]
+            segblock[ dimgupseg == 0 ] = 0
+            segimgnn[ dimgupseg == 0 ] = 0
+            dicenn = ants.label_overlap_measures(segblock, segimgnn)['MeanOverlap'][0]
+            dicesr = ants.label_overlap_measures(segblock, dimgupseg)['MeanOverlap'][0]
         else:
             dimgup=inference( dimg, srmdl, verbose=verbose )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
