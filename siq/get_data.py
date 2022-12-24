@@ -1464,12 +1464,14 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             segimgnn = ants.resample_image_to_target( seglow, dimgupseg, interp_type='nearestNeighbor' )
             dicenn = ants.label_overlap_measures(seghigh, segimgnn)['MeanOverlap'][0]
             dicesr = ants.label_overlap_measures(seghigh, dimgupseg)['MeanOverlap'][0]
+            print("SEG")
+            print( dimgup )
         else:
+            print("INT")
             dimgup=inference( dimg, srmdl, verbose=verbose )
+            print( dimgup )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
-        print( imgblock )
-        print( dimglin )
         dimgup[ imgblock == 0.0 ]=0.0
         dimglin[ imgblock == 0.0 ]=0.0
         padder = []
