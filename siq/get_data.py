@@ -1468,8 +1468,8 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, verbose=
             dimgup=inference( dimg, srmdl, verbose=verbose )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
-        dimgup[ imgblock == 0.0 ]=0.0
-        dimglin[ imgblock == 0.0 ]=0.0
+        # dimgup[ imgblock == 0.0 ]=0.0
+        # dimglin[ imgblock == 0.0 ]=0.0
         padder = []
         dimwarning=False
         for jj in range(img.dimension):
