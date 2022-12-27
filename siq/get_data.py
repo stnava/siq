@@ -1433,7 +1433,9 @@ def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=Fa
         tarshape = ["2","2","2"] # default
     return "x".join(tarshape)
 
-def compare_models( model_filenames, img, n_classes=3, identifier=None, noise_sd=0.1,verbose=False ):
+def compare_models( model_filenames, img, n_classes=3,
+    poly_order='hist',
+    identifier=None, noise_sd=0.1,verbose=False ):
     """
     generate a dataframe computing some basic intensity metrics PSNR and SSIM
 
@@ -1463,7 +1465,7 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, noise_sd
         if upshape[3] == 2:
             seghigh = ants.threshold_image( img,"Otsu",n_classes)
             seglow = ants.resample_image( seghigh, tarshape, use_voxels=False, interp_type=1 )
-            dimgup=inference( dimg, srmdl, segmentation = seglow, verbose=verbose )
+            dimgup=inference( dimg, srmdl, segmentation = seglow, poly_order=poly_order, verbose=verbose )
             dimgupseg = dimgup['super_resolution_segmentation']
             dimgup = dimgup['super_resolution']
             segblock = ants.resample_image_to_target( seghigh, dimgupseg, interp_type='nearestNeighbor'  )
@@ -1473,7 +1475,7 @@ def compare_models( model_filenames, img, n_classes=3, identifier=None, noise_sd
             dicenn = ants.label_overlap_measures(segblock, segimgnn)['MeanOverlap'][0]
             dicesr = ants.label_overlap_measures(segblock, dimgupseg)['MeanOverlap'][0]
         else:
-            dimgup=inference( dimg, srmdl, verbose=verbose )
+            dimgup=inference( dimg, srmdl, poly_order=poly_order, verbose=verbose )
         dimglin = ants.resample_image_to_target( dimg, dimgup, interp_type='linear' )
         imgblock = ants.resample_image_to_target( img, dimgup, interp_type='linear'  )
         dimgup[ imgblock == 0.0 ]=0.0
