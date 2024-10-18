@@ -4,6 +4,8 @@ import re
 save_weights=False
 
 if save_weights:
+    # this also shows how to use legacy keras without other changes
+    # may need to pip install tf_keras for this ... 
     os.environ['TF_USE_LEGACY_KERAS'] = '1'
     #export TF_USE_LEGACY_KERAS=1
     import glob
@@ -16,6 +18,7 @@ if save_weights:
         mdl = tf.keras.models.load_model( os.path.expanduser( mdlfns[k] ), compile=False )
         mdl.save_weights( wtnm )
 else:  # load weights and save models
+    # may need to pip install keras for this ... 
     os.environ['TF_USE_LEGACY_KERAS'] = '0'
     import glob
     import re
