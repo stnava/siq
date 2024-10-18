@@ -77,11 +77,9 @@ test = siq.inference( image, mdl )
 
 see also: the training scripts in `tests`.
 
-## todo
+## problems reading pre-trained models
 
-1. numpy read/write
-
-2. test/fix 2D
+see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 reading with different versions of keras or tensorflow.
 
 ## your compute environment
 
