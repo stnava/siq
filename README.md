@@ -83,12 +83,10 @@ see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 r
 
 ## starter models 
 
+[link](https://github.com/stnava/siq?tab=readme-ov-file#starter-models) to models
 
-```bash
+note - may be issues loading/reading - see the comments about keras versions above
 
-here at figshare https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987
-
-```
 
 ## your compute environment
 
