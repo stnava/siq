@@ -86,7 +86,7 @@ see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 r
 
 ```bash
 
-[here at figshare](https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987)
+here at figshare https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987
 
 ```
 
