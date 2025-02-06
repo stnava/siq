@@ -81,6 +81,15 @@ see also: the training scripts in `tests`.
 
 see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 reading with different versions of keras or tensorflow.
 
+## starter models 
+
+
+```bash
+
+[here at figshare](https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987)
+
+```
+
 ## your compute environment
 
 ```bash
