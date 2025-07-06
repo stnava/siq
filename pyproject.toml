@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siq"
-version = "0.3.6"
+version = "0.3.7"
 description = "deep perceptual resampling and super resolution with antspyx"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "Apache-2.0" }
