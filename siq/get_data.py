@@ -1384,11 +1384,20 @@ def read_srmodel(srfilename, custom_objects=None):
 
     if len(srmdl.input_shape) == 5:  # 3D
         test_input = np.zeros([1, 8, 8, 8, nchan])
-        outshap = srmdl(test_input).shape
+        # Call the model using named input if required
+        try:
+            outshap = srmdl(test_input).shape
+        except:
+            # fallback for named input structure
+            outshap = srmdl({srmdl.input_names[0]: test_input}).shape
         up = [int(outshap[1] / 8), int(outshap[2] / 8), int(outshap[3] / 8), nchan]
     else:  # 2D
         test_input = np.zeros([1, 8, 8, nchan])
-        outshap = srmdl(test_input).shape
+        try:
+            outshap = srmdl(test_input).shape
+        except:
+            # fallback for named input structure
+            outshap = srmdl({srmdl.input_names[0]: test_input}).shape
         up = [int(outshap[1] / 8), int(outshap[2] / 8), nchan]
 
     return srmdl, up
