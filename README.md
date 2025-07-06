@@ -87,6 +87,17 @@ see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 r
 
 note - may be issues loading/reading - see the comments about keras versions above
 
+currently -- with tf >= 2.17 -- this works:
+
+```python
+import os
+seed=4
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
+mfn='/home/ubuntu/.antspymm/siq_smallshort_train_1x1x2_1chan_featgraderL6_best_mdl.h5'
+import siq
+a, b = siq.read_srmodel(mfn)
+```
 
 ## your compute environment
 
