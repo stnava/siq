@@ -452,6 +452,35 @@ def default_dbpn(
     freeze = False,
     verbose=False
  ):
+    """
+    Constructs a DBPN model based on input parameters, and can optionally
+    use external models for intensity or segmentation processing.
+
+    Args:
+        strider (list): List of strides, length must match `dimensionality`.
+        dimensionality (int): Number of dimensions (2 or 3). Default is 3.
+        nfilt (int): Number of base filters. Default is 64.
+        nff (int): Number of feature filters. Default is 256.
+        convn (int): Convolution kernel size. Default is 6.
+        lastconv (int): Size of the last convolution. Default is 3.
+        nbp (int): Number of back projection stages. Default is 7.
+        nChannelsIn (int): Number of input channels. Default is 1.
+        nChannelsOut (int): Number of output channels. Default is 1.
+        option (str): Model size option ('tiny', 'small', 'medium', 'large'). Default is None.
+        intensity_model (tf.keras.Model): Optional external intensity model.
+        segmentation_model (tf.keras.Model): Optional external segmentation model.
+        sigmoid_second_channel (bool): If True, applies sigmoid to second channel in output.
+        clone_intensity_to_segmentation (bool): If True, clones intensity model weights to segmentation.
+        pro_seg (int): If greater than 0, adds a segmentation arm.
+        freeze (bool): If True, freezes the layers of the intensity/segmentation models.
+        verbose (bool): If True, prints detailed logs.
+
+    Returns:
+        Model: A Keras model based on the specified configuration.
+
+    Raises:
+        Exception: If `len(strider)` is not equal to `dimensionality`.
+    """
     if option == 'tiny':
         nfilt=32
         nff = 64
@@ -1319,39 +1348,50 @@ def inference(
     return None
 
 
-def read_srmodel( srfilename ):
-    """
-    read a sr model with tf and return the model and the shape
 
-    Arguments
-    ---------
-    srfilename : string typically ending in .h5 extension
+def read_srmodel(srfilename, custom_objects=None):
+    """
+    Read a super-resolution model (typically in .h5 format) using TensorFlow,
+    returning both the model and its upsampling factor.
+
+    Parameters
+    ----------
+    srfilename : str
+        Path to the model file (typically ending in .h5).
+    custom_objects : dict, optional
+        Dictionary mapping names to custom layer or function objects needed
+        to load the model (e.g., {'TFOpLambda': tf.keras.layers.Lambda(...) }).
 
     Returns
     -------
+    tfmodel : tf.keras.Model
+        The loaded TensorFlow model.
 
-    tfmodel, upsampling_factor
-
-    upsampling_factor is [x_up, y_up, z_up, n_channels ] where these are integer values
+    upsampling_factor : list of int
+        A list describing the upsampling factor in each spatial dimension plus number of channels.
+        For 3D input: [x_up, y_up, z_up, n_channels]
+        For 2D input: [x_up, y_up, n_channels]
 
     Example
     -------
     >>> import siq
-    >>> mdl, upshape = siq.read_srmodel( "temp.h5" )
+    >>> model, up_factor = siq.read_srmodel("model.h5", custom_objects={'TFOpLambda': tf.keras.layers.Lambda(tf.identity)})
     """
-    srmdl = tf.keras.models.load_model( srfilename , compile=False )
-    chanindex = 3
-    if len( srmdl.input.shape ) == 5:
-        chanindex = 4
-    nchan = int(srmdl.input.shape[chanindex])
-    if len( srmdl.input.shape ) == 5:
-        outshap = srmdl( np.zeros([1,8,8,8,nchan]) ).shape
-        return srmdl, [int(outshap[1]/8),int(outshap[2]/8),int(outshap[3]/8),nchan]
-    else:
-        outshap = srmdl( np.zeros([1,8,8,nchan]) ).shape
-        return srmdl, [int(outshap[1]/8),int(outshap[2]/8),nchan]
+    srmdl = tf.keras.models.load_model(srfilename, compile=False, custom_objects=custom_objects)
 
+    chanindex = 3 if len(srmdl.input_shape) == 4 else 4
+    nchan = int(srmdl.input_shape[chanindex])
 
+    if len(srmdl.input_shape) == 5:  # 3D
+        test_input = np.zeros([1, 8, 8, 8, nchan])
+        outshap = srmdl(test_input).shape
+        up = [int(outshap[1] / 8), int(outshap[2] / 8), int(outshap[3] / 8), nchan]
+    else:  # 2D
+        test_input = np.zeros([1, 8, 8, nchan])
+        outshap = srmdl(test_input).shape
+        up = [int(outshap[1] / 8), int(outshap[2] / 8), nchan]
+
+    return srmdl, up
 
 def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     """
