@@ -1351,56 +1351,72 @@ def inference(
 
 def read_srmodel(srfilename, custom_objects=None):
     """
-    Read a super-resolution model (typically in .h5 format) using TensorFlow,
-    returning both the model and its upsampling factor.
+    Load a super-resolution model (h5, .keras, or SavedModel format),
+    and determine its upsampling factor.
 
     Parameters
     ----------
     srfilename : str
-        Path to the model file (typically ending in .h5).
+        Path to the model file (.h5, .keras, or a SavedModel folder).
     custom_objects : dict, optional
-        Dictionary mapping names to custom layer or function objects needed
-        to load the model (e.g., {'TFOpLambda': tf.keras.layers.Lambda(...) }).
+        Dictionary of custom objects used in the model (e.g. {'TFOpLambda': tf.keras.layers.Lambda(...)})
 
     Returns
     -------
-    tfmodel : tf.keras.Model
-        The loaded TensorFlow model.
-
+    model : tf.keras.Model
+        The loaded model.
     upsampling_factor : list of int
-        A list describing the upsampling factor in each spatial dimension plus number of channels.
-        For 3D input: [x_up, y_up, z_up, n_channels]
-        For 2D input: [x_up, y_up, n_channels]
+        List describing the upsampling factor:
+        - For 3D input: [x_up, y_up, z_up, channels]
+        - For 2D input: [x_up, y_up, channels]
 
     Example
     -------
-    >>> import siq
-    >>> model, up_factor = siq.read_srmodel("model.h5", custom_objects={'TFOpLambda': tf.keras.layers.Lambda(tf.identity)})
+    >>> mdl, up = read_srmodel("mymodel.keras")
+    >>> mdl, up = read_srmodel("my_weights.h5", custom_objects={"TFOpLambda": tf.keras.layers.Lambda(tf.identity)})
     """
-    srmdl = tf.keras.models.load_model(srfilename, compile=False, custom_objects=custom_objects)
 
-    chanindex = 3 if len(srmdl.input_shape) == 4 else 4
-    nchan = int(srmdl.input_shape[chanindex])
+    # Expand path and detect format
+    srfilename = os.path.expanduser(srfilename)
+    ext = os.path.splitext(srfilename)[1].lower()
 
-    if len(srmdl.input_shape) == 5:  # 3D
-        test_input = np.zeros([1, 8, 8, 8, nchan])
-        # Call the model using named input if required
+    if os.path.isdir(srfilename):
+        # SavedModel directory
+        model = tf.keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
+    elif ext in ['.h5', '.keras']:
+        model = tf.keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
+    else:
+        raise ValueError(f"Unsupported model format: {ext}")
+
+    # Determine channel index
+    input_shape = model.input_shape
+    if isinstance(input_shape, list):
+        input_shape = input_shape[0]
+    chanindex = 3 if len(input_shape) == 4 else 4
+    nchan = int(input_shape[chanindex])
+
+    # Run dummy input to compute upsampling factor
+    try:
+        if len(input_shape) == 5:  # 3D
+            dummy_input = np.zeros([1, 8, 8, 8, nchan])
+        else:  # 2D
+            dummy_input = np.zeros([1, 8, 8, nchan])
+
+        # Handle named inputs if necessary
         try:
-            outshap = srmdl(test_input).shape
-        except:
-            # fallback for named input structure
-            outshap = srmdl({srmdl.input_names[0]: test_input}).shape
-        up = [int(outshap[1] / 8), int(outshap[2] / 8), int(outshap[3] / 8), nchan]
-    else:  # 2D
-        test_input = np.zeros([1, 8, 8, nchan])
-        try:
-            outshap = srmdl(test_input).shape
-        except:
-            # fallback for named input structure
-            outshap = srmdl({srmdl.input_names[0]: test_input}).shape
-        up = [int(outshap[1] / 8), int(outshap[2] / 8), nchan]
+            output = model(dummy_input)
+        except Exception:
+            output = model({model.input_names[0]: dummy_input})
 
-    return srmdl, up
+        outshp = output.shape
+        if len(input_shape) == 5:
+            return model, [int(outshp[1]/8), int(outshp[2]/8), int(outshp[3]/8), nchan]
+        else:
+            return model, [int(outshp[1]/8), int(outshp[2]/8), nchan]
+
+    except Exception as e:
+        raise RuntimeError(f"Could not infer upsampling factor. Error: {e}")
+
 
 def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     """

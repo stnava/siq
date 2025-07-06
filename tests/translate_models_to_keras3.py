@@ -1,8 +1,6 @@
 import os
 import re
-
 save_weights=False
-
 if save_weights:
     # this also shows how to use legacy keras without other changes
     # may need to pip install tf_keras for this ... 
@@ -14,9 +12,11 @@ if save_weights:
     mdlfns=glob.glob("/home/ubuntu/.antspymm/siq*mdl.h5")
     for k in range( len( mdlfns ) ):
         wtnm=re.sub( "mdl.h5", "weights.h5", mdlfns[k] )
+        fullnm = re.sub("mdl.h5", "full_model.keras", mdlfns[k])
         print( wtnm )
         mdl = tf.keras.models.load_model( os.path.expanduser( mdlfns[k] ), compile=False )
         mdl.save_weights( wtnm )
+        mdl.save(fullnm, save_format="keras")  # or save_format="tf"
 else:  # load weights and save models
     # may need to pip install keras for this ... 
     os.environ['TF_USE_LEGACY_KERAS'] = '0'
