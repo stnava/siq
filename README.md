@@ -126,10 +126,10 @@ egrep '^physical id' /proc/cpuinfo | sort -u | wc -l
 
 ## to publish a release
 
-```
+```bash
 rm -r -f build/ antspymm.egg-info/ dist/
-python3 setup.py sdist bdist_wheel
-python3 -m twine upload -u username -p password  dist/*
+python3 -m  build .
+python3 -m twine upload --repository siq dist/*
 ```
 
 
