@@ -1303,7 +1303,7 @@ def inference(
             if poly_order == 'hist':
                 imgsr = ants.histogram_match_image( imgsr, pimg )
             else:
-                imgsr = antspynet.regression_match_image( imgsr, bilin,
+                imgsr = ants.regression_match_image( imgsr, bilin,
                     poly_order=poly_order )
         return imgsr
     else:
@@ -1341,7 +1341,7 @@ def inference(
             if poly_order == 'hist':
                 imgsr = ants.histogram_match_image( imgsr, pimg )
             else:
-                imgsr = antspynet.regression_match_image( imgsr, bilin,
+                imgsr = ants.regression_match_image( imgsr, bilin,
                     poly_order=poly_order )
         temp['super_resolution' ] = imgsr
         return temp
