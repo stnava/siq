@@ -9,7 +9,7 @@ if save_weights:
     import glob
     import re
     import tensorflow as tf
-    mdlfns=glob.glob("/home/ubuntu/.antspymm/siq*mdl.h5")
+    mdlfns=glob.glob(os.path.expanduser("~/.antspymm/siq*mdl.h5"))
     for k in range( len( mdlfns ) ):
         wtnm=re.sub( "mdl.h5", "weights.h5", mdlfns[k] )
         fullnm = re.sub("mdl.h5", "full_model.keras", mdlfns[k])
@@ -17,13 +17,14 @@ if save_weights:
         mdl = tf.keras.models.load_model( os.path.expanduser( mdlfns[k] ), compile=False )
         mdl.save_weights( wtnm )
         mdl.save(fullnm, save_format="keras")  # or save_format="tf"
+        print("Saved weights to " + wtnm + " and full model to " + fullnm)
 else:  # load weights and save models
     # may need to pip install keras for this ... 
     os.environ['TF_USE_LEGACY_KERAS'] = '0'
     import glob
     import re
     import tensorflow as tf
-    mdlfns=glob.glob("/home/ubuntu/.antspymm/siq*mdl.h5")
+    mdlfns=glob.glob(os.path.expanduser("~/.antspymm/siq*mdl.h5"))
     for k in range( len( mdlfns ) ):
         k3nm=re.sub( "mdl.h5", "mdlk3.h5", mdlfns[k] )
         print( k3nm )

@@ -89,15 +89,20 @@ note - may be issues loading/reading - see the comments about keras versions abo
 
 currently -- with tf >= 2.17 -- this works:
 
+1. run `tests/export_legacy_keras_weights.py` on the legacy h5 files.
+
+2. run `tests/migrate_and_resave_models.py` to get the new `.keras` models.
+
 ```python
 import os
 seed=4
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ['TF_USE_LEGACY_KERAS'] = '1'
-mfn='/home/ubuntu/.antspymm/siq_smallshort_train_1x1x2_1chan_featgraderL6_best_mdl.h5'
+os.environ['TF_USE_LEGACY_KERAS'] = '0'
+mfn=os.path.expanduser('~/.antspymm/siq_smallshort_train_1x1x2_1chan_featgraderL6_best.keras')
 import siq
 a, b = siq.read_srmodel(mfn)
 ```
+
 
 ## your compute environment
 
