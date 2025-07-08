@@ -1684,7 +1684,7 @@ def region_wise_super_resolution_blended(image, mask, super_res_model, dilation_
     accumulator_np = accumulator.numpy()
     
     # Create a mask of pixels where blending occurred
-    blended_mask = weight_sum_np > epsilon32 # Use a small epsilon for float safety
+    blended_mask = weight_sum_np > 0.0 # Use a small epsilon for float safety
 
     # Start with the original upsampled image as the base
     final_image_np = background_sr_image.numpy()
