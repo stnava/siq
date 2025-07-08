@@ -62,6 +62,34 @@ def parse_model_filename(filename: str) -> dict | None:
         print(f"  -> Warning: Could not parse parameters from filename '{filename}'. Reason: {e}")
         return None
 
+def parse_model_filename(filename: str) -> dict | None:
+    """
+    Parses a model filename to extract its architectural parameters.
+    """
+    params = {}
+    try:
+        # Match one of the accepted options if found
+        option_keywords = ['tiny', 'small', 'medium', 'large']
+        option_match = next((opt for opt in option_keywords if opt in filename.lower()), None)
+        params['option'] = option_match
+
+        # Shape: e.g., 2x2x2
+        shape_match = re.search(r'(\d+)x(\d+)x(\d+)', filename)
+        params['shape'] = [int(g) for g in shape_match.groups()] if shape_match else None
+
+        # Channel: e.g., 2chan
+        nchan_match = re.search(r'_(\d+)chan', filename)
+        params['nchan'] = int(nchan_match.group(1)) if nchan_match else None
+
+        if params['shape'] is None or params['nchan'] is None:
+            raise ValueError("Could not parse essential shape or channel info.")
+
+        return params
+
+    except (AttributeError, ValueError) as e:
+        print(f"  -> Warning: Could not parse parameters from filename '{filename}'. Reason: {e}")
+        return None
+
 def reconstruct_siq_model(params: dict) -> keras.Model:
     """
     Reconstructs an empty SIQ model instance from parsed parameters using
