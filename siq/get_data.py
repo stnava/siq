@@ -1280,74 +1280,6 @@ def train_seg(
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
-def inference(
-    image,
-    mdl,
-    truncation = None,
-    segmentation=None,
-    target_range=[1,0],
-    poly_order='hist',
-    dilation_amount=0,
-    verbose=False):
-    if segmentation is None:
-        pimg = ants.image_clone( image )
-        if truncation is not None:
-            pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
-        imgsr = antspynet.apply_super_resolution_model_to_image(
-            pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
-            )
-        bilin = ants.resample_image_to_target( pimg, imgsr )
-        if poly_order is not None:
-            if verbose:
-                print("match intensity with " + str( poly_order ) )
-            if poly_order == 'hist':
-                imgsr = ants.histogram_match_image( imgsr, pimg )
-            else:
-                imgsr = ants.regression_match_image( imgsr, bilin,
-                    poly_order=poly_order )
-        return imgsr
-    else:
-        pimg = ants.image_clone( image )
-        if truncation is not None:
-            pimg = ants.iMath( pimg, 'TruncateIntensity', truncation[0], truncation[1] )
-        mynp=segmentation.numpy()
-        mynp=list(np.unique(mynp)[1:len(mynp)].astype(int))
-        upFactor=[]
-        if len(mdl.inputs[0].shape) == 5:
-            testarr = np.zeros( [1,8,8,8,2 ] )
-            testarrout = mdl( testarr )
-            for k in range(3):
-                upFactor.append( int( testarrout.shape[k+1]/testarr.shape[k+1]  )  )
-        if len(mdl.inputs[0].shape) == 4:
-            testarr = np.zeros( [1,8,8,2 ] )
-            testarrout = mdl( testarr )
-            for k in range(2):
-                upFactor.append( int( testarrout.shape[k+1]/testarr.shape[k+1]  )  )
-        temp = antspyt1w.super_resolution_segmentation_per_label(
-                pimg,
-                segmentation,
-                upFactor,
-                mdl,
-                segmentation_numbers=mynp,
-                target_range=target_range,
-                dilation_amount=dilation_amount,
-                poly_order=poly_order,
-                max_lab_plus_one=True  )
-        imgsr = temp['super_resolution' ]
-        bilin = ants.resample_image_to_target( pimg, imgsr )
-        if poly_order is not None:
-            if verbose:
-                print("match intensity with " + str( poly_order ) )
-            if poly_order == 'hist':
-                imgsr = ants.histogram_match_image( imgsr, pimg )
-            else:
-                imgsr = ants.regression_match_image( imgsr, bilin,
-                    poly_order=poly_order )
-        temp['super_resolution' ] = imgsr
-        return temp
-    return None
-
-
 
 def read_srmodel(srfilename, custom_objects=None):
     """
@@ -1589,3 +1521,321 @@ def compare_models( model_filenames, img, n_classes=3,
         mydf = pd.concat( [mydf,temp], axis=0 )
         # end loop
     return mydf
+
+
+
+
+def region_wise_super_resolution(image, mask, super_res_model, dilation_amount=4, verbose=False):
+    """
+    Apply super-resolution model to each labeled region in the mask independently.
+
+    Arguments
+    ---------
+    image : ANTsImage
+        Input image.
+
+    mask : ANTsImage
+        Integer-labeled segmentation mask with non-zero regions to upsample.
+
+    super_res_model : tf.keras.Model
+        Trained super-resolution model.
+
+    dilation_amount : int
+        Number of morphological dilations applied to each label region before cropping.
+
+    verbose : bool
+        If True, print detailed status.
+
+    Returns
+    -------
+    ANTsImage : Full-size super-resolved image with per-label inference and stitching.
+    """
+    import ants
+    import numpy as np
+    from antspynet import apply_super_resolution_model_to_image
+
+    upFactor = []
+    input_shape = super_res_model.inputs[0].shape
+    test_shape = [1, 8, 8, 1] if len(input_shape) == 4 else [1, 8, 8, 8, 1]
+    test_input = np.zeros(test_shape, dtype=np.float32)
+    test_output = super_res_model(test_input)
+
+    for k in range(len(test_shape) - 2):  # ignore batch + channel
+        upFactor.append(int(test_output.shape[k + 1] / test_input.shape[k + 1]))
+
+    original_size = mask.shape  # e.g., (x, y, z)
+    new_size = tuple(int(s * f) for s, f in zip(original_size, upFactor))
+    upsampled_mask = ants.resample_image(mask, new_size, use_voxels=True, interp_type=1)
+    upsampled_image = ants.resample_image(image, new_size, use_voxels=True, interp_type=0)
+
+    unique_labels = list(np.unique(upsampled_mask.numpy()))
+    if 0 in unique_labels:
+        unique_labels.remove(0)
+
+    outimg = ants.image_clone(upsampled_image)
+
+    for lab in unique_labels:
+        if verbose:
+            print(f"Processing label: {lab}")
+        regionmask = ants.threshold_image(mask, lab, lab).iMath("MD", dilation_amount)
+        cropped = ants.crop_image(image, regionmask)
+        if cropped.shape[0] == 0:
+            continue
+        subimgsr = apply_super_resolution_model_to_image(
+            cropped, super_res_model, target_range=[0, 1], verbose=verbose
+        )
+        stitched = ants.decrop_image(subimgsr, outimg)
+        outimg[upsampled_mask == lab] = stitched[upsampled_mask == lab]
+
+    return outimg
+
+
+def region_wise_super_resolution_blended(image, mask, super_res_model, dilation_amount=4, verbose=False):
+    """
+    Apply super-resolution model to labeled regions with smooth blending to minimize stitching artifacts.
+
+    This version uses a weighted-averaging scheme based on distance transforms
+    to create seamless transitions between super-resolved regions and the background.
+
+    Arguments
+    ---------
+    image : ANTsImage
+        Input low-resolution image.
+
+    mask : ANTsImage
+        Integer-labeled segmentation mask.
+
+    super_res_model : tf.keras.Model
+        Trained super-resolution model.
+
+    dilation_amount : int
+        Number of morphological dilations applied to each label region before cropping.
+        This provides context to the SR model.
+
+    verbose : bool
+        If True, print detailed status.
+
+    Returns
+    -------
+    ANTsImage : Full-size, super-resolved image with seamless blending.
+    """
+    import ants
+    import numpy as np
+    from antspynet import apply_super_resolution_model_to_image
+    epsilon32 = np.finfo(np.float32).eps
+    normalize_weight_maps = True  # Default behavior to normalize weight maps
+    # --- Step 1: Determine upsampling factor and prepare initial images ---
+    upFactor = []
+    input_shape = super_res_model.inputs[0].shape
+    test_shape = [1, 8, 8, 1] if len(input_shape) == 4 else [1, 8, 8, 8, 1]
+    test_input = np.zeros(test_shape, dtype=np.float32)
+    test_output = super_res_model(test_input)
+    for k in range(len(test_shape) - 2):
+        upFactor.append(int(test_output.shape[k + 1] / test_input.shape[k + 1]))
+
+    original_size = image.shape
+    new_size = tuple(int(s * f) for s, f in zip(original_size, upFactor))
+
+    # The initial upsampled image will serve as our background
+    background_sr_image = ants.resample_image(image, new_size, use_voxels=True, interp_type=0)
+
+    # --- Step 2: Initialize accumulator and weight sum canvases ---
+    # These must be float type for accumulation
+    accumulator = ants.image_clone(background_sr_image).astype('float32') * 0.0
+    weight_sum = ants.image_clone(accumulator)
+
+    unique_labels = [l for l in np.unique(mask.numpy()) if l != 0]
+
+    for lab in unique_labels:
+        if verbose:
+            print(f"Blending label: {lab}")
+
+        # --- Step 3: Super-resolve a dilated patch (provides context to the model) ---
+        region_mask_dilated = ants.threshold_image(mask, lab, lab).iMath("MD", dilation_amount)
+        cropped_lowres = ants.crop_image(image, region_mask_dilated)
+        if cropped_lowres.shape[0] == 0:
+            continue
+            
+        # Apply the model to the cropped low-res patch
+        sr_patch = apply_super_resolution_model_to_image(
+            cropped_lowres, super_res_model, target_range=[0, 1]
+        )
+        
+        # Place the super-resolved patch back onto a full-sized canvas
+        sr_patch_full_size = ants.decrop_image(sr_patch, accumulator)
+
+        # --- Step 4: Create a smooth weight map for this region ---
+        # We use the *non-dilated* mask for the weight map to ensure a sharp focus on the target region.
+        region_mask_original = ants.threshold_image(mask, lab, lab)
+        
+        # Resample the original region mask to the high-res grid
+        weight_map = ants.resample_image(region_mask_original, new_size, use_voxels=True, interp_type=0)
+        weight_map = ants.smooth_image(weight_map, sigma=2.0,
+                                        sigma_in_physical_coordinates=False)
+        if normalize_weight_maps:
+            weight_map = ants.iMath(weight_map, "Normalize")
+        # --- Step 5: Accumulate the weighted values and the weights themselves ---
+        accumulator += sr_patch_full_size * weight_map
+        weight_sum += weight_map
+
+    # --- Step 6: Final Combination ---
+    # Normalize the accumulator by the total weight at each pixel
+    weight_sum_np = weight_sum.numpy()
+    accumulator_np = accumulator.numpy()
+    
+    # Create a mask of pixels where blending occurred
+    blended_mask = weight_sum_np > epsilon32 # Use a small epsilon for float safety
+
+    # Start with the original upsampled image as the base
+    final_image_np = background_sr_image.numpy()
+    
+    # Perform the weighted average only where weights are non-zero
+    final_image_np[blended_mask] = accumulator_np[blended_mask] / weight_sum_np[blended_mask]
+    
+    # Re-insert any non-blended background regions that were processed
+    # This handles cases where regions overlap; the weighted average takes care of it.
+    
+    return ants.from_numpy(final_image_np, origin=background_sr_image.origin, 
+                           spacing=background_sr_image.spacing, direction=background_sr_image.direction)
+     
+
+def inference(
+    image,
+    mdl,
+    truncation=None,
+    segmentation=None,
+    target_range=[1, 0],
+    poly_order='hist',
+    dilation_amount=0,
+    verbose=False):
+    """
+    Perform super-resolution inference on an input image, optionally guided by segmentation.
+
+    This function uses a trained deep learning model to enhance the resolution of a medical image.
+    It optionally applies label-wise inference if a segmentation mask is provided.
+
+    Parameters
+    ----------
+    image : ants.ANTsImage
+        Input image to be super-resolved.
+
+    mdl : keras.Model
+        Trained super-resolution model, typically from ANTsPyNet.
+
+    truncation : tuple or list of float, optional
+        Percentile values (e.g., [0.01, 0.99]) for intensity truncation before model input.
+        If None, no truncation is applied.
+
+    segmentation : ants.ANTsImage, optional
+        A labeled segmentation mask. If provided, super-resolution is performed per label
+        using `region_wise_super_resolution` or `super_resolution_segmentation_per_label`.
+
+    target_range : list of float
+        Intensity range used for scaling the input before applying the model.
+        Default is [1, 0] (internal default for `apply_super_resolution_model_to_image`).
+
+    poly_order : int, str or None
+        Determines how to match intensity between the super-resolved image and the original.
+        Options:
+          - 'hist' : use histogram matching
+          - int >= 1 : perform polynomial regression of this order
+          - None : no intensity adjustment
+
+    dilation_amount : int
+        Number of dilation steps applied to each segmentation label during
+        region-based super-resolution (if segmentation is provided).
+
+    verbose : bool
+        If True, print progress and status messages.
+
+    Returns
+    -------
+    ANTsImage or dict
+        - If `segmentation` is None, returns a single ANTsImage (super-resolved image).
+        - If `segmentation` is provided, returns a dictionary with:
+            - 'super_resolution': ANTsImage
+            - other entries may include label-wise results or metadata.
+
+    Examples
+    --------
+    >>> import ants
+    >>> import antspynet
+    >>> from siq import inference
+    >>> img = ants.image_read("lowres.nii.gz")
+    >>> model = antspynet.get_pretrained_network("dbpn", target_suffix="T1")
+    >>> srimg = inference(img, model, truncation=[0.01, 0.99], verbose=True)
+
+    >>> seg = ants.image_read("mask.nii.gz")
+    >>> sr_result = inference(img, model, segmentation=seg)
+    >>> srimg = sr_result['super_resolution']
+    """
+    import ants
+    import numpy as np
+    import antspynet
+    import antspyt1w
+    from siq import region_wise_super_resolution
+
+    def apply_intensity_match(sr_image, reference_image, order, verbose=False):
+        if order is None:
+            return sr_image
+        if verbose:
+            print("Applying intensity match with", order)
+        if order == 'hist':
+            return ants.histogram_match_image(sr_image, reference_image)
+        else:
+            return ants.regression_match_image(sr_image, reference_image, poly_order=order)
+
+    pimg = ants.image_clone(image)
+    if truncation is not None:
+        pimg = ants.iMath(pimg, 'TruncateIntensity', truncation[0], truncation[1])
+
+    input_shape = mdl.inputs[0].shape
+    num_channels = int(input_shape[-1])
+
+    if segmentation is not None:
+        if num_channels == 1:
+            if verbose:
+                print("Using region-wise super resolution due to single-channel model with segmentation.")
+            sr = region_wise_super_resolution_blended(
+                pimg, segmentation, mdl,
+                dilation_amount=dilation_amount,
+                verbose=verbose
+            )
+            ref = ants.resample_image_to_target(pimg, sr)
+            return apply_intensity_match(sr, ref, poly_order, verbose)
+        else:
+            mynp = segmentation.numpy()
+            mynp = list(np.unique(mynp)[1:len(mynp)].astype(int))
+            upFactor = []
+            if len(input_shape) == 5:
+                testarr = np.zeros([1, 8, 8, 8, 2])
+                testarrout = mdl(testarr)
+                for k in range(3):
+                    upFactor.append(int(testarrout.shape[k + 1] / testarr.shape[k + 1]))
+            elif len(input_shape) == 4:
+                testarr = np.zeros([1, 8, 8, 2])
+                testarrout = mdl(testarr)
+                for k in range(2):
+                    upFactor.append(int(testarrout.shape[k + 1] / testarr.shape[k + 1]))
+            temp = antspyt1w.super_resolution_segmentation_per_label(
+                pimg,
+                segmentation,
+                upFactor,
+                mdl,
+                segmentation_numbers=mynp,
+                target_range=target_range,
+                dilation_amount=dilation_amount,
+                poly_order=poly_order,
+                max_lab_plus_one=True
+            )
+            imgsr = temp['super_resolution']
+            ref = ants.resample_image_to_target(pimg, imgsr)
+            return apply_intensity_match(imgsr, ref, poly_order, verbose)
+
+    # Default path: no segmentation
+    imgsr = antspynet.apply_super_resolution_model_to_image(
+        pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
+    )
+    ref = ants.resample_image_to_target(pimg, imgsr)
+    return apply_intensity_match(imgsr, ref, poly_order, verbose)
+
