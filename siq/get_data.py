@@ -1378,7 +1378,49 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
         img = img + temp
     return img
 
+
 def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=False ):
+    """
+    Compute the optimal upsampling shape string (e.g., '2x2x2') based on image voxel spacing
+    and imaging modality. This output is used to select an appropriate pretrained 
+    super-resolution model filename.
+
+    Parameters
+    ----------
+    spacing : sequence of float
+        Voxel spacing (physical size per voxel in mm) from the input image.
+        Typically obtained from `ants.get_spacing(image)`.
+
+    modality : str, optional
+        Imaging modality. Affects resolution thresholds:
+        - 'T1' : anatomical MRI (default minimum spacing: 0.35 mm)
+        - 'DTI' : diffusion MRI (default minimum spacing: 1.0 mm)
+        - 'NM' : nuclear medicine (e.g., PET/SPECT, minimum spacing: 0.25 mm)
+
+    roundit : bool, optional
+        If True, uses rounded integer ratios for the upsampling shape.
+        Otherwise, uses floor division with constraints.
+
+    verbose : bool, optional
+        If True, prints detailed internal values and logic.
+
+    Returns
+    -------
+    str
+        Optimal upsampling shape string in the form 'AxBxC',
+        e.g., '2x2x2', '4x4x2'.
+
+    Notes
+    -----
+    - The function prevents upsampling ratios that would result in '1x1x1'
+      by defaulting to '2x2x2'.
+    - It also avoids uncommon ratios like '5' by rounding to the nearest valid option.
+    - The returned string is commonly used to populate a model filename template:
+      
+      Example:
+          >>> bestup = optimize_upsampling_shape(ants.get_spacing(t1_img), modality='T1')
+          >>> model = re.sub('bestup', bestup, 'siq_smallshort_train_bestup_1chan.keras')
+    """
     minspc = min( list( spacing ) )
     maxspc = max( list( spacing ) )
     ratio = maxspc/minspc
