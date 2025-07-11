@@ -687,27 +687,43 @@ def default_dbpn(
 
     Args:
         strider (list): List of strides, length must match `dimensionality`.
+
         dimensionality (int): Number of dimensions (2 or 3). Default is 3.
+
         nfilt (int): Number of base filters. Default is 64.
+
         nff (int): Number of feature filters. Default is 256.
+
         convn (int): Convolution kernel size. Default is 6.
+
         lastconv (int): Size of the last convolution. Default is 3.
+        
         nbp (int): Number of back projection stages. Default is 7.
+
         nChannelsIn (int): Number of input channels. Default is 1.
+
         nChannelsOut (int): Number of output channels. Default is 1.
+
         option (str): Model size option ('tiny', 'small', 'medium', 'large'). Default is None.
         intensity_model (tf.keras.Model): Optional external intensity model.
+
         segmentation_model (tf.keras.Model): Optional external segmentation model.
+
         sigmoid_second_channel (bool): If True, applies sigmoid to second channel in output.
         clone_intensity_to_segmentation (bool): If True, clones intensity model weights to segmentation.
+
         pro_seg (int): If greater than 0, adds a segmentation arm.
+
         freeze (bool): If True, freezes the layers of the intensity/segmentation models.
+
         verbose (bool): If True, prints detailed logs.
 
     Returns:
+
         Model: A Keras model based on the specified configuration.
 
     Raises:
+
         Exception: If `len(strider)` is not equal to `dimensionality`.
     """
     if option == 'tiny':
@@ -1370,18 +1386,24 @@ def image_generator(
     ----------
     filenames : list of str
         List of file paths to the high-resolution source images.
+
     nPatches : int
         The number of patch pairs to generate and yield in each batch.
+
     target_patch_size : tuple or list of int
         The dimensions of the high-resolution (ground truth) patches.
+
     target_patch_size_low : tuple or list of int
         The dimensions of the low-resolution (input) patches.
+
     patch_scaler : bool, optional
         If True, scales patch intensities to [0, 1]. Default is True.
+
     istest : bool, optional
         If True, the generator will also yield a third item: a baseline
         linearly upsampled version of the low-resolution patch for comparison.
         Default is False.
+
     verbose : bool, optional
         If True, passes verbosity to the underlying patch generation function.
         Default is False.
@@ -1430,19 +1452,26 @@ def seg_generator(
 
     Parameters
     ----------
+
     filenames : list of str
         List of file paths to the high-resolution source images.
+
     nPatches : int
         The number of patch pairs to generate and yield in each batch.
+
     target_patch_size : tuple or list of int
         The dimensions of the high-resolution patches.
+
     target_patch_size_low : tuple or list of int
         The dimensions of the low-resolution patches.
+
     patch_scaler : bool, optional
         If True, scales the intensity channel of patches to [0, 1]. Default is True.
+
     istest : bool, optional
         If True, yields an additional baseline upsampled patch for comparison.
         Default is False.
+
     verbose : bool, optional
         If True, passes verbosity to the underlying patch generation function.
         Default is False.
@@ -1505,42 +1534,58 @@ def train(
     ----------
     mdl : tf.keras.Model
         The Keras model to be trained.
+
     filenames_train : list of str
         List of file paths for the training dataset.
+
     filenames_test : list of str
         List of file paths for the validation/testing dataset.
+
     target_patch_size : tuple or list
         The dimensions of the high-resolution target patches.
+
     target_patch_size_low : tuple or list
         The dimensions of the low-resolution input patches.
+
     output_prefix : str
         A prefix for all output files (e.g., model weights, training logs).
+
     n_test : int, optional
         The number of validation patches to use for evaluation. Default is 8.
+
     learning_rate : float, optional
         The learning rate for the Adam optimizer. Default is 5e-5.
+
     feature_layer : int, optional
         The layer index from the feature extractor to use for perceptual loss.
         Default is 6.
+
     feature : float, optional
         The relative weight of the perceptual (feature) loss term. Default is 2.0.
+
     tv : float, optional
         The relative weight of the Total Variation (TV) regularization term.
         Default is 0.1.
+
     max_iterations : int, optional
         The total number of training iterations to run. Default is 1000.
+
     batch_size : int, optional
         The batch size for training. Note: this implementation is optimized for
         batch_size=1 and may need adjustment for larger batches. Default is 1.
+
     save_all_best : bool, optional
         If True, saves a new model file every time validation loss improves.
         If False, overwrites the single best model file. Default is False.
+
     feature_type : str, optional
         The type of feature extractor for perceptual loss. Options: 'grader',
         'vgg', 'vggrandom'. Default is 'grader'.
+
     check_eval_data_iteration : int, optional
         The frequency (in iterations) at which to run validation and save logs.
         Default is 20.
+
     verbose : bool, optional
         If True, prints detailed progress information. Default is False.
 
@@ -1700,6 +1745,7 @@ def binary_dice_loss(y_true, y_pred):
     ----------
     y_true : tf.Tensor
         The ground truth binary segmentation mask. Values should be 0 or 1.
+
     y_pred : tf.Tensor
         The predicted binary segmentation mask, typically with values in [0, 1]
         from a sigmoid activation.
@@ -1751,44 +1797,62 @@ def train_seg(
     ----------
     mdl : tf.keras.Model
         The 2-channel Keras model to be trained.
+
     filenames_train : list of str
         List of file paths for the training dataset.
+
     filenames_test : list of str
         List of file paths for the validation/testing dataset.
+
     target_patch_size : tuple or list
         The dimensions of the high-resolution target patches.
+
     target_patch_size_low : tuple or list
         The dimensions of the low-resolution input patches.
+
     output_prefix : str
         A prefix for all output files.
+
     n_test : int, optional
         Number of validation patches for evaluation. Default is 8.
+
     learning_rate : float, optional
         Learning rate for the Adam optimizer. Default is 5e-5.
+
     feature_layer : int, optional
         Layer from the feature extractor for perceptual loss. Default is 6.
+
     feature : float, optional
         Relative weight of the perceptual loss term. Default is 2.0.
+
     tv : float, optional
         Relative weight of the Total Variation regularization term. Default is 0.1.
+
     dice : float, optional
         Relative weight of the Dice loss term for the segmentation mask.
         Default is 0.5.
+
     max_iterations : int, optional
         Total number of training iterations. Default is 1000.
+
     batch_size : int, optional
         The batch size for training. Default is 1.
+
     save_all_best : bool, optional
         If True, saves all models that improve validation loss. Default is False.
+
     feature_type : str, optional
         Type of feature extractor for perceptual loss. Default is 'grader'.
+
     check_eval_data_iteration : int, optional
         Frequency (in iterations) for running validation. Default is 20.
+
     verbose : bool, optional
         If True, prints detailed progress information. Default is False.
 
     Returns
     -------
+
     pd.DataFrame
         A DataFrame containing the training history, including columns for losses
         and evaluation metrics like PSNR and Dice score.
@@ -2158,22 +2222,28 @@ def compare_models( model_filenames, img, n_classes=3,
     ----------
     model_filenames : list of str
         A list of file paths to the Keras models (.h5, .keras) to be compared.
+
     img : ants.ANTsImage
         The high-resolution ground truth image. This image will be downsampled to
         create the input for the models.
+
     n_classes : int, optional
         The number of classes for Otsu's thresholding when auto-generating a
         segmentation for evaluating dual-channel models. Default is 3.
+
     poly_order : str or int, optional
         Method for intensity matching between the SR output and the reference.
         Options: 'hist' for histogram matching (default), an integer for
         polynomial regression, or None to disable.
+
     identifier : str, optional
         A custom identifier for the output DataFrame. If None, it is inferred
         from the model filename. Default is None.
+
     noise_sd : float, optional
         Standard deviation of the additive Gaussian noise applied to the
         downsampled image before inference. Default is 0.1.
+        
     verbose : bool, optional
         If True, prints detailed progress and intermediate values. Default is False.
 
