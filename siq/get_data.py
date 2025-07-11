@@ -126,6 +126,62 @@ def dbpn(input_image_size,
                                                  number_of_loss_functions=1,
                                                  interpolation = 'nearest'
                                                 ):
+    """
+    Creates a Deep Back-Projection Network (DBPN) for single image super-resolution.
+
+    This function constructs a Keras model based on the DBPN architecture, which
+    can be configured for either 2D or 3D inputs. The network uses iterative
+    up- and down-projection blocks to refine the high-resolution image estimate. A
+    key modification from the original paper is the option to use standard
+    interpolation for upsampling instead of deconvolution layers.
+
+    Reference:
+     - Haris, M., Shakhnarovich, G., & Ukita, N. (2018). Deep Back-Projection
+       Networks For Super-Resolution. In CVPR.
+
+    Parameters
+    ----------
+    input_image_size : tuple or list
+        The shape of the input image, including the channel.
+        e.g., `(None, None, 1)` for 2D or `(None, None, None, 1)` for 3D.
+
+    number_of_outputs : int, optional
+        The number of channels in the output image. Default is 1.
+
+    number_of_base_filters : int, optional
+        The number of filters in the up/down projection blocks. Default is 64.
+
+    number_of_feature_filters : int, optional
+        The number of filters in the initial feature extraction layer. Default is 256.
+
+    number_of_back_projection_stages : int, optional
+        The number of iterative back-projection stages (T in the paper). Default is 7.
+
+    convolution_kernel_size : tuple or list, optional
+        The kernel size for the main projection convolutions. Should match the
+        dimensionality of the input. Default is (12, 12).
+
+    strides : tuple or list, optional
+        The strides for the up/down sampling operations, defining the
+        super-resolution factor. Default is (8, 8).
+
+    last_convolution : tuple or list, optional
+        The kernel size of the final reconstruction convolution. Default is (3, 3).
+
+    number_of_loss_functions : int, optional
+        If greater than 1, the model will have multiple identical output branches.
+        Typically set to 1. Default is 1.
+
+    interpolation : str, optional
+        The interpolation method to use for upsampling layers if not using
+        transposed convolutions. 'nearest' or 'bilinear'. Default is 'nearest'.
+
+    Returns
+    -------
+    keras.Model
+        A Keras model implementing the DBPN architecture for the specified
+        parameters.
+    """
     idim = len( input_image_size ) - 1
     if idim == 2:
         myconv = Conv2D
@@ -294,6 +350,30 @@ def dbpn(input_image_size,
 # generate a random corner index for a patch
 
 def get_random_base_ind( full_dims, patchWidth, off=8 ):
+    """
+    Generates a random top-left corner index for a patch.
+
+    This utility function computes a valid starting index (e.g., [x, y, z])
+    for extracting a patch from a larger volume, ensuring the patch fits entirely
+    within the volume's boundaries, accounting for an offset.
+
+    Parameters
+    ----------
+    full_dims : tuple or list
+        The dimensions of the full volume (e.g., img.shape).
+
+    patchWidth : tuple or list
+        The dimensions of the patch to be extracted.
+
+    off : int, optional
+        An offset from the edge of the volume to avoid sampling near borders.
+        Default is 8.
+
+    Returns
+    -------
+    list
+        A list of integers representing the starting coordinates for the patch.
+    """
     baseInd = [None,None,None]
     for k in range(3):
         baseInd[k]=random.sample( range( off, full_dims[k]-1-patchWidth[k] ), 1 )[0]
@@ -302,6 +382,27 @@ def get_random_base_ind( full_dims, patchWidth, off=8 ):
 
 # extract a random patch
 def get_random_patch( img, patchWidth ):
+    """
+    Extracts a random patch from an image with non-zero variance.
+
+    This function repeatedly samples a random patch of a specified width from
+    the input image until it finds one where the standard deviation of pixel
+    intensities is greater than zero. This is useful for avoiding blank or
+    uniform patches during training data generation.
+
+    Parameters
+    ----------
+    img : ants.ANTsImage
+        The source image from which to extract a patch.
+
+    patchWidth : tuple or list
+        The desired dimensions of the output patch.
+
+    Returns
+    -------
+    ants.ANTsImage
+        A randomly extracted patch from the input image.
+    """
     mystd = 0
     while mystd == 0:
         inds = get_random_base_ind( full_dims = img.shape, patchWidth=patchWidth, off=8 )
@@ -313,6 +414,30 @@ def get_random_patch( img, patchWidth ):
     return myimg
 
 def get_random_patch_pair( img, img2, patchWidth ):
+    """
+    Extracts a corresponding random patch from a pair of images.
+
+    This function finds a single random location and extracts a patch of the
+    same size and position from two different input images. It ensures that
+    both extracted patches have non-zero variance. This is useful for creating
+    paired training data (e.g., low-res and high-res images).
+
+    Parameters
+    ----------
+    img : ants.ANTsImage
+        The first source image.
+
+    img2 : ants.ANTsImage
+        The second source image, spatially aligned with the first.
+
+    patchWidth : tuple or list
+        The desired dimensions of the output patches.
+
+    Returns
+    -------
+    tuple of ants.ANTsImage
+        A tuple containing two corresponding patches: (patch_from_img, patch_from_img2).
+    """
     mystd = mystd2 = 0
     ct = 0
     while mystd == 0 or mystd2 == 0:
@@ -330,6 +455,44 @@ def get_random_patch_pair( img, img2, patchWidth ):
     return myimg, myimg2
 
 def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True, verbose=False ):
+    """
+    Creates a pseudo-3D VGG feature extractor from a pre-trained 2D VGG model.
+
+    This function constructs a 3D VGG-style network and initializes its weights
+    by "stretching" the weights from a pre-trained 2D VGG19 model (trained on
+    ImageNet) along a specified axis. This is a technique to transfer 2D
+    perceptual knowledge to a 3D domain for tasks like perceptual loss.
+
+    Parameters
+    ----------
+    inshape : list of int, optional
+        The input shape of the 3D volume, e.g., `[128, 128, 128]`. Default is `[128,128,128]`.
+
+    layer : int, optional
+        The block number of the VGG network from which to extract features. For
+        VGG19, this corresponds to block `layer` (e.g., layer=4 means 'block4_conv...').
+        Default is 4.
+
+    angle : int, optional
+        The axis along which to project the 2D weights:
+        - 0: Axial plane (stretches along Z)
+        - 1: Coronal plane (stretches along Y)
+        - 2: Sagittal plane (stretches along X)
+        Default is 0.
+
+    pretrained : bool, optional
+        If True, loads the stretched ImageNet weights. If False, the model is
+        randomly initialized. Default is True.
+
+    verbose : bool, optional
+        If True, prints information about the layers being used. Default is False.
+
+    Returns
+    -------
+    tf.keras.Model
+        A Keras model that takes a 3D volume as input and outputs the pseudo-3D
+        feature map from the specified layer and angle.
+    """
     def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
         myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
         return myfact
@@ -400,6 +563,41 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     return feature_extractor
 
 def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose=False ):
+    """
+    Create a pseudo-3D VGG-style feature extractor by aggregating axial, coronal,
+    and sagittal VGG feature representations.
+
+    This model extracts features along each principal axis using pre-trained 2D
+    VGG-style networks and concatenates them to form an unbiased pseudo-3D feature space.
+
+    Parameters
+    ----------
+    inshape : list of int, optional
+        The input shape of the 3D volume, default is [128, 128, 128].
+
+    layer : int, optional
+        The VGG feature layer to extract. Higher values correspond to deeper
+        layers in the pseudo-3D VGG backbone.
+
+    verbose : bool, optional
+        If True, prints debug messages during model construction.
+
+    Returns
+    -------
+    tf.keras.Model
+        A TensorFlow Keras model that takes a 3D input volume and outputs the
+        concatenated pseudo-3D feature representation from the specified layer.
+
+    Notes
+    -----
+    This is useful for perceptual loss or feature comparison in super-resolution
+    and image synthesis tasks. The same input is processed in three anatomical
+    planes (axial, coronal, sagittal), and features are concatenated.
+
+    See Also
+    --------
+    pseudo_3d_vgg_features : Generates VGG features from a single anatomical plane.
+    """
     f = [
         pseudo_3d_vgg_features( inshape, layer, angle=0, pretrained=True, verbose=verbose ),
         pseudo_3d_vgg_features( inshape, layer, angle=1, pretrained=True ),
@@ -413,14 +611,45 @@ def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose
     return feature_extractor
 
 def get_grader_feature_network( layer=6 ):
-# perceptual features - one can explore different layers and features
-# these layers - or combinations of these - are commonly used in the literature
-# as feature spaces for loss functions.  weighting terms relative to MSE are
-# also given in several papers which can help guide parameter setting.
+    """
+    Load and extract a ResNet-based feature subnetwork for perceptual loss or quality grading.
+
+    This function loads a pre-trained 3D ResNet model ("grader") used for
+    perceptual feature extraction and returns a subnetwork that outputs activations
+    from a specified internal layer.
+
+    Parameters
+    ----------
+    layer : int, optional
+        The index of the internal ResNet layer whose output should be used as
+        the feature representation. Default is layer 6.
+
+    Returns
+    -------
+    tf.keras.Model
+        A Keras model that outputs features from the specified layer of the
+        pre-trained 3D ResNet grader model.
+
+    Raises
+    ------
+    Exception
+        If the pre-trained weights file (`resnet_grader.h5`) is not found.
+
+    Notes
+    -----
+    The pre-trained weights should be located in: `~/.antspyt1w/resnet_grader.keras`
+
+    This model is typically used to compute perceptual loss by comparing
+    intermediate activations between target and prediction volumes.
+
+    See Also
+    --------
+    antspynet.create_resnet_model_3d : Constructs the base ResNet model.
+    """
     grader = antspynet.create_resnet_model_3d(
         [None,None,None,1],
         lowest_resolution = 32,
-        number_of_classification_labels = 4,
+        number_of_outputs = 4,
         cardinality = 1,
         squeeze_and_excite = False )
     # the folder and data below as available from antspyt1w get_data
@@ -513,7 +742,7 @@ def default_dbpn(
     # **model instantiation**: these are close to defaults for the 2x network.<br>
     # empirical evidence suggests that making covolutions and strides evenly<br>
     # divisible by each other reduces artifacts.  2*3=6.
-    # ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.h5'
+    # ofn='./models/dsr3d_'+str(strider)+'up_' + str(nfilt) + '_' + str( nff ) + '_' + str(convn)+ '_' + str(lastconv)+ '_' + str(os.environ['CUDA_VISIBLE_DEVICES'])+'_v0.0.keras'
     if dimensionality == 2 :
         mdl = dbpn( (None,None,nChannelsIn),
             number_of_outputs=nChannelsOut,
@@ -671,13 +900,58 @@ def image_patch_training_data_from_filenames(
     to_tensorflow = False,
     verbose = False
     ):
-    # **data generation**<br>
-    # recent versions of tensorflow/keras allow data generators to be passed<br>
-    # directly to the fit function.  underneath, this does a fairly efficient split<br>
-    # between GPU and CPU usage and data transfer.<br>
-    # this generator randomly chooses between linear and nearest neighbor downsampling.<br>
-    # the *patch_scale* option can also be seen here which impacts how the network<br>
-    # sees/learns from image intensity.
+    """
+    Generates a batch of paired high- and low-resolution image patches for training.
+
+    This function creates training data by taking a list of high-resolution source
+    images, extracting random patches, and then downsampling them to create
+    low-resolution counterparts. This provides the (input, ground_truth) pairs
+    needed to train a super-resolution model.
+
+    Parameters
+    ----------
+    filenames : list of str
+        A list of file paths to the high-resolution source images.
+
+    target_patch_size : tuple or list of int
+        The dimensions of the high-resolution (ground truth) patch to extract,
+        e.g., `(128, 128, 128)`.
+
+    target_patch_size_low : tuple or list of int
+        The dimensions of the low-resolution (input) patch to generate. The ratio
+        between `target_patch_size` and `target_patch_size_low` determines the
+        super-resolution factor.
+
+    nPatches : int, optional
+        The number of patch pairs to generate in this batch. Default is 128.
+
+    istest : bool, optional
+        If True, the function also generates a third output array containing patches
+        that have been naively upsampled using linear interpolation. This is useful
+        for calculating baseline evaluation metrics (e.g., PSNR) against which the
+        model's performance can be compared. Default is False.
+
+    patch_scaler : bool, optional
+        If True, scales the intensity of each high-resolution patch to the [0, 1]
+        range before creating the downsampled version. This can help with
+        training stability. Default is True.
+
+    to_tensorflow : bool, optional
+        If True, casts the output NumPy arrays to TensorFlow tensors. Default is False.
+
+    verbose : bool, optional
+        If True, prints progress messages during patch generation. Default is False.
+
+    Returns
+    -------
+    tuple
+        A tuple of NumPy arrays or TensorFlow tensors.
+        - If `istest` is False: `(patchesResam, patchesOrig)`
+            - `patchesResam`: The batch of low-resolution input patches (X_train).
+            - `patchesOrig`: The batch of high-resolution ground truth patches (y_train).
+        - If `istest` is True: `(patchesResam, patchesOrig, patchesUp)`
+            - `patchesUp`: The batch of baseline, linearly-upsampled patches.
+    """
     if verbose:
         print("begin image_patch_training_data_from_filenames")
     tardim = len( target_patch_size )
@@ -752,6 +1026,52 @@ def seg_patch_training_data_from_filenames(
     to_tensorflow = False,
     verbose = False
     ):
+    """
+    Generates a batch of paired training data containing both images and segmentations.
+
+    This function extends `image_patch_training_data_from_filenames` by adding a
+    second channel to the data. For each extracted image patch, it also generates
+    a corresponding segmentation mask using Otsu's thresholding. This is useful for
+    training multi-task models that perform super-resolution on both an image and
+    its associated segmentation simultaneously.
+
+    Parameters
+    ----------
+    filenames : list of str
+        A list of file paths to the high-resolution source images.
+
+    target_patch_size : tuple or list of int
+        The dimensions of the high-resolution patch, e.g., `(128, 128, 128)`.
+
+    target_patch_size_low : tuple or list of int
+        The dimensions of the low-resolution input patch.
+
+    nPatches : int, optional
+        The number of patch pairs to generate. Default is 128.
+
+    istest : bool, optional
+        If True, also generates a third output array containing baseline upsampled
+        intensity images (channel 0 only). Default is False.
+
+    patch_scaler : bool, optional
+        If True, scales the intensity of each image patch to the [0, 1] range.
+        Default is True.
+
+    to_tensorflow : bool, optional
+        If True, casts the output NumPy arrays to TensorFlow tensors. Default is False.
+
+    verbose : bool, optional
+        If True, prints progress messages. Default is False.
+
+    Returns
+    -------
+    tuple
+        A tuple of multi-channel NumPy arrays or TensorFlow tensors. The structure
+        is the same as `image_patch_training_data_from_filenames`, but each
+        array has a channel dimension of 2:
+        - Channel 0: The intensity image.
+        - Channel 1: The binary segmentation mask.
+    """
     if verbose:
         print("begin seg_patch_training_data_from_filenames")
     tardim = len( target_patch_size )
@@ -824,6 +1144,23 @@ def seg_patch_training_data_from_filenames(
     return patchesResam, patchesOrig, patchesUp
 
 def read( filename ):
+    """
+    Reads an image or a NumPy array from a file.
+
+    This function acts as a wrapper to intelligently load data. It checks the
+    file extension to decide whether to use `ants.image_read` for standard
+    medical image formats (e.g., .nii.gz, .mha) or `numpy.load` for `.npy` files.
+
+    Parameters
+    ----------
+    filename : str
+        The full path to the file to be read.
+
+    Returns
+    -------
+    ants.ANTsImage or np.ndarray
+        The loaded data object, either as an ANTsImage or a NumPy array.
+    """
     import re
     isnpy = len( re.sub( ".npy", "", filename ) ) != len( filename )
     if not isnpy:
@@ -832,7 +1169,50 @@ def read( filename ):
         myoutput = np.load( filename )
     return myoutput
 
+
 def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose=True ):
+    """
+    Automatically compute weighting coefficients for a combined loss function
+    based on intensity (MSE), perceptual similarity (feature), and total variation (TV).
+
+    Parameters
+    ----------
+    mdl : tf.keras.Model
+        A trained or untrained model to evaluate predictions on input `x`.
+
+    feature_extractor : tf.keras.Model
+        A model that extracts intermediate features from the input. Commonly a VGG or ResNet
+        trained on a perceptual task.
+
+    x : tf.Tensor
+        Input batch to the model.
+
+    y : tf.Tensor
+        Ground truth target for `x`, typically a batch of 2D or 3D volumes.
+
+    feature : float, optional
+        Weighting factor for the feature (perceptual) term in the loss. Default is 2.0.
+
+    tv : float, optional
+        Weighting factor for the total variation term in the loss. Default is 0.1.
+
+    verbose : bool, optional
+        If True, prints each component of the loss and its scaled value.
+
+    Returns
+    -------
+    list of float
+        A list of computed weights in the order:
+        `[msq_weight, feature_weight, tv_weight]`
+
+    Notes
+    -----
+    The total loss (to be used during training) can then be constructed as:
+
+        `L = msq_weight * MSE + feature_weight * perceptual_loss + tv_weight * TV`
+
+    This function is typically used to balance loss terms before training.
+    """    
     y_pred = mdl( x )
     squared_difference = tf.square( y - y_pred)
     if len( y.shape ) == 5:
@@ -864,6 +1244,53 @@ def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose
     return wts
 
 def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dice=0.5, verbose=True ):
+    """
+    Automatically compute weighting coefficients for a combined loss function
+    that includes MSE, perceptual similarity, total variation, and segmentation Dice loss.
+
+    Parameters
+    ----------
+    mdl : tf.keras.Model
+        A segmentation + super-resolution model that outputs both image and label predictions.
+
+    feature_extractor : tf.keras.Model
+        Feature extractor model used to compute perceptual similarity loss.
+
+    x : tf.Tensor
+        Input tensor to the model.
+
+    y : tf.Tensor
+        Target tensor with two channels: [intensity_image, segmentation_label].
+
+    feature : float, optional
+        Relative weight of the perceptual feature loss term. Default is 2.0.
+
+    tv : float, optional
+        Relative weight of the total variation (TV) term. Default is 0.1.
+
+    dice : float, optional
+        Relative weight of the Dice loss term (for segmentation agreement). Default is 0.5.
+
+    verbose : bool, optional
+        If True, prints the scaled values of each component loss.
+
+    Returns
+    -------
+    list of float
+        A list of loss term weights in the order:
+        `[msq_weight, feature_weight, tv_weight, dice_weight]`
+
+    Notes
+    -----
+    - The input and output tensors must be shaped such that the last axis is 2:
+      channel 0 is intensity, channel 1 is segmentation.
+    - This is useful for dual-task networks that predict both high-res images
+      and associated segmentation masks.
+
+    See Also
+    --------
+    binary_dice_loss : Computes Dice loss between predicted and ground-truth masks.
+    """    
     y_pred = mdl( x )
     if len( y.shape ) == 5:
             tdim = 3
@@ -904,6 +1331,23 @@ def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dic
     return wts
 
 def numpy_generator( filenames ):
+    """
+    A placeholder or stub for a data generator.
+
+    This generator yields a tuple of `None` values once and then stops. It is
+    likely intended as a template or for debugging purposes where a generator
+    object is required but no actual data needs to be processed.
+
+    Parameters
+    ----------
+    filenames : any
+        An argument that is not used by the function.
+
+    Yields
+    ------
+    tuple
+        A single tuple `(None, None, None)`.
+    """
     patchesResam=patchesOrig=patchesUp=None
     yield (patchesResam, patchesOrig,patchesUp)
 
@@ -915,6 +1359,45 @@ def image_generator(
     patch_scaler=True,
     istest=False,
     verbose = False ):
+    """
+    Creates an infinite generator of paired image patches for model training.
+
+    This function continuously generates batches of low-resolution (input) and
+    high-resolution (ground truth) image patches. It is designed to be fed
+    directly into a Keras `model.fit()` call.
+
+    Parameters
+    ----------
+    filenames : list of str
+        List of file paths to the high-resolution source images.
+    nPatches : int
+        The number of patch pairs to generate and yield in each batch.
+    target_patch_size : tuple or list of int
+        The dimensions of the high-resolution (ground truth) patches.
+    target_patch_size_low : tuple or list of int
+        The dimensions of the low-resolution (input) patches.
+    patch_scaler : bool, optional
+        If True, scales patch intensities to [0, 1]. Default is True.
+    istest : bool, optional
+        If True, the generator will also yield a third item: a baseline
+        linearly upsampled version of the low-resolution patch for comparison.
+        Default is False.
+    verbose : bool, optional
+        If True, passes verbosity to the underlying patch generation function.
+        Default is False.
+
+    Yields
+    -------
+    tuple
+        A tuple of TensorFlow tensors ready for training or evaluation.
+        - If `istest` is False: `(low_res_batch, high_res_batch)`
+        - If `istest` is True: `(low_res_batch, high_res_batch, baseline_upsampled_batch)`
+
+    See Also
+    --------
+    image_patch_training_data_from_filenames : The function that performs the
+                                               underlying patch extraction.
+    """
     while True:
         patchesResam, patchesOrig, patchesUp = image_patch_training_data_from_filenames(
             filenames,
@@ -938,6 +1421,45 @@ def seg_generator(
     patch_scaler=True,
     istest=False,
     verbose = False ):
+    """
+    Creates an infinite generator of paired image and segmentation patches.
+
+    This function continuously generates batches of multi-channel patches, where
+    one channel is the intensity image and the other is a segmentation mask.
+    It is designed for training multi-task super-resolution models.
+
+    Parameters
+    ----------
+    filenames : list of str
+        List of file paths to the high-resolution source images.
+    nPatches : int
+        The number of patch pairs to generate and yield in each batch.
+    target_patch_size : tuple or list of int
+        The dimensions of the high-resolution patches.
+    target_patch_size_low : tuple or list of int
+        The dimensions of the low-resolution patches.
+    patch_scaler : bool, optional
+        If True, scales the intensity channel of patches to [0, 1]. Default is True.
+    istest : bool, optional
+        If True, yields an additional baseline upsampled patch for comparison.
+        Default is False.
+    verbose : bool, optional
+        If True, passes verbosity to the underlying patch generation function.
+        Default is False.
+
+    Yields
+    -------
+    tuple
+        A tuple of multi-channel TensorFlow tensors. Each tensor has two channels:
+        Channel 0 contains the intensity image, and Channel 1 contains the
+        segmentation mask.
+
+    See Also
+    --------
+    seg_patch_training_data_from_filenames : The function that performs the
+                                             underlying patch extraction.
+    image_generator : A similar generator for intensity-only data.
+    """
     while True:
         patchesResam, patchesOrig, patchesUp = seg_patch_training_data_from_filenames(
             filenames,
@@ -971,6 +1493,63 @@ def train(
     feature_type = 'grader',
     check_eval_data_iteration = 20,
     verbose = False  ):
+    """
+    Orchestrates the training process for a super-resolution model.
+
+    This function handles the entire training loop, including setting up data
+    generators, defining a composite loss function, automatically balancing loss
+    weights, iteratively training the model, periodically evaluating performance,
+    and saving the best-performing model weights.
+
+    Parameters
+    ----------
+    mdl : tf.keras.Model
+        The Keras model to be trained.
+    filenames_train : list of str
+        List of file paths for the training dataset.
+    filenames_test : list of str
+        List of file paths for the validation/testing dataset.
+    target_patch_size : tuple or list
+        The dimensions of the high-resolution target patches.
+    target_patch_size_low : tuple or list
+        The dimensions of the low-resolution input patches.
+    output_prefix : str
+        A prefix for all output files (e.g., model weights, training logs).
+    n_test : int, optional
+        The number of validation patches to use for evaluation. Default is 8.
+    learning_rate : float, optional
+        The learning rate for the Adam optimizer. Default is 5e-5.
+    feature_layer : int, optional
+        The layer index from the feature extractor to use for perceptual loss.
+        Default is 6.
+    feature : float, optional
+        The relative weight of the perceptual (feature) loss term. Default is 2.0.
+    tv : float, optional
+        The relative weight of the Total Variation (TV) regularization term.
+        Default is 0.1.
+    max_iterations : int, optional
+        The total number of training iterations to run. Default is 1000.
+    batch_size : int, optional
+        The batch size for training. Note: this implementation is optimized for
+        batch_size=1 and may need adjustment for larger batches. Default is 1.
+    save_all_best : bool, optional
+        If True, saves a new model file every time validation loss improves.
+        If False, overwrites the single best model file. Default is False.
+    feature_type : str, optional
+        The type of feature extractor for perceptual loss. Options: 'grader',
+        'vgg', 'vggrandom'. Default is 'grader'.
+    check_eval_data_iteration : int, optional
+        The frequency (in iterations) at which to run validation and save logs.
+        Default is 20.
+    verbose : bool, optional
+        If True, prints detailed progress information. Default is False.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the training history, with columns for training
+        loss, validation loss, PSNR, and baseline PSNR over iterations.
+    """
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     training_weights = np.zeros( [1,3] )
@@ -1043,6 +1622,7 @@ def train(
     if verbose:
         print( wts )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ):
+        """Composite loss: MSE + Perceptual Loss + Total Variation."""
         squared_difference = tf.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
             tdim = 3
@@ -1078,17 +1658,16 @@ def train(
         print( "begin training", flush=True  )
     for myrs in range( max_iterations ):
         tracker = mdl.fit( mydatgen,  epochs=2, steps_per_epoch=4, verbose=1,
-            validation_data=(patchesResamTeTf,patchesOrigTeTf),
-            workers = 1, use_multiprocessing=False )
+            validation_data=(patchesResamTeTf,patchesOrigTeTf) )
         training_path[myrs,0]=tracker.history['loss'][0]
         training_path[myrs,1]=tracker.history['val_loss'][0]
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % check_eval_data_iteration == 0:
             with tf.device("/cpu:0"):
-                myofn = output_prefix + "_best_mdl.h5"
+                myofn = output_prefix + "_best_mdl.keras"
                 if save_all_best:
-                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
+                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
                 tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
                 if ( tester < bestValLoss ):
                     print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
@@ -1109,13 +1688,37 @@ def train(
 
 
 def binary_dice_loss(y_true, y_pred):
-  smoothing_factor = 1e-4
-  K = tf.keras.backend
-  y_true_f = K.flatten(y_true)
-  y_pred_f = K.flatten(y_pred)
-  intersection = K.sum(y_true_f * y_pred_f)
-  return -1 * (2 * intersection + smoothing_factor)/(K.sum(y_true_f) +
-        K.sum(y_pred_f) + smoothing_factor)
+    """
+    Computes the Dice loss for binary segmentation tasks.
+
+    The Dice coefficient is a common metric for comparing the overlap of two samples.
+    This loss function computes `1 - DiceCoefficient`, making it suitable for
+    minimization during training. A smoothing factor is added to avoid division
+    by zero when both the prediction and the ground truth are empty.
+
+    Parameters
+    ----------
+    y_true : tf.Tensor
+        The ground truth binary segmentation mask. Values should be 0 or 1.
+    y_pred : tf.Tensor
+        The predicted binary segmentation mask, typically with values in [0, 1]
+        from a sigmoid activation.
+
+    Returns
+    -------
+    tf.Tensor
+        A scalar tensor representing the Dice loss. The value ranges from -1 (perfect
+        match) to 0 (no overlap), though it's typically used as `1 - dice_coeff`
+        or just `-dice_coeff` (as here).
+    """
+    smoothing_factor = 1e-4
+    K = tf.keras.backend
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    # This is -1 * Dice Similarity Coefficient
+    return -1 * (2 * intersection + smoothing_factor)/(K.sum(y_true_f) +
+            K.sum(y_pred_f) + smoothing_factor)
 
 def train_seg(
     mdl,
@@ -1136,6 +1739,64 @@ def train_seg(
     feature_type = 'grader',
     check_eval_data_iteration = 20,
     verbose = False  ):
+    """
+    Orchestrates training for a multi-task image and segmentation SR model.
+
+    This function extends the `train` function to handle models that predict
+    both a super-resolved image and a super-resolved segmentation mask. It uses
+    a four-component composite loss: MSE (for image), a perceptual loss (for
+    image), Total Variation (for image), and Dice loss (for segmentation).
+
+    Parameters
+    ----------
+    mdl : tf.keras.Model
+        The 2-channel Keras model to be trained.
+    filenames_train : list of str
+        List of file paths for the training dataset.
+    filenames_test : list of str
+        List of file paths for the validation/testing dataset.
+    target_patch_size : tuple or list
+        The dimensions of the high-resolution target patches.
+    target_patch_size_low : tuple or list
+        The dimensions of the low-resolution input patches.
+    output_prefix : str
+        A prefix for all output files.
+    n_test : int, optional
+        Number of validation patches for evaluation. Default is 8.
+    learning_rate : float, optional
+        Learning rate for the Adam optimizer. Default is 5e-5.
+    feature_layer : int, optional
+        Layer from the feature extractor for perceptual loss. Default is 6.
+    feature : float, optional
+        Relative weight of the perceptual loss term. Default is 2.0.
+    tv : float, optional
+        Relative weight of the Total Variation regularization term. Default is 0.1.
+    dice : float, optional
+        Relative weight of the Dice loss term for the segmentation mask.
+        Default is 0.5.
+    max_iterations : int, optional
+        Total number of training iterations. Default is 1000.
+    batch_size : int, optional
+        The batch size for training. Default is 1.
+    save_all_best : bool, optional
+        If True, saves all models that improve validation loss. Default is False.
+    feature_type : str, optional
+        Type of feature extractor for perceptual loss. Default is 'grader'.
+    check_eval_data_iteration : int, optional
+        Frequency (in iterations) for running validation. Default is 20.
+    verbose : bool, optional
+        If True, prints detailed progress information. Default is False.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the training history, including columns for losses
+        and evaluation metrics like PSNR and Dice score.
+
+    See Also
+    --------
+    train : The training function for single-task (intensity-only) models.
+    """
     colnames = ['train_loss','test_loss','best','eval_psnr','eval_psnr_lin','eval_msq','eval_dice']
     training_path = np.zeros( [ max_iterations, len(colnames) ] )
     training_weights = np.zeros( [1,4] )
@@ -1203,6 +1864,7 @@ def train_seg(
     if verbose:
         print( wts )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], dicewt=wts[3], mybs = batch_size ):
+        """Composite loss: MSE + Perceptual + TV + Dice."""
         if len( y_true.shape ) == 5:
             tdim = 3
             myax = [1,2,3,4]
@@ -1242,17 +1904,16 @@ def train_seg(
         print( "begin training", flush=True  )
     for myrs in range( max_iterations ):
         tracker = mdl.fit( mydatgen,  epochs=2, steps_per_epoch=4, verbose=1,
-            validation_data=(patchesResamTeTf,patchesOrigTeTf),
-            workers = 1, use_multiprocessing=False )
+            validation_data=(patchesResamTeTf,patchesOrigTeTf) )
         training_path[myrs,0]=tracker.history['loss'][0]
         training_path[myrs,1]=tracker.history['val_loss'][0]
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % check_eval_data_iteration == 0:
             with tf.device("/cpu:0"):
-                myofn = output_prefix + "_best_mdl.h5"
+                myofn = output_prefix + "_best_mdl.keras"
                 if save_all_best:
-                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.h5"
+                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
                 tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
                 if ( tester < bestValLoss ):
                     print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
@@ -1274,8 +1935,8 @@ def train_seg(
                 print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ) + " MSQ: " + str(msqTerm) + " DICE: " + str(dicer), flush=True  )
                 training_path[myrs,3]=myssimSR # psnr
                 training_path[myrs,4]=myssimBI # psnrlin
-                training_path[myrs,5]=msqTerm # psnr
-                training_path[myrs,6]=dicer # psnrlin
+                training_path[myrs,5]=msqTerm # msq
+                training_path[myrs,6]=dicer # dice
                 pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
@@ -1477,13 +2138,57 @@ def compare_models( model_filenames, img, n_classes=3,
     poly_order='hist',
     identifier=None, noise_sd=0.1,verbose=False ):
     """
-    generate a dataframe computing some basic intensity metrics PSNR and SSIM
+    Evaluates and compares the performance of multiple super-resolution models on a given image.
 
-    by default, will add noise to downsampled image.
+    This function provides a standardized way to benchmark SR models. For each model,
+    it performs the following steps:
+    1. Loads the model and determines its upsampling factor.
+    2. Downsamples the high-resolution input image (`img`) to create a low-resolution
+       input, simulating a real-world scenario.
+    3. Adds Gaussian noise to the low-resolution input to test for robustness.
+    4. Runs inference using the model to generate a super-resolved output.
+    5. Generates a baseline output by upsampling the low-res input with linear interpolation.
+    6. Calculates PSNR and SSIM metrics comparing both the model's output and the
+       baseline against the original high-resolution image.
+    7. If a dual-channel (image + segmentation) model is detected, it also calculates
+       Dice scores for segmentation performance.
+    8. Aggregates all results into a pandas DataFrame for easy comparison.
 
-    NOTE: when evaluating a 2-channel (segmentation) model - the focus should
-    be on the segmentation arm (DICE) alone ... the intensity component can
-    be evaluated on its own separately.
+    Parameters
+    ----------
+    model_filenames : list of str
+        A list of file paths to the Keras models (.h5, .keras) to be compared.
+    img : ants.ANTsImage
+        The high-resolution ground truth image. This image will be downsampled to
+        create the input for the models.
+    n_classes : int, optional
+        The number of classes for Otsu's thresholding when auto-generating a
+        segmentation for evaluating dual-channel models. Default is 3.
+    poly_order : str or int, optional
+        Method for intensity matching between the SR output and the reference.
+        Options: 'hist' for histogram matching (default), an integer for
+        polynomial regression, or None to disable.
+    identifier : str, optional
+        A custom identifier for the output DataFrame. If None, it is inferred
+        from the model filename. Default is None.
+    noise_sd : float, optional
+        Standard deviation of the additive Gaussian noise applied to the
+        downsampled image before inference. Default is 0.1.
+    verbose : bool, optional
+        If True, prints detailed progress and intermediate values. Default is False.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame where each row corresponds to a model. Columns contain evaluation
+        metrics (PSNR.SR, SSIM.SR, DICE.SR), baseline metrics (PSNR.LIN, SSIM.LIN,
+        DICE.NN), and metadata.
+
+    Notes
+    -----
+    When evaluating a 2-channel (segmentation) model, the primary metric for the
+    segmentation task is the Dice score (`DICE.SR`). The intensity metrics (PSNR, SSIM)
+    are still computed on the first channel.
     """
     padding=4
     mydf = pd.DataFrame()
@@ -1531,6 +2236,7 @@ def compare_models( model_filenames, img, n_classes=3,
             print("we force them to match but this suggests results may not be reliable.")
         temp = os.path.basename( model_filenames[k] )
         temp = re.sub( "siq_default_sisr_", "", temp )
+        temp = re.sub( "_best_mdl.keras", "", temp )
         temp = re.sub( "_best_mdl.h5", "", temp )
         if verbose and dimwarning:
             print( "original img shape" )
