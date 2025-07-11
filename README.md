@@ -112,5 +112,5 @@ rm -rf build/ siq.egg-info/ dist/
 python3 -m build .
 
 # Upload to PyPI
-python -m twine upload --repository pypi dist/*
+python3 -m twine upload --repository siq dist/*
 ```
