@@ -93,14 +93,13 @@ if not os.path.exists(best_model_path):
     raise FileNotFoundError(f"Trained model not found at {best_model_path}. Training may have failed.")
 
 print(f"Loading trained model from: {best_model_path}")
-deek
 trained_model = tf.keras.models.load_model(best_model_path, compile=False)
 
 # Second, prepare a proper low-resolution test image. We simulate this by
 # taking a high-resolution image from our test set and downsampling it.
 print("Preparing low-resolution input image...")
-test_image_high_res = ants.image_read(test_files[0])
-
+test_image_high_res = ants.crop_image( ants.image_read(test_files[0]) )
+test_image_high_res = ants.resample_image( test_image_high_res, [2,2,2])
 # Calculate low-resolution spacing based on the model's upsampling factor.
 low_res_spacing = [s * UPSAMPLE_FACTOR for s in test_image_high_res.spacing]
 test_image_low_res = ants.resample_image(test_image_high_res, low_res_spacing, use_voxels=False, interp_type=0)
