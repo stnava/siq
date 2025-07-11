@@ -22,9 +22,10 @@ import glob as glob
 # --- 1. Configuration and Setup ---
 # These settings can improve performance on multi-core systems.
 print("--- Step 1: Configuring Environment & Parameters ---")
-os.environ["TF_NUM_INTEROP_THREADS"] = "8"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
-os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
+mynt="8"
+os.environ["TF_NUM_INTEROP_THREADS"] = mynt
+os.environ["TF_NUM_INTRAOP_THREADS"] = mynt
+os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = mynt
 
 # Use clear variables for important parameters.
 UPSAMPLE_FACTOR = 2

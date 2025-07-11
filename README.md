@@ -1,166 +1,116 @@
-# SIQ - super-resolution image quantification
+# SIQ: Super-Resolution Image Quantification
 
-## deep perceptual resampling and super-resolution for (medical) imaging
+[![PyPI version](https://badge.fury.io/py/siq.svg)](https://badge.fury.io/py/siq)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](httpss://github.com/your-repo/siq)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-install by calling (within the source directory):
+**SIQ** is a powerful and flexible Python library for deep learning-based image super-resolution, with a focus on medical imaging applications. It provides a comprehensive toolkit for every stage of the super-resolution workflow, from data generation and model training to robust inference and evaluation.
 
-```
-python setup.py install
-```
+The library is built on `TensorFlow/Keras` and `ANTSpy` and is designed to handle complex, real-world challenges such as **anisotropic super-resolution** (where different upsampling factors are needed for each axis) and **multi-task learning** (e.g., simultaneously upsampling an image and its segmentation mask).
 
-or install via `pip install siq`
+---
 
-# what this will do
+## Key Features
 
-facilitates:
+SIQ is more than just an inference tool; it's a complete framework that facilitates:
 
-* creating training and testing data for deep networks
+*   **Flexible Data Generation:** Automatically create paired low-resolution and high-resolution patches for training with `siq.image_generator`. Includes support for multi-channel data (e.g., image + segmentation) via `siq.seg_generator`.
+*   **Advanced Model Architectures:** Easily instantiate powerful Deep Back-Projection Networks (DBPN) for 2D and 3D with `siq.default_dbpn`, customized for any upsampling factor and multi-task outputs.
+*   **Perceptual Loss Training:** Go beyond simple Mean Squared Error. SIQ includes tools for using pre-trained feature extractors (`siq.get_grader_feature_network`, `siq.pseudo_3d_vgg_features_unbiased`) to optimize for perceptual quality.
+*   **Intelligent Loss Weighting:** Automatically balance complex, multi-component loss functions (e.g., MSE + Perceptual + Dice) with a single command (`siq.auto_weight_loss`, `siq.auto_weight_loss_seg`) to ensure stable training.
+*   **End-to-End Training Pipelines:** Train models from start to finish with the high-level `siq.train` and `siq.train_seg` functions, which handle data generation, validation, and model saving.
+*   **Robust Inference:** Apply your trained models to new images with `siq.inference`, including specialized logic for region-wise and blended super-resolution when guided by a segmentation mask.
+*   **Comprehensive Evaluation:** Systematically benchmark and compare model performance with `siq.compare_models`, which calculates PSNR, SSIM, and Dice metrics against baseline methods.
 
-* generating and testing perceptual losses in 2D and 3D
+---
 
-* general training and inference functions for deep networks
+## Installation
 
-* intuitive weighting of multiple losses
-
-* anisotropic super-resolution
-
-* evaluation strategies for the above
-
-# first time setup
-
-```python
-import antspyt1w
-antspyt1w.get_data( force_download=True )
-# import siq     # FIXME - for later
-# siq.get_data( force_download=True )
-```
-
-NOTE: `get_data` has a `force_download` option to make sure the latest
-package data is installed.
-
-# example processing
-
-```python
-import os
-import siq
-import glob
-import ants
-fns=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
-import tensorflow as tf
-ofn = os.path.expanduser("~/code/DPR/models/dsr3d_2up_64_256_6_3_v0.0zzz.h5")
-if os.path.exists( ofn ):
-    print("existing model") # should always initialize with pre-trained model
-    mdl = tf.keras.models.load_model( ofn, compile=False )
-else:
-    print("default model - initialized with random weights")
-    mdl = siq.default_dbpn( [2,2,2] ) # should match ratio of high to low size patches
-myoutprefix = '/tmp/XXX'
-training_path = siq.train(
-    mdl, 
-    fns[0:3], 
-    fns[0:3], 
-    output_prefix=myoutprefix,
-    target_patch_size=[32,32,32],
-    target_patch_size_low=[16,16,16],
-    n_test=2, 
-    learning_rate=5e-05, 
-    feature_layer=6, 
-    feature=2, 
-    tv=0.1,
-    max_iterations=2, 
-    verbose=True)
-training_path.to_csv( myoutprefix + "_training.csv" )
-image = ants.image_read( fns[0] )
-image = ants.resample_image( image, [48,48,48] ) # downsample for speed in testing
-test = siq.inference( image, mdl )
-```
-
-see also: the training scripts in `tests`.
-
-## problems reading pre-trained models
-
-see `tests/translate_models_to_keras3.py` for some insights into handling hdf5 reading with different versions of keras or tensorflow.
-
-## starter models 
-
-[link](https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987) to models
-
-note - may be issues loading/reading - see the comments about keras versions above
-
-currently -- with tf >= 2.17 -- this works:
-
-1. run `tests/export_legacy_keras_weights.py` on the legacy h5 files.
-
-2. run `tests/migrate_and_resave_models.py` to get the new `.keras` models.
-
-```python
-import os
-seed=4
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ['TF_USE_LEGACY_KERAS'] = '0'
-mfn=os.path.expanduser('~/.antspymm/siq_smallshort_train_1x1x2_1chan_featgraderL6_best.keras')
-import siq
-a, b = siq.read_srmodel(mfn)
-```
-
-
-## your compute environment
+You can install the official release directly from PyPI:
 
 ```bash
-export TF_ENABLE_ONEDNN_OPTS=1 # for CPU
-
-total_cpu_cores=$(nproc)
-number_sockets=$(($(grep "^physical id" /proc/cpuinfo | awk '{print $4}' | sort -un | tail -1)+1))
-number_cpu_cores=$(( (total_cpu_cores/2) / number_sockets))
-
-echo "number of CPU cores per socket: $number_cpu_cores";
-echo "number of socket: $number_sockets";
-
-echo "Physical cores:"
-egrep '^core id' /proc/cpuinfo | sort -u | wc -l
-
-echo "Logical cores:"
-
-egrep '^processor' /proc/cpuinfo | sort -u | wc -l
-
-echo "Physical cpus (separate chips):"
-
-egrep '^physical id' /proc/cpuinfo | sort -u | wc -l
-
+pip install siq
 ```
 
-## to publish a release
+To install the latest development version from this repository:
 
 ```bash
-rm -r -f build/ antspymm.egg-info/ dist/
-python3 -m  build .
-python3 -m twine upload --repository siq dist/*
+git clone https://github.com/stnava/siq.git
+cd siq
+pip install .
 ```
 
+---
 
-## notes on cpu environment
+## Quick Start: A 5-Minute Example
 
+The examples demonstrate the core workflow: training a model on publicly available data and using it for inference.
+
+```bash
+tests/test.py
+tests/test_seg.py
 ```
-# dd=/home/ubuntu/miniconda3/condabin/conda
-# conda update -n base -c defaults conda
-# conda init bash
-# conda create -n ai3 python=3.9
-# conda activate ai3 
-# pip3 install --upgrade pip
-py=python3 # "sudo /opt/parallelcluster/pyenv/versions/3.7.10/envs/awsbatch_virtualenv/bin/python3.7"
 
-$py -m pip install --upgrade pip
+## Pre-trained Models and Compatibility
 
-# python3.7 -m pip uninstall tensorflow antspynet dipy patsy tensorboard tensorflow-probability -y
-$py -m pip install nibabel PyNomaly scipy 
-$py -m pip install antspyx 
-$py -m pip install dipy 
-$py -m pip install antspyt1w 
-$py -m pip install antspymm 
-$py -m pip install antspynet
-$py -m pip install siq
-$py -m pip uninstall tensorflow -y
-$py -m pip install intel-tensorflow # -avx512==2.9.1
-$py -m pip install tensorflow_probability
-$py -m pip install keras
+We provide a collection of pre-trained models to get you started without requiring you to train from scratch.
+
+*   **[Download Pre-trained Models from Figshare](https://figshare.com/articles/software/SIQ_reference_super_resolution_models/27079987)**
+
+### Important Note on Keras/TensorFlow Versions
+
+The deep learning ecosystem evolves quickly. Models saved with older versions of TensorFlow/Keras (as `.h5` files) may have trouble loading in newer versions (TF >= 2.16) due to the transition to the `.keras` format.
+
+If you encounter issues loading a legacy `.h5` model, we provide a robust conversion script. This utility will convert your old `.h5` files into the modern `.keras` format.
+
+**Usage:**
+
+```python
+import siq
+
+# Define the directory containing your old .h5 models
+source_dir = "~/.antspymm/" # Or wherever you downloaded the models
+output_dir = "./converted_keras_models"
+
+# Convert the models
+siq.convert_h5_to_keras_format(
+    search_directory=source_dir,
+    output_directory=output_dir,
+    exclude_patterns=["*weights.h5"] # Skips files that are just weights
+)
+```
+
+After running this, you can load the converted models from the `converted_keras_models` directory using `siq.read_srmodel` or `tf.keras.models.load_model`.
+
+---
+
+## For Developers
+
+### Setting Up the Environment
+
+This package is tested with Python 3.11 and TensorFlow 2.17. For optimal CPU performance, especially on Linux, you may want to set these environment variables:
+
+```bash
+export TF_ENABLE_ONEDNN_OPTS=1
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=8
+export TF_NUM_INTRAOP_THREADS=8
+export TF_NUM_INTEROP_THREADS=8
+```
+
+### Publishing a New Release
+
+To publish a new version of `siq` to PyPI:
+
+```bash
+# Ensure build and twine are installed
+python3 -m pip install build twine
+
+# Clean previous builds
+rm -rf build/ siq.egg-info/ dist/
+
+# Build the package
+python3 -m build .
+
+# Upload to PyPI
+python -m twine upload --repository pypi dist/*
 ```
