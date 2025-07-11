@@ -10,6 +10,8 @@ The library is built on `TensorFlow/Keras` and `ANTSpy` and is designed to handl
 
 ---
 
+Function-specific documentation is [here](https://stnava.github.io/siq/siq/get_data.html).
+
 ## Key Features
 
 SIQ is more than just an inference tool; it's a complete framework that facilitates:
