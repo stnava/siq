@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from pathlib import PurePath
 import os
@@ -27,7 +26,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.siq/')
 
-def get_data( name=None, force_download=False, version=0, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=1, target_extension='.csv' ):
     """
     Get SIQ data filename
 
@@ -59,7 +58,7 @@ def get_data( name=None, force_download=False, version=0, target_extension='.csv
     os.makedirs(DATA_PATH, exist_ok=True)
 
     def download_data( version ):
-        url = "https://figshare.com/ndownloader/articles/16912366/versions/" + str(version)
+        url = "https://ndownloader.figshare.com/articles/16912366/versions/" + str(version)
         target_file_name = "16912366.zip"
         target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
             cache_subdir=DATA_PATH, extract = True )
