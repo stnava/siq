@@ -30,3 +30,5 @@ from .get_data import simulate_image
 from .get_data import compare_models
 from .get_data import optimize_upsampling_shape
 from .get_data import region_wise_super_resolution
+
+from .auto import auto

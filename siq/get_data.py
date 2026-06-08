@@ -97,8 +97,8 @@ def get_data( name=None, force_download=False, version=1, target_extension='.csv
 
 
 
-from keras.models import Model
-from keras.layers import (Input, Add, Subtract,
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import (Input, Add, Subtract,
                           PReLU, Concatenate,
                           UpSampling2D, UpSampling3D,
                           Conv2D, Conv2DTranspose,

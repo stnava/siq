@@ -1,7 +1,147 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=./siq.html"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIQ - Super-resolution Image Quality Deep Analysis</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: white;
+            margin: 0;
+        }
+        .section {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        .code-block {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background-color: #f1f8ff;
+            border: 1px solid #c8e1ff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .auto-mode {
+            background-color: #e8f5e9;
+            border-left: 5px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
 </head>
+<body>
+
+    <div class="header">
+        <h1>SIQ (Super-resolution Image Quality)</h1>
+        <p>A Deep Learning library for Perceptual Resampling and Super Resolution with ANTsPyX</p>
+    </div>
+
+    <div class="section">
+        <h2>Introduction</h2>
+        <p>Welcome to <strong>SIQ</strong>! This package utilizes Deep Back-Projection Networks (DBPN) and VGG-style perceptual loss networks to construct state-of-the-art super-resolution images, specifically tailored for medical imaging and ANTs workflows.</p>
+    </div>
+
+    <div class="section">
+        <h2>1. The Magical <code>siq.auto</code> Mode</h2>
+        <p>For new users, the easiest way to start is using the new <code>siq.auto</code> functionality. It intelligently figures out your image dimensionality and upsamples it with an optimal baseline model.</p>
+        <div class="auto-mode">
+            <h3>How to use auto mode:</h3>
+            <div class="code-block">
+<pre>
+import siq
+
+# Just provide the path or an ANTs image!
+high_res_image = siq.auto('path/to/my_image.nii.gz', target_resolution=(256, 256, 256))
+</pre>
+            </div>
+            <p><strong>What it does:</strong> It loads your image, determines if it's 2D or 3D, constructs a default Deep Back-Projection Network (DBPN), runs the upsampling inference, and optionally resamples exactly to your target resolution.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Core Features</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>Deep Back-Projection Network (DBPN)</h3>
+                <p>The DBPN is the core architecture in SIQ. It iteratively projects features up and down to refine the high-resolution estimate. You can create customized 2D and 3D DBPN architectures using <code>siq.dbpn()</code> and <code>siq.default_dbpn()</code>.</p>
+            </div>
+            <div class="feature-card">
+                <h3>VGG & ResNet Perceptual Loss</h3>
+                <p>Instead of relying solely on Mean Squared Error (MSE), SIQ integrates pre-trained ResNet and VGG networks (pseudo-3D transferred weights) to evaluate image quality based on deep feature maps. Access these with <code>siq.pseudo_3d_vgg_features()</code> and <code>siq.get_grader_feature_network()</code>.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Automated Training Loops</h3>
+                <p>SIQ handles the complexity of memory management and patch extraction with fully automated generators: <code>siq.train()</code> and <code>siq.train_seg()</code> for simultaneous super-resolution and segmentation tasks.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Advanced: Training a Custom Model</h2>
+        <p>For research, you often need to train a model on your specific domain data. Here's a quick start:</p>
+        <div class="code-block">
+<pre>
+import siq
+
+# Create a 3D DBPN model (e.g. 2x upsampling)
+model = siq.default_dbpn(strider=[2, 2, 2], dimensionality=3, option='small')
+
+# Train using patches
+siq.train(
+    mdl=model,
+    filenames_train=['train_1.nii.gz', 'train_2.nii.gz'],
+    filenames_test=['test_1.nii.gz'],
+    target_patch_size=[32, 32, 32],
+    target_patch_size_low=[16, 16, 16],
+    output_prefix='my_super_model'
+)
+</pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Evaluation & Utilities</h2>
+        <p>SIQ also provides utilities to evaluate your models against others:</p>
+        <ul>
+            <li><code>siq.compare_models()</code>: Compare different `.keras` or `.h5` models on the same image.</li>
+            <li><code>siq.region_wise_super_resolution()</code>: Super-resolve massive images by breaking them into overlapping tiles and stitching them back seamlessly.</li>
+            <li><code>siq.simulate_image()</code>: Downsample and add noise to high-resolution images to create training data pairs.</li>
+        </ul>
+    </div>
+
+</body>
 </html>
