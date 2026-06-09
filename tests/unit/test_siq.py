@@ -3,7 +3,7 @@ import numpy as np
 import ants
 import tensorflow as tf
 from unittest.mock import patch, MagicMock
-from siq import get_data, auto
+from siq import auto
 from siq.get_data import (
     dbpn,
     default_dbpn,

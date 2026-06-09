@@ -1,12 +1,14 @@
 import os
 import ants
+import antspynet
 import siq
 import tensorflow as tf
 
 def main():
-    print("Loading Real MRI (ch2) image...")
-    # Load a highly detailed, standard real T1 MRI brain
-    img = ants.image_read(ants.get_ants_data('ch2'))
+    print("Loading Real MRI (OASIS) image...")
+    # Load a highly detailed, standard real T1 MRI brain from OASIS dataset
+    img_path = antspynet.get_antsxnet_data('oasis')
+    img = ants.image_read(img_path)
     
     print("Plotting Original Full...")
     ants.plot(img, filename='docs/images/original_full.png', title="Original High-Res (Full)", axis=2)

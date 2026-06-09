@@ -119,20 +119,38 @@ high_res_image = siq.auto('path/to/my_image.nii.gz', target_resolution=(256, 256
 
     <div class="section">
         <h2>Visual Demonstration</h2>
-        <p>The true power of super-resolution lies in recovering lost perceptual details. Below is an example of an MNI template image downsampled to simulate low resolution, and then recovered using a pre-trained DBPN + VGG feature model.</p>
+        <p>The true power of super-resolution lies in recovering lost perceptual details. Below is an example of a real, high-resolution human T1-weighted MRI from the <b>OASIS dataset</b>, downsampled to simulate low resolution, and then recovered using a pre-trained DBPN + VGG feature model.</p>
         
+        <h3>Full Slice Overview</h3>
         <div class="image-showcase">
             <div class="image-box">
-                <img src="images/original.png" alt="Original High Resolution">
+                <img src="images/original_full.png" alt="Original High Resolution">
                 <h4>Original High-Res</h4>
             </div>
             <div class="image-box">
-                <img src="images/lowres.png" alt="Low Resolution (Interpolated)">
+                <img src="images/lowres_full.png" alt="Low Resolution (Interpolated)">
                 <h4>Low Resolution</h4>
             </div>
             <div class="image-box">
-                <img src="images/superres.png" alt="SIQ Super Resolved">
+                <img src="images/superres_full.png" alt="SIQ Super Resolved">
                 <h4>SIQ Super-Resolved</h4>
+            </div>
+        </div>
+
+        <h3>Zoomed Patch Detail</h3>
+        <p>By extracting a high-resolution 60x60x60 patch, we can see how SIQ recovers intricate cortical folding that was lost during downsampling.</p>
+        <div class="image-showcase">
+            <div class="image-box">
+                <img src="images/original_zoom.png" alt="Original High Resolution Detail">
+                <h4>Original Detail</h4>
+            </div>
+            <div class="image-box">
+                <img src="images/lowres_zoom.png" alt="Low Resolution Detail">
+                <h4>Low Res Detail</h4>
+            </div>
+            <div class="image-box">
+                <img src="images/superres_zoom.png" alt="SIQ Super Resolved Detail">
+                <h4>SIQ Detail</h4>
             </div>
         </div>
     </div>

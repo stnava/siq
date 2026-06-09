@@ -58,6 +58,22 @@ def test_region_wise_super_resolution(mock_image_3d):
     except Exception:
         pass
 
+def test_region_wise_super_resolution_blended(mock_image_3d):
+    mock_model = MagicMock()
+    mock_model.predict.return_value = np.random.rand(1, 32, 32, 32, 1)
+    mock_mask = ants.image_clone(mock_image_3d)
+    try:
+        res = region_wise_super_resolution_blended(
+            mock_image_3d,
+            mock_model,
+            mask=mock_mask,
+            upsampling_factor=[2,2,2],
+            patch_size=[16,16,16],
+            stride=16
+        )
+    except Exception:
+        pass
+
 def test_compare_models(mock_image_3d):
     mock_model = MagicMock()
     mock_model.predict.return_value = np.random.rand(1, 32, 32, 32, 1)
@@ -65,10 +81,11 @@ def test_compare_models(mock_image_3d):
     with patch('siq.get_data.tf.keras.models.load_model', return_value=mock_model):
         try:
             res = compare_models(
-                mock_image_3d,
-                mock_image_3d,
                 ['dummy1.keras', 'dummy2.keras'],
-                ['dummy1', 'dummy2'],
+                mock_image_3d,
+                3, # n_classes
+                mock_image_3d, # image_truth
+                ['dummy1', 'dummy2'], # mod_names
                 ['nearest', 'nearest'],
                 [[2,2,2], [2,2,2]],
                 verbose=False

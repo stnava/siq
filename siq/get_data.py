@@ -26,77 +26,6 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.siq/')
 
-def get_data( name=None, force_download=False, version=1, target_extension='.csv' ):
-    """
-    Get SIQ data filename
-
-    The first time this is called, it will download data to ~/.siq.
-    After, it will just read data from disk.  The ~/.siq may need to
-    be periodically deleted in order to ensure data is current.
-
-    Arguments
-    ---------
-    name : string
-        name of data tag to retrieve
-        Options:
-            - 'all'
-
-    force_download: boolean
-
-    version: version of data to download (integer)
-
-    Returns
-    -------
-    string
-        filepath of selected data
-
-    Example
-    -------
-    >>> import siq
-    >>> siq.get_data()
-    """
-    os.makedirs(DATA_PATH, exist_ok=True)
-
-    def download_data( version ):
-        url = "https://ndownloader.figshare.com/articles/16912366/versions/" + str(version)
-        target_file_name = "16912366.zip"
-        target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
-            cache_subdir=DATA_PATH, extract = True )
-        os.remove( DATA_PATH + target_file_name )
-
-    if force_download:
-        download_data( version = version )
-
-
-    files = []
-    for fname in os.listdir(DATA_PATH):
-        if ( fname.endswith(target_extension) ) :
-            fname = os.path.join(DATA_PATH, fname)
-            files.append(fname)
-
-    if len( files ) == 0 :
-        download_data( version = version )
-        for fname in os.listdir(DATA_PATH):
-            if ( fname.endswith(target_extension) ) :
-                fname = os.path.join(DATA_PATH, fname)
-                files.append(fname)
-
-    if name == 'all':
-        return files
-
-    datapath = None
-
-    for fname in os.listdir(DATA_PATH):
-        mystem = (Path(fname).resolve().stem)
-        mystem = (Path(mystem).resolve().stem)
-        mystem = (Path(mystem).resolve().stem)
-        if ( name == mystem and fname.endswith(target_extension) ) :
-            datapath = os.path.join(DATA_PATH, fname)
-
-    return datapath
-
-
-
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import (Input, Add, Subtract,
                           PReLU, Concatenate,
@@ -507,7 +436,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     layer_index = layer-1 # findLayerIndex( 'block2_conv2', vgg19 )
     vggmodelRaw = antspynet.create_vgg_model_3d(
             [inshape[0],inshape[1],inshape[2],1],
-            number_of_classification_labels = 1000,
+            number_of_outputs = 1000,
             layers = [1, 2, 3, 4, 4],
             lowest_resolution = 64,
             convolution_kernel_size= (3, 3, 3), pool_size = (2, 2, 2),
