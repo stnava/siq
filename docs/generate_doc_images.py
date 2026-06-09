@@ -1,61 +1,77 @@
 import os
-if os.environ.get("KERAS_BACKEND") == "torch":
-    import torch
-    torch.backends.mps.is_available = lambda: False
-    torch.backends.mps.is_built = lambda: False
-    torch.set_default_device("cpu")
+os.environ["KERAS_BACKEND"] = "tensorflow"
+import keras
 import ants
 import antspynet
 import siq
-import keras
 
 def main():
+    backend = os.environ.get("KERAS_BACKEND", "tensorflow")
+    print(f"Using backend: {backend}")
+
     print("Loading Real MRI (OASIS) image...")
-    # Load a highly detailed, standard real T1 MRI brain from OASIS dataset
     img_path = antspynet.get_antsxnet_data('oasis')
     img = ants.image_read(img_path)
     
-    print("Plotting Original Full...")
-    ants.plot(img, filename='docs/images/original_full.png', title="Original High-Res (Full)", axis=2)
+    # Save original full (cached/static, or generated if not present)
+    if not os.path.exists('docs/images/original_full.png'):
+        print("Generating original full slice image...")
+        ants.plot(img, filename='docs/images/original_full.png', title="Original High-Res (Full)", axis=2)
 
     print("Simulating Low Resolution (2x downsample)...")
-    # simulate low resolution by downsampling
     low_res = ants.resample_image(img, [s*2 for s in img.spacing], use_voxels=False, interp_type=0)
     
-    # upsample back to original grid to be perfectly comparable
-    blurry = ants.resample_image_to_target(low_res, img, interp_type='linear')
-    print("Plotting Low Res (Blurry) Full...")
-    ants.plot(blurry, filename='docs/images/lowres_full.png', title="Low Resolution (Full)", axis=2)
+    if not os.path.exists('docs/images/lowres_full.png'):
+        print("Generating lowres full slice image...")
+        blurry = ants.resample_image_to_target(low_res, img, interp_type='linear')
+        ants.plot(blurry, filename='docs/images/lowres_full.png', title="Low Resolution (Full)", axis=2)
 
-    print("Loading pre-trained SIQ model...")
-    model_path = os.path.expanduser('~/.antspymm/siq_default_sisr_2x2x2_1chan_featvggL6_best_mdl.h5')
-    backend = keras.backend.backend()
-    if os.path.exists(model_path):
-        model = keras.models.load_model(model_path, compile=False)
-        print("Running SIQ inference...")
-        # siq.inference takes care of everything
-        sr_img = siq.inference(low_res, model, verbose=False)
-        
-        print("Plotting Super-Resolved Full...")
-        ants.plot(sr_img, filename=f'docs/images/superres_full_{backend}.png', title=f"SIQ Super-Resolved (Full - {backend})", axis=2)
-    else:
-        print(f"Model {model_path} not found. Using a tiny DBPN to demonstrate the pipeline.")
-        sr_img = siq.auto(low_res, target_resolution=img.shape)
-        ants.plot(sr_img, filename=f'docs/images/superres_full_{backend}.png', title=f"SIQ Auto-Resolved (Full - {backend})", axis=2)
-
-    # Now create zoomed-in patches
-    print("Extracting and saving zoomed patches...")
-    mid = [s//2 for s in img.shape]
-    lower = [m - 30 for m in mid]
-    upper = [m + 30 for m in mid]
+    # Define zoom cropping indices
+    # Low-res patch: 32x32x32 from center
+    mid_lr = [s//2 for s in low_res.shape]
+    lower_lr = [m - 16 for m in mid_lr]
+    upper_lr = [m + 16 for m in mid_lr]
+    lr_patch = ants.crop_indices(low_res, lower_lr, upper_lr)
     
-    orig_crop = ants.crop_indices(img, lower, upper)
-    blurry_crop = ants.crop_indices(blurry, lower, upper)
-    sr_crop = ants.crop_indices(sr_img, lower, upper)
+    # High-res patch: 64x64x64 from center
+    mid_hr = [s//2 for s in img.shape]
+    lower_hr = [m - 32 for m in mid_hr]
+    upper_hr = [m + 32 for m in mid_hr]
+    hr_patch = ants.crop_indices(img, lower_hr, upper_hr)
 
-    ants.plot(orig_crop, filename='docs/images/original_zoom.png', title="Original Detail", axis=2)
-    ants.plot(blurry_crop, filename='docs/images/lowres_zoom.png', title="Low Res Detail", axis=2)
-    ants.plot(sr_crop, filename=f'docs/images/superres_zoom_{backend}.png', title=f"SIQ Detail ({backend})", axis=2)
+    # Save original high-res patch plot
+    ants.plot(hr_patch, filename='docs/images/original_zoom.png', title="Original Detail", axis=2)
+    
+    # Save blurry low-res patch plot (resampled to match high-res resolution)
+    lr_patch_upsampled = ants.resample_image_to_target(lr_patch, hr_patch, interp_type='linear')
+    ants.plot(lr_patch_upsampled, filename='docs/images/lowres_zoom.png', title="Low-Res Detail", axis=2)
+
+    # 1. ESPCN Inference on Patch
+    espcn_path = "espcn_3d_perceptual.keras"
+    if os.path.exists(espcn_path):
+        print("Running ESPCN inference on patch...")
+        custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D}
+        model_weights = keras.models.load_model(espcn_path, custom_objects=custom_objects, compile=False)
+        
+        # Reconstruct ESPCN with dynamic input shape to support full-patch input
+        model_espcn = siq.create_espcn_3d_residual(input_shape=(None, None, None, 1))
+        model_espcn.set_weights(model_weights.get_weights())
+        
+        sr_espcn_patch = siq.inference(lr_patch, model_espcn, method='antspynet', verbose=True)
+        ants.plot(sr_espcn_patch, filename='docs/images/superres_zoom_espcn.png', title="ESPCN Detail", axis=2)
+    else:
+        print("ESPCN model not found.")
+
+    # 2. DBPN Inference on Patch
+    dbpn_path = os.path.expanduser("~/.antspymm/siq_smallshort_train_2x2x2_1chan_featvggL6_best.keras")
+    if os.path.exists(dbpn_path):
+        print("Running DBPN inference on patch...")
+        model_dbpn = keras.models.load_model(dbpn_path, compile=False)
+        sr_dbpn_patch = siq.inference(lr_patch, model_dbpn, method='antspynet', verbose=True)
+        ants.plot(sr_dbpn_patch, filename='docs/images/superres_zoom.png', title="DBPN Detail", axis=2)
+    else:
+        print("DBPN model not found.")
+
     print("Done!")
 
 if __name__ == "__main__":

@@ -81,12 +81,17 @@ def create_espcn_3d_residual(input_shape=(None, None, None, 1), factor=2, n_filt
     # Shrinking
     x = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu")(x)
     
-    # Last conv before shuffle
-    out_channels = 1
+    # Last conv before shuffle: output 32 * factor**3 channels
+    out_channels = 32
     x = layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same")(x)
     
-    # Pixel Shuffle
-    outputs = PixelShuffle3D(factor=factor)(x)
+    # Pixel Shuffle transition to high-resolution space
+    x = PixelShuffle3D(factor=factor)(x)
+    
+    # Non-linear processing in high-resolution space
+    x = layers.Conv3D(32, kernel_size=3, padding="same", activation="relu")(x)
+    x = layers.Conv3D(16, kernel_size=3, padding="same", activation="relu")(x)
+    outputs = layers.Conv3D(1, kernel_size=3, padding="same")(x)
     
     return keras.Model(inputs, outputs, name="espcn_3d_residual")
 

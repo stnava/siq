@@ -1,4 +1,12 @@
-# SIQ: Super-Resolution Image Quantification
+# SIQ
+
+## New in Keras 3 Integration
+
+- **Dual Backend Support:** Seamlessly switch between PyTorch and TensorFlow.
+- **3D ESPCN Architecture:** High-performance super-resolution using Pixel Shuffling, optimized for Apple Silicon (MPS).
+- **Patch-wise Inference:** Memory-efficient inference with Gaussian blending to eliminate stitching artifacts.
+- **Blind Perceptual Training:** Synthetic data simulation for robust, general-purpose MRI enhancement.
+: Super-Resolution Image Quantification
 
 [![PyPI version](https://badge.fury.io/py/siq.svg)](https://badge.fury.io/py/siq)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](httpss://github.com/your-repo/siq)

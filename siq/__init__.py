@@ -31,3 +31,4 @@ from .get_data import region_wise_super_resolution
 from .get_data import region_wise_super_resolution_blended
 
 from .auto import auto
+from .espcn import create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D
