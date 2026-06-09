@@ -12,10 +12,15 @@ This script demonstrates the full workflow for a dual-channel model:
 8.  Saving all relevant images for visual comparison and verification.
 """
 import os
+if os.environ.get("KERAS_BACKEND") == "torch":
+    import torch
+    torch.backends.mps.is_available = lambda: False
+    torch.backends.mps.is_built = lambda: False
+    torch.set_default_device("cpu")
 import ants
 import antspynet
 import siq
-import tensorflow as tf
+import keras
 from pathlib import Path
 import glob as glob
 
@@ -76,7 +81,7 @@ print("\n--- Step 4: Starting a Short Demonstration Training for Multi-Task Mode
 mdlfn = f"{MODEL_PREFIX}_best_mdl.keras"
 if os.path.exists(mdlfn):
     print(f"Model already exists at {mdlfn}, loading it.")
-    model = tf.keras.models.load_model(mdlfn, compile=False)
+    model = keras.models.load_model(mdlfn, compile=False)
 else:
     print("Training a new model from scratch.")
     training_history = siq.train_seg(
@@ -103,11 +108,18 @@ if not os.path.exists(best_model_path):
     raise FileNotFoundError(f"Trained model not found at {best_model_path}. Training may have failed.")
 
 print(f"Loading trained multi-task model from: {best_model_path}")
-trained_model = tf.keras.models.load_model(best_model_path, compile=False)
+trained_model = keras.models.load_model(best_model_path, compile=False)
 
 # Second, prepare a low-resolution test case (both image and segmentation).
 print("Preparing low-resolution input image and segmentation...")
-test_image_high_res = ants.image_read(test_files[0]).iMath("Normalize")
+test_image_full = ants.crop_image(ants.image_read(test_files[0]))
+# Get a small 64^3 patch from the center of the image to keep inference fast and memory-safe
+img_shape = test_image_full.shape
+center = [s // 2 for s in img_shape]
+radius = 32
+lower_ind = [max(0, c - radius) for c in center]
+upper_ind = [min(s, c + radius) for s, c in zip(img_shape, center)]
+test_image_high_res = ants.crop_indices(test_image_full, lower_ind, upper_ind).iMath("Normalize")
 
 # Create a ground-truth segmentation from the high-res image.
 # We'll use a simple threshold here for demonstration purposes.

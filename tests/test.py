@@ -14,7 +14,7 @@ import os
 import ants
 import antspynet
 import siq
-import tensorflow as tf
+import keras
 from pathlib import Path
 import glob as glob
 
@@ -93,7 +93,7 @@ if not os.path.exists(best_model_path):
     raise FileNotFoundError(f"Trained model not found at {best_model_path}. Training may have failed.")
 
 print(f"Loading trained model from: {best_model_path}")
-trained_model = tf.keras.models.load_model(best_model_path, compile=False)
+trained_model = keras.models.load_model(best_model_path, compile=False)
 
 # Second, prepare a proper low-resolution test image. We simulate this by
 # taking a high-resolution image from our test set and downsampling it.

@@ -19,19 +19,15 @@ import re
 import ants
 import antspynet
 import antspyt1w
-import tensorflow as tf
-from tensorflow.python.eager.context import eager_mode, graph_mode
-
-from multiprocessing import Pool
-
-DATA_PATH = os.path.expanduser('~/.siq/')
-
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import (Input, Add, Subtract,
+import keras
+from keras import Model
+from keras import ops
+from keras.layers import (Input, Add, Subtract,
                           PReLU, Concatenate,
                           UpSampling2D, UpSampling3D,
                           Conv2D, Conv2DTranspose,
                           Conv3D, Conv3DTranspose)
+
 
 
 # define the DBPN network - this uses a model definition that is general to<br>
@@ -42,6 +38,19 @@ from tensorflow.keras.layers import (Input, Add, Subtract,
 # option.
 
 
+
+def ops_total_variation(x):
+    diff_h = ops.abs(x[:, 1:, :, :] - x[:, :-1, :, :])
+    diff_w = ops.abs(x[:, :, 1:, :] - x[:, :, :-1, :])
+    return ops.mean(ops.sum(diff_h, axis=[1, 2, 3]) + ops.sum(diff_w, axis=[1, 2, 3]))
+
+def ops_psnr(y_true, y_pred, max_val=255.0):
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
+    mse = ops.mean(ops.square(y_true - y_pred))
+    mse = ops.maximum(mse, 1e-10)
+    log_10 = ops.cast(2.302585092994046, dtype="float32")
+    return 20 * (ops.log(ops.cast(max_val, dtype="float32")) / log_10) - 10 * (ops.log(mse) / log_10)
 
 def dbpn(input_image_size,
                                                  number_of_outputs=1,
@@ -426,7 +435,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
     def getLayerScaleFactorForTransferLearning( k, w3d, w2d ):
         myfact = np.round( np.prod( w3d[k].shape ) / np.prod(  w2d[k].shape) )
         return myfact
-    vgg19 = tf.keras.applications.VGG19(
+    vgg19 = keras.applications.VGG19(
             include_top = False, weights = "imagenet",
             input_shape = [inshape[0],inshape[1],3],
             classes = 1000 )
@@ -449,10 +458,10 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
         print( vggmodelRaw.layers[layer_index].name )
         print( vgg19.layers[layer_index] )
         print( vgg19.layers[layer_index].name )
-    feature_extractor_2d = tf.keras.Model(
+    feature_extractor_2d = keras.Model(
             inputs = vgg19.input,
             outputs = vgg19.layers[layer_index].output)
-    feature_extractor = tf.keras.Model(
+    feature_extractor = keras.Model(
             inputs = vggmodelRaw.input,
             outputs = vggmodelRaw.layers[layer_index].output)
     wts_2d = feature_extractor_2d.weights
@@ -487,9 +496,9 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
             wts[ww][:,:,:,0,:]=wts_2d[ww]
     if pretrained:
         feature_extractor.set_weights( wts )
-        newinput = tf.keras.layers.Rescaling(  255.0, -127.5  )( feature_extractor.input )
+        newinput = keras.layers.Rescaling(  255.0, -127.5  )( feature_extractor.input )
         feature_extractor2 = feature_extractor( newinput )
-        feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
+        feature_extractor = keras.Model( feature_extractor.input, feature_extractor2 )
     return feature_extractor
 
 def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose=False ): # pragma: no cover
@@ -536,8 +545,8 @@ def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose
     f0o=f[0]( f1 )
     f1o=f[1]( f1 )
     f2o=f[2]( f1 )
-    catter = tf.keras.layers.concatenate( [f0o, f1o, f2o ])
-    feature_extractor = tf.keras.Model( f1, catter )
+    catter = keras.layers.concatenate( [f0o, f1o, f2o ])
+    feature_extractor = keras.Model( f1, catter )
     return feature_extractor
 
 def get_grader_feature_network( # pragma: no cover
@@ -590,7 +599,8 @@ def get_grader_feature_network( # pragma: no cover
     grader.load_weights( graderfn)
     #    feature_extractor_23 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[23].output )
     #   feature_extractor_44 = tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[44].output )
-    return tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[layer].output )
+    return keras.Model( inputs=grader.inputs, outputs=grader.layers[layer].output )
+
 
 
 def default_dbpn( # pragma: no cover
@@ -783,12 +793,12 @@ def default_dbpn( # pragma: no cover
                 if k < len( intensity_model.weights ):
                     if intensity_model.weights[k].shape == segmentation_model.weights[k].shape:
                         segmentation_model.weights[k] = intensity_model.weights[k]
-        inputs = tf.keras.Input(shape=input_image_size)
-        insplit = tf.split( inputs, 2, dimensionality+1)
+        inputs = keras.Input(shape=input_image_size)
+        insplit = ops.split( inputs, 2, axis=dimensionality+1)
         outputs = [
             intensity_model( insplit[0] ),
-            tf.nn.sigmoid( segmentation_model( insplit[1] ) ) ]
-        mdlout = tf.concat( outputs, axis=dimensionality+1 )
+            ops.sigmoid( segmentation_model( insplit[1] ) ) ]
+        mdlout = ops.concatenate( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
     if pro_seg > 0 and intensity_model is not None:
         if verbose and freeze:
@@ -812,8 +822,8 @@ def default_dbpn( # pragma: no cover
             firstConv = (convn,convn,convn)
             firstStrides=(1,1,1)
             smashConv=(pro_seg,pro_seg,pro_seg)
-        inputs = tf.keras.Input(shape=input_image_size)
-        insplit = tf.split( inputs, 2, dimensionality+1)
+        inputs = keras.Input(shape=input_image_size)
+        insplit = ops.split( inputs, 2, axis=dimensionality+1)
         # define segmentation arm
         seggit = intensity_model( insplit[1] )
         L0 = myconv(filters=nff,
@@ -833,10 +843,11 @@ def default_dbpn( # pragma: no cover
                     padding='same')(L1)
         outputs = [
             intensity_model( insplit[0] ),
-            tf.nn.sigmoid( L2 ) ]
-        mdlout = tf.concat( outputs, axis=dimensionality+1 )
+            ops.sigmoid( L2 ) ]
+        mdlout = ops.concatenate( outputs, axis=dimensionality+1 )
         return Model(inputs=inputs, outputs=mdlout )
     return mdl
+
 
 def image_patch_training_data_from_filenames(
     filenames,
@@ -956,11 +967,11 @@ def image_patch_training_data_from_filenames(
                     if istest:
                         patchesUp[myn,:,:,0] = rimgbi.numpy()
     if to_tensorflow:
-        patchesOrig = tf.cast( patchesOrig, "float32")
-        patchesResam = tf.cast( patchesResam, "float32")
+        patchesOrig = ops.convert_to_tensor( patchesOrig, dtype="float32")
+        patchesResam = ops.convert_to_tensor( patchesResam, dtype="float32")
     if istest:
         if to_tensorflow:
-            patchesUp = tf.cast( patchesUp, "float32")
+            patchesUp = ops.convert_to_tensor( patchesUp, dtype="float32")
     return patchesResam, patchesOrig, patchesUp
 
 
@@ -1085,11 +1096,11 @@ def seg_patch_training_data_from_filenames( # pragma: no cover
                     if istest:
                         patchesUp[myn,:,:,0] = rimgbi.numpy()
     if to_tensorflow:
-        patchesOrig = tf.cast( patchesOrig, "float32")
-        patchesResam = tf.cast( patchesResam, "float32")
+        patchesOrig = ops.convert_to_tensor( patchesOrig, dtype="float32")
+        patchesResam = ops.convert_to_tensor( patchesResam, dtype="float32")
     if istest:
         if to_tensorflow:
-            patchesUp = tf.cast( patchesUp, "float32")
+            patchesUp = ops.convert_to_tensor( patchesUp, dtype="float32")
     return patchesResam, patchesOrig, patchesUp
 
 def read( filename ): # pragma: no cover
@@ -1164,33 +1175,31 @@ def auto_weight_loss( # pragma: no cover
     This function is typically used to balance loss terms before training.
     """    
     y_pred = mdl( x )
-    squared_difference = tf.square( y - y_pred)
+    squared_difference = ops.square( y - y_pred)
     if len( y.shape ) == 5:
             tdim = 3
             myax = [1,2,3,4]
     if len( y.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
-    msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+    msqTerm = ops.mean(squared_difference, axis=myax)
     temp1 = feature_extractor(y)
     temp2 = feature_extractor(y_pred)
-    feature_difference = tf.square(temp1-temp2)
-    featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+    feature_difference = ops.square(temp1-temp2)
+    featureTerm = ops.mean(feature_difference, axis=myax)
     msqw = 10.0
     featw = feature * msqw * msqTerm / featureTerm
-    mytv = tf.cast( 0.0, 'float32')
     if tdim == 3:
-        for k in range( y_pred.shape[0] ): # BUG not sure why myr fails .... might be old TF version
-            sqzd = y_pred[k,:,:,:,:]
-            mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) )
-    if tdim == 2:
-        mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) )
+        reshaped_pred = ops.reshape(y_pred, (-1, y_pred.shape[2], y_pred.shape[3], y_pred.shape[4]))
+        mytv = ops_total_variation(reshaped_pred)
+    else:
+        mytv = ops_total_variation(y_pred)
     tvw = tv * msqw * msqTerm / mytv
     if verbose :
-        print( "MSQ: " + str( msqw * msqTerm ) )
-        print( "Feat: " + str( featw * featureTerm ) )
-        print( "Tv: " + str(  mytv * tvw ) )
-    wts = [msqw,featw.numpy().mean(),tvw.numpy().mean()]
+        print( "MSQ: " + str( float(msqw * msqTerm) ) )
+        print( "Feat: " + str( float(ops.mean(featw * featureTerm)) ) )
+        print( "Tv: " + str(  float(ops.mean(mytv * tvw)) ) )
+    wts = [float(msqw), float(ops.mean(featw)), float(ops.mean(tvw))]
     return wts
 
 def auto_weight_loss_seg( # pragma: no cover
@@ -1249,37 +1258,37 @@ def auto_weight_loss_seg( # pragma: no cover
     if len( y.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
-    y_intensity = tf.split( y, 2, axis=tdim+1 )[0]
-    y_seg = tf.split( y, 2, axis=tdim+1 )[1]
-    y_intensity_p = tf.split( y_pred, 2, axis=tdim+1 )[0]
-    y_seg_p = tf.split( y_pred, 2, axis=tdim+1 )[1]
-    squared_difference = tf.square( y_intensity - y_intensity_p )
-    msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+    y_intensity = ops.split( y, 2, axis=tdim+1 )[0]
+    y_seg = ops.split( y, 2, axis=tdim+1 )[1]
+    y_intensity_p = ops.split( y_pred, 2, axis=tdim+1 )[0]
+    y_seg_p = ops.split( y_pred, 2, axis=tdim+1 )[1]
+    squared_difference = ops.square( y_intensity - y_intensity_p )
+    msqTerm = ops.mean(squared_difference, axis=myax)
     temp1 = feature_extractor(y_intensity)
     temp2 = feature_extractor(y_intensity_p)
-    feature_difference = tf.square(temp1-temp2)
-    featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+    feature_difference = ops.square(temp1-temp2)
+    featureTerm = ops.mean(feature_difference, axis=myax)
     msqw = 10.0
     featw = feature * msqw * msqTerm / featureTerm
-    mytv = tf.cast( 0.0, 'float32')
+    y_pred_intensity = ops.split( y_pred, 2, axis=tdim+1 )[0]
     if tdim == 3:
-        for k in range( y_pred.shape[0] ): # BUG not sure why myr fails .... might be old TF version
-            sqzd = y_pred[k,:,:,:,0]
-            mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) )
-    if tdim == 2:
-        mytv = tf.reduce_mean( tf.image.total_variation( y_pred[:,:,:,0] ) )
+        reshaped_pred = ops.reshape(y_pred_intensity, (-1, y_pred_intensity.shape[2], y_pred_intensity.shape[3], y_pred_intensity.shape[4]))
+        mytv = ops_total_variation(reshaped_pred)
+    else:
+        mytv = ops_total_variation(y_pred_intensity)
     tvw = tv * msqw * msqTerm / mytv
     mydice = binary_dice_loss( y_seg, y_seg_p )
-    mydice = tf.reduce_mean( mydice )
+    mydice = ops.mean( mydice )
     dicew = dice * msqw * msqTerm / mydice
-    dicewt = np.abs( dicew.numpy().mean() )
+    dicewt = ops.abs( ops.mean(dicew) )
     if verbose :
-        print( "MSQ: " + str( msqw * msqTerm ) )
-        print( "Feat: " + str( featw * featureTerm ) )
-        print( "Tv: " + str(  mytv * tvw ) )
-        print( "Dice: " + str( mydice * dicewt ) )
-    wts = [msqw,featw.numpy().mean(),tvw.numpy().mean(), dicewt ]
+        print( "MSQ: " + str( float(msqw * msqTerm) ) )
+        print( "Feat: " + str( float(ops.mean(featw * featureTerm)) ) )
+        print( "Tv: " + str(  float(ops.mean(mytv * tvw)) ) )
+        print( "Dice: " + str( float(ops.mean(mydice * dicewt)) ) )
+    wts = [float(msqw), float(ops.mean(featw)), float(ops.mean(tvw)), float(dicewt)]
     return wts
+
 
 def numpy_generator( filenames ): # pragma: no cover
     """
@@ -1539,11 +1548,9 @@ def train(
     if feature_type == 'grader':
         feature_extractor = get_grader_feature_network( feature_layer )
     elif feature_type == 'vggrandom':
-        with eager_mode():
-            feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
+        feature_extractor = pseudo_3d_vgg_features( target_patch_size, feature_layer, pretrained=False )
     elif feature_type == 'vgg':
-        with eager_mode():
-            feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
+        feature_extractor = pseudo_3d_vgg_features_unbiased( target_patch_size, feature_layer )
     else:
         raise Exception("feature type does not exist")
     if verbose:
@@ -1580,9 +1587,9 @@ def train(
             target_patch_size_low=target_patch_size_low,
             istest=True, verbose=True)
         temp0, temp1, temp2 = next( mydatgenTest )
-        patchesResamTeTfB = tf.concat( [patchesResamTeTfB,temp0],axis=0)
-        patchesOrigTeTfB = tf.concat( [patchesOrigTeTfB,temp1],axis=0)
-        patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
+        patchesResamTeTfB = ops.concatenate( [patchesResamTeTfB,temp0],axis=0)
+        patchesOrigTeTfB = ops.concatenate( [patchesOrigTeTfB,temp1],axis=0)
+        patchesUpTeTfB = ops.concatenate( [patchesUpTeTfB,temp2],axis=0)
     if verbose:
         print("begin auto_weight_loss")
     wts_csv = output_prefix + "_training_weights.csv"
@@ -1592,9 +1599,8 @@ def train(
         if verbose:
             print( "preset weights:" )
     else:
-        with eager_mode():
-            wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf,
-                feature=feature, tv=tv )
+        wts = auto_weight_loss( mdl, feature_extractor, patchesResamTeTf, patchesOrigTeTf,
+            feature=feature, tv=tv )
         for k in range(len(wts)):
             training_weights[0,k]=wts[k]
         pd.DataFrame(training_weights, columns = ["msq","feat","tv"] ).to_csv( wts_csv )
@@ -1604,31 +1610,28 @@ def train(
         print( wts )
     def my_loss_6( y_true, y_pred, msqwt = wts[0], fw = wts[1], tvwt = wts[2], mybs = batch_size ):
         """Composite loss: MSE + Perceptual Loss + Total Variation."""
-        squared_difference = tf.square(y_true - y_pred)
+        squared_difference = ops.square(y_true - y_pred)
         if len( y_true.shape ) == 5:
             tdim = 3
             myax = [1,2,3,4]
         if len( y_true.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
-        msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+        msqTerm = ops.mean(squared_difference, axis=myax)
         temp1 = feature_extractor(y_true)
         temp2 = feature_extractor(y_pred)
-        feature_difference = tf.square(temp1-temp2)
-        featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+        feature_difference = ops.square(temp1-temp2)
+        featureTerm = ops.mean(feature_difference, axis=myax)
         loss = msqTerm * msqwt + featureTerm * fw
-        mytv = tf.cast( 0.0, 'float32')
-        # mybs =  int( y_pred.shape[0] ) --- should work but ... ?
         if tdim == 3:
-            for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
-                sqzd = y_pred[k,:,:,:,:]
-                mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
+            reshaped_pred = ops.reshape(y_pred, (-1, y_pred.shape[2], y_pred.shape[3], y_pred.shape[4]))
+            mytv = ops_total_variation(reshaped_pred) * tvwt
         if tdim == 2:
-            mytv = tf.reduce_mean( tf.image.total_variation( y_pred ) ) * tvwt
+            mytv = ops_total_variation(y_pred) * tvwt
         return( loss + mytv )
     if verbose:
         print("begin model compilation")
-    opt = tf.keras.optimizers.Adam( learning_rate=learning_rate )
+    opt = keras.optimizers.Adam( learning_rate=learning_rate )
     mdl.compile(optimizer=opt, loss=my_loss_6)
     # set up some parameters for tracking performance
     bestValLoss=1e12
@@ -1645,25 +1648,25 @@ def train(
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % check_eval_data_iteration == 0:
-            with tf.device("/cpu:0"):
-                myofn = output_prefix + "_best_mdl.keras"
-                if save_all_best:
-                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
-                tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
-                if ( tester < bestValLoss ):
-                    print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
-                    bestValLoss = tester
-                    tf.keras.models.save_model( mdl, myofn )
-                    training_path[myrs,2]=1
-                pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
-                myssimSR = tf.image.psnr( pp * 220, patchesOrigTeTfB* 220, max_val=255 )
-                myssimSR = tf.reduce_mean( myssimSR ).numpy()
-                myssimBI = tf.image.psnr( patchesUpTeTfB * 220, patchesOrigTeTfB* 220, max_val=255 )
-                myssimBI = tf.reduce_mean( myssimBI ).numpy()
-                print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
-                training_path[myrs,3]=myssimSR # psnr
-                training_path[myrs,4]=myssimBI # psnrlin
-                pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
+            myofn = output_prefix + "_best_mdl.keras"
+            if save_all_best:
+                myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
+            tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
+            if ( tester < bestValLoss ):
+                print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
+                bestValLoss = tester
+                mdl.save( myofn )
+                training_path[myrs,2]=1
+            pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
+            pp = ops.convert_to_tensor(pp)
+            myssimSR = ops_psnr( pp * 220, patchesOrigTeTfB * 220, max_val=255 )
+            myssimSR = float(ops.mean( myssimSR ))
+            myssimBI = ops_psnr( patchesUpTeTfB * 220, patchesOrigTeTfB * 220, max_val=255 )
+            myssimBI = float(ops.mean( myssimBI ))
+            print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ), flush=True  )
+            training_path[myrs,3]=myssimSR # psnr
+            training_path[myrs,4]=myssimBI # psnrlin
+            pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
@@ -1694,13 +1697,12 @@ def binary_dice_loss(y_true, y_pred):
         or just `-dice_coeff` (as here).
     """
     smoothing_factor = 1e-4
-    K = tf.keras.backend
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
+    y_true_f = ops.reshape(y_true, [-1])
+    y_pred_f = ops.reshape(y_pred, [-1])
+    intersection = ops.sum(y_true_f * y_pred_f)
     # This is -1 * Dice Similarity Coefficient
-    return -1 * (2 * intersection + smoothing_factor)/(K.sum(y_true_f) +
-            K.sum(y_pred_f) + smoothing_factor)
+    return -1 * (2 * intersection + smoothing_factor)/(ops.sum(y_true_f) +
+            ops.sum(y_pred_f) + smoothing_factor)
 
 def train_seg( # pragma: no cover
 
@@ -1843,9 +1845,9 @@ def train_seg( # pragma: no cover
             target_patch_size_low=target_patch_size_low,
             istest=True, verbose=True)
         temp0, temp1, temp2 = next( mydatgenTest )
-        patchesResamTeTfB = tf.concat( [patchesResamTeTfB,temp0],axis=0)
-        patchesOrigTeTfB = tf.concat( [patchesOrigTeTfB,temp1],axis=0)
-        patchesUpTeTfB = tf.concat( [patchesUpTeTfB,temp2],axis=0)
+        patchesResamTeTfB = ops.concatenate( [patchesResamTeTfB,temp0],axis=0)
+        patchesOrigTeTfB = ops.concatenate( [patchesOrigTeTfB,temp1],axis=0)
+        patchesUpTeTfB = ops.concatenate( [patchesUpTeTfB,temp2],axis=0)
     if verbose:
         print("begin auto_weight_loss_seg")
     wts_csv = output_prefix + "_training_weights.csv"
@@ -1872,29 +1874,28 @@ def train_seg( # pragma: no cover
         if len( y_true.shape ) == 4:
             tdim = 2
             myax = [1,2,3]
-        y_intensity = tf.split( y_true, 2, axis=tdim+1 )[0]
-        y_seg = tf.split( y_true, 2, axis=tdim+1 )[1]
-        y_intensity_p = tf.split( y_pred, 2, axis=tdim+1 )[0]
-        y_seg_p = tf.split( y_pred, 2, axis=tdim+1 )[1]
-        squared_difference = tf.square(y_intensity - y_intensity_p)
-        msqTerm = tf.reduce_mean(squared_difference, axis=myax)
+        y_intensity = ops.split( y_true, 2, axis=tdim+1 )[0]
+        y_seg = ops.split( y_true, 2, axis=tdim+1 )[1]
+        y_intensity_p = ops.split( y_pred, 2, axis=tdim+1 )[0]
+        y_seg_p = ops.split( y_pred, 2, axis=tdim+1 )[1]
+        squared_difference = ops.square(y_intensity - y_intensity_p)
+        msqTerm = ops.mean(squared_difference, axis=myax)
         temp1 = feature_extractor(y_intensity)
         temp2 = feature_extractor(y_intensity_p)
-        feature_difference = tf.square(temp1-temp2)
-        featureTerm = tf.reduce_mean(feature_difference, axis=myax)
+        feature_difference = ops.square(temp1-temp2)
+        featureTerm = ops.mean(feature_difference, axis=myax)
         loss = msqTerm * msqwt + featureTerm * fw
-        mytv = tf.cast( 0.0, 'float32')
+        y_pred_intensity = ops.split( y_pred, 2, axis=tdim+1 )[0]
         if tdim == 3:
-            for k in range( mybs ): # BUG not sure why myr fails .... might be old TF version
-                sqzd = y_pred[k,:,:,:,0]
-                mytv = mytv + tf.reduce_mean( tf.image.total_variation( sqzd ) ) * tvwt
+            reshaped_pred = ops.reshape(y_pred_intensity, (-1, y_pred_intensity.shape[2], y_pred_intensity.shape[3], y_pred_intensity.shape[4]))
+            mytv = ops_total_variation(reshaped_pred) * tvwt
         if tdim == 2:
-            mytv = tf.reduce_mean( tf.image.total_variation( y_pred[:,:,:,0] ) ) * tvwt
-        dicer = tf.reduce_mean( dicewt * binary_dice_loss( y_seg, y_seg_p ) )
+            mytv = ops_total_variation(y_pred_intensity) * tvwt
+        dicer = ops.mean( dicewt * binary_dice_loss( y_seg, y_seg_p ) )
         return( loss + mytv + dicer )
     if verbose:
         print("begin model compilation")
-    opt = tf.keras.optimizers.Adam( learning_rate=learning_rate )
+    opt = keras.optimizers.Adam( learning_rate=learning_rate )
     mdl.compile(optimizer=opt, loss=my_loss_6)
     # set up some parameters for tracking performance
     bestValLoss=1e12
@@ -1911,34 +1912,34 @@ def train_seg( # pragma: no cover
         training_path[myrs,2]=0
         print( "ntrain: " + str(myrs) + " loss " + str( tracker.history['loss'][0] ) + ' val-loss ' + str(tracker.history['val_loss'][0]), flush=True  )
         if myrs % check_eval_data_iteration == 0:
-            with tf.device("/cpu:0"):
-                myofn = output_prefix + "_best_mdl.keras"
-                if save_all_best:
-                    myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
-                tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
-                if ( tester < bestValLoss ):
-                    print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
-                    bestValLoss = tester
-                    tf.keras.models.save_model( mdl, myofn )
-                    training_path[myrs,2]=1
-                pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
-                pp = tf.split( pp, 2, axis=tdim+1 )
-                y_orig = tf.split( patchesOrigTeTfB, 2, axis=tdim+1 )
-                y_up = tf.split( patchesUpTeTfB, 2, axis=tdim+1 )
-                myssimSR = tf.image.psnr( pp[0] * 220, y_orig[0]* 220, max_val=255 )
-                myssimSR = tf.reduce_mean( myssimSR ).numpy()
-                myssimBI = tf.image.psnr( y_up[0] * 220, y_orig[0]* 220, max_val=255 )
-                myssimBI = tf.reduce_mean( myssimBI ).numpy()
-                squared_difference = tf.square(y_orig[0] - pp[0])
-                msqTerm = tf.reduce_mean(squared_difference).numpy()
-                dicer = binary_dice_loss( y_orig[1], pp[1] )
-                dicer = tf.reduce_mean( dicer ).numpy()
-                print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ) + " MSQ: " + str(msqTerm) + " DICE: " + str(dicer), flush=True  )
-                training_path[myrs,3]=myssimSR # psnr
-                training_path[myrs,4]=myssimBI # psnrlin
-                training_path[myrs,5]=msqTerm # msq
-                training_path[myrs,6]=dicer # dice
-                pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
+            myofn = output_prefix + "_best_mdl.keras"
+            if save_all_best:
+                myofn = output_prefix + "_" + str(myrs)+ "_mdl.keras"
+            tester = mdl.evaluate( patchesResamTeTfB, patchesOrigTeTfB )
+            if ( tester < bestValLoss ):
+                print("MyIT " + str( myrs ) + " IS BEST!! " + str( tester ) + myofn, flush=True )
+                bestValLoss = tester
+                mdl.save( myofn )
+                training_path[myrs,2]=1
+            pp = mdl.predict( patchesResamTeTfB, batch_size = 1 )
+            pp = ops.convert_to_tensor(pp)
+            pp = ops.split( pp, 2, axis=tdim+1 )
+            y_orig = ops.split( patchesOrigTeTfB, 2, axis=tdim+1 )
+            y_up = ops.split( patchesUpTeTfB, 2, axis=tdim+1 )
+            myssimSR = ops_psnr( pp[0] * 220, y_orig[0]* 220, max_val=255 )
+            myssimSR = float(ops.mean( myssimSR ))
+            myssimBI = ops_psnr( y_up[0] * 220, y_orig[0]* 220, max_val=255 )
+            myssimBI = float(ops.mean( myssimBI ))
+            squared_difference = ops.square(y_orig[0] - pp[0])
+            msqTerm = float(ops.mean(squared_difference))
+            dicer = binary_dice_loss( y_orig[1], pp[1] )
+            dicer = float(ops.mean( dicer ))
+            print( myofn + " : " + "PSNR Lin: " + str( myssimBI ) + " SR: " + str( myssimSR ) + " MSQ: " + str(msqTerm) + " DICE: " + str(dicer), flush=True  )
+            training_path[myrs,3]=myssimSR # psnr
+            training_path[myrs,4]=myssimBI # psnrlin
+            training_path[myrs,5]=msqTerm # msq
+            training_path[myrs,6]=dicer # dice
+            pd.DataFrame(training_path, columns = colnames ).to_csv( output_prefix + "_training.csv" )
     training_path = pd.DataFrame(training_path, columns = colnames )
     return training_path
 
@@ -1976,9 +1977,9 @@ def read_srmodel( srfilename, custom_objects=None ): # pragma: no cover
 
     if os.path.isdir(srfilename):
         # SavedModel directory
-        model = tf.keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
+        model = keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
     elif ext in ['.h5', '.keras']:
-        model = tf.keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
+        model = keras.models.load_model(srfilename, custom_objects=custom_objects, compile=False)
     else:
         raise ValueError(f"Unsupported model format: {ext}")
 
@@ -2577,11 +2578,21 @@ def inference( # pragma: no cover
                 testarrout = mdl(testarr)
                 for k in range(2):
                     upFactor.append(int(testarrout.shape[k + 1] / testarr.shape[k + 1]))
+            
+            # antspyt1w.super_resolution_segmentation_per_label expects the model's predict() 
+            # method to return a list of predictions for each output when multi-channel. 
+            # In Keras 3, we compile with a single concatenated output, but we wrap the model 
+            # to split the concatenated output along the channel axis during inference.
+            concat_output = mdl.output
+            dimensionality = len(concat_output.shape) - 2
+            split_outputs = ops.split(concat_output, 2, axis=dimensionality + 1)
+            inference_model = Model(inputs=mdl.input, outputs=split_outputs)
+
             temp = antspyt1w.super_resolution_segmentation_per_label(
                 pimg,
                 segmentation,
                 upFactor,
-                mdl,
+                inference_model,
                 segmentation_numbers=mynp,
                 target_range=target_range,
                 dilation_amount=dilation_amount,
@@ -2590,7 +2601,8 @@ def inference( # pragma: no cover
             )
             imgsr = temp['super_resolution']
             ref = ants.resample_image_to_target(pimg, imgsr)
-            return apply_intensity_match(imgsr, ref, poly_order, verbose)
+            temp['super_resolution'] = apply_intensity_match(imgsr, ref, poly_order, verbose)
+            return temp
 
     # Default path: no segmentation
     imgsr = antspynet.apply_super_resolution_model_to_image(
