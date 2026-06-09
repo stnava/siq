@@ -42,7 +42,7 @@ from keras.layers import (Input, Add, Subtract,
 def ops_total_variation(x):
     diff_h = ops.abs(x[:, 1:, :, :] - x[:, :-1, :, :])
     diff_w = ops.abs(x[:, :, 1:, :] - x[:, :, :-1, :])
-    return ops.mean(ops.sum(diff_h, axis=[1, 2, 3]) + ops.sum(diff_w, axis=[1, 2, 3]))
+    return ops.mean(ops.mean(diff_h, axis=[1, 2, 3]) + ops.mean(diff_w, axis=[1, 2, 3]))
 
 def ops_psnr(y_true, y_pred, max_val=255.0):
     y_true = ops.convert_to_tensor(y_true)
@@ -1186,20 +1186,26 @@ def auto_weight_loss( # pragma: no cover
     temp1 = feature_extractor(y)
     temp2 = feature_extractor(y_pred)
     feature_difference = ops.square(temp1-temp2)
-    featureTerm = ops.mean(feature_difference, axis=myax)
+    myax_feat = list(range(1, len(feature_difference.shape)))
+    featureTerm = ops.mean(feature_difference, axis=myax_feat)
     msqw = 10.0
-    featw = feature * msqw * msqTerm / featureTerm
+    mean_msq = ops.mean(msqTerm)
+    mean_feat = ops.mean(featureTerm)
+    featw = feature * msqw * mean_msq / (mean_feat + 1e-8)
+    
+    y_shape = ops.shape(y)
     if tdim == 3:
-        reshaped_pred = ops.reshape(y_pred, (-1, y_pred.shape[2], y_pred.shape[3], y_pred.shape[4]))
-        mytv = ops_total_variation(reshaped_pred)
+        reshaped_y = ops.reshape(y, (-1, y_shape[2], y_shape[3], y_shape[4]))
+        mytv = ops_total_variation(reshaped_y)
     else:
-        mytv = ops_total_variation(y_pred)
-    tvw = tv * msqw * msqTerm / mytv
+        mytv = ops_total_variation(y)
+    tvw = tv * msqw * mean_msq / (mytv + 1e-8)
+    
     if verbose :
-        print( "MSQ: " + str( float(msqw * msqTerm) ) )
-        print( "Feat: " + str( float(ops.mean(featw * featureTerm)) ) )
-        print( "Tv: " + str(  float(ops.mean(mytv * tvw)) ) )
-    wts = [float(msqw), float(ops.mean(featw)), float(ops.mean(tvw))]
+        print( "MSQ: " + str( float(msqw * mean_msq) ) )
+        print( "Feat: " + str( float(featw * mean_feat) ) )
+        print( "Tv: " + str(  float(mytv * tvw) ) )
+    wts = [float(msqw), float(featw), float(tvw)]
     return wts
 
 def auto_weight_loss_seg( # pragma: no cover
@@ -1267,26 +1273,31 @@ def auto_weight_loss_seg( # pragma: no cover
     temp1 = feature_extractor(y_intensity)
     temp2 = feature_extractor(y_intensity_p)
     feature_difference = ops.square(temp1-temp2)
-    featureTerm = ops.mean(feature_difference, axis=myax)
+    myax_feat = list(range(1, len(feature_difference.shape)))
+    featureTerm = ops.mean(feature_difference, axis=myax_feat)
     msqw = 10.0
-    featw = feature * msqw * msqTerm / featureTerm
-    y_pred_intensity = ops.split( y_pred, 2, axis=tdim+1 )[0]
+    mean_msq = ops.mean(msqTerm)
+    mean_feat = ops.mean(featureTerm)
+    featw = feature * msqw * mean_msq / (mean_feat + 1e-8)
+    
+    y_shape = ops.shape(y_intensity)
     if tdim == 3:
-        reshaped_pred = ops.reshape(y_pred_intensity, (-1, y_pred_intensity.shape[2], y_pred_intensity.shape[3], y_pred_intensity.shape[4]))
-        mytv = ops_total_variation(reshaped_pred)
+        reshaped_y = ops.reshape(y_intensity, (-1, y_shape[2], y_shape[3], y_shape[4]))
+        mytv = ops_total_variation(reshaped_y)
     else:
-        mytv = ops_total_variation(y_pred_intensity)
-    tvw = tv * msqw * msqTerm / mytv
+        mytv = ops_total_variation(y_intensity)
+    tvw = tv * msqw * mean_msq / (mytv + 1e-8)
+    
     mydice = binary_dice_loss( y_seg, y_seg_p )
     mydice = ops.mean( mydice )
-    dicew = dice * msqw * msqTerm / mydice
-    dicewt = ops.abs( ops.mean(dicew) )
+    dicewt = dice * msqw * mean_msq / (mydice + 1e-8)
+    
     if verbose :
-        print( "MSQ: " + str( float(msqw * msqTerm) ) )
-        print( "Feat: " + str( float(ops.mean(featw * featureTerm)) ) )
-        print( "Tv: " + str(  float(ops.mean(mytv * tvw)) ) )
-        print( "Dice: " + str( float(ops.mean(mydice * dicewt)) ) )
-    wts = [float(msqw), float(ops.mean(featw)), float(ops.mean(tvw)), float(dicewt)]
+        print( "MSQ: " + str( float(msqw * mean_msq) ) )
+        print( "Feat: " + str( float(featw * mean_feat) ) )
+        print( "Tv: " + str(  float(mytv * tvw) ) )
+        print( "Dice: " + str( float(mydice * dicewt) ) )
+    wts = [float(msqw), float(featw), float(tvw), float(dicewt)]
     return wts
 
 
@@ -2460,6 +2471,192 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
                            spacing=background_sr_image.spacing, direction=background_sr_image.direction)
      
 
+
+def gaussian_weight_map_numpy(shape, sigma=0.4):
+    import numpy as np
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grids = np.meshgrid(*coords, indexing='ij')
+    dist_sq = sum(g**2 for g in grids)
+    weight = np.exp(-dist_sq / (2 * sigma**2))
+    return weight
+
+def overlapping_patch_inference(
+    image,
+    model,
+    target_range=(-127.5, 127.5),
+    patch_size=(64, 64, 64),
+    overlap=16,
+    batch_size=1,
+    verbose=False,
+):
+    import ants
+    import numpy as np
+    import time
+    
+    if target_range[0] > target_range[1]:
+        target_range = target_range[::-1]
+
+    # Validate image dim
+    shape_length = len(model.inputs[0].shape)
+    if shape_length == 5 and image.dimension != 3:
+        raise ValueError("Expecting 3D input for this model.")
+    elif shape_length == 4 and image.dimension != 2:
+        raise ValueError("Expecting 2D input for this model.")
+
+    if len(patch_size) != image.dimension:
+        patch_size = tuple([patch_size[0]] * image.dimension)
+    
+    stride = tuple([p - overlap for p in patch_size])
+
+    image_array = image.numpy()
+    if image.components == 1:
+        image_array = np.expand_dims(image_array, axis=-1)
+
+    if verbose:
+        print(f"Image array shape: {image_array.shape}")
+
+    # 1. Extract patches
+    D, H, W, C = image_array.shape
+    
+    pad_d = (stride[0] - (D - patch_size[0]) % stride[0]) % stride[0]
+    pad_h = (stride[1] - (H - patch_size[1]) % stride[1]) % stride[1]
+    pad_w = (stride[2] - (W - patch_size[2]) % stride[2]) % stride[2]
+    
+    overlap_d = patch_size[0] - stride[0]
+    overlap_h = patch_size[1] - stride[1]
+    overlap_w = patch_size[2] - stride[2]
+    
+    total_pad = (
+        (overlap_d//2, overlap_d//2 + pad_d),
+        (overlap_h//2, overlap_h//2 + pad_h),
+        (overlap_w//2, overlap_w//2 + pad_w),
+        (0, 0)
+    )
+    
+    padded = np.pad(image_array, total_pad, mode='edge')
+    
+    patches = []
+    coords = []
+    
+    nD = (padded.shape[0] - patch_size[0]) // stride[0] + 1
+    nH = (padded.shape[1] - patch_size[1]) // stride[1] + 1
+    nW = (padded.shape[2] - patch_size[2]) // stride[2] + 1
+    
+    for d in range(nD):
+        for h in range(nH):
+            for w in range(nW):
+                z = d * stride[0]
+                y = h * stride[1]
+                x = w * stride[2]
+                patch = padded[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2], :]
+                patches.append(patch)
+                coords.append((z, y, x))
+                
+    image_patches = np.stack(patches)
+    padded_shape = padded.shape
+
+    # Scale intensities
+    img_min = image_patches.min()
+    img_max = image_patches.max()
+    if img_max > img_min:
+        image_patches = (image_patches - img_min) / (img_max - img_min) * (target_range[1] - target_range[0]) + target_range[0]
+    else:
+        image_patches = image_patches - img_min + target_range[0]
+
+    # 2. Batch Inference
+    if verbose:
+        print(f"Prediction (patch-wise overlapping): {len(image_patches)} patches")
+        start_time = time.time()
+        
+    try:
+        from tqdm import tqdm
+        use_tqdm = verbose
+    except ImportError:
+        use_tqdm = False
+
+    predictions = []
+    num_batches = int(np.ceil(len(image_patches) / batch_size))
+    
+    if use_tqdm:
+        batch_iter = tqdm(range(num_batches), desc="Inferring patches")
+    else:
+        batch_iter = range(num_batches)
+
+    for b in batch_iter:
+        batch_data = image_patches[b*batch_size : (b+1)*batch_size]
+        pred = model.predict(batch_data, verbose=0)
+        predictions.append(pred)
+
+    prediction = np.concatenate(predictions, axis=0)
+
+    if verbose:
+        elapsed_time = time.time() - start_time
+        if not use_tqdm:
+            print(f"  (elapsed time: {elapsed_time:.3f}s)")
+        print("Reconstruct intensities and blend")
+
+    # Reconstruct intensities
+    intensity_range = image.range()
+    pred_min = prediction.min()
+    pred_max = prediction.max()
+    if pred_max > pred_min:
+        prediction = (prediction - pred_min) / (pred_max - pred_min) * (intensity_range[1] - intensity_range[0]) + intensity_range[0]
+    else:
+        prediction = prediction - pred_min + intensity_range[0]
+
+    # Calculate expansion factor
+    expansion_factor = np.asarray(prediction.shape[1:-1]) / np.asarray(image_patches.shape[1:-1])
+    expansion_factor = tuple(expansion_factor.astype(int))
+
+    scale_factor = expansion_factor[0]
+    out_patch_size = tuple([p * e for p, e in zip(patch_size, expansion_factor)])
+    
+    # 3. Blending
+    weight = gaussian_weight_map_numpy(out_patch_size)
+    weight = np.expand_dims(weight, axis=-1)
+
+    out_shape = (padded_shape[0]*expansion_factor[0], padded_shape[1]*expansion_factor[1], padded_shape[2]*expansion_factor[2], prediction.shape[-1])
+    canvas = np.zeros(out_shape, dtype=np.float32)
+    counts = np.zeros(out_shape, dtype=np.float32)
+
+    for i, (z, y, x) in enumerate(coords):
+        oz = z * expansion_factor[0]
+        oy = y * expansion_factor[1]
+        ox = x * expansion_factor[2]
+        
+        canvas[oz:oz+out_patch_size[0], oy:oy+out_patch_size[1], ox:ox+out_patch_size[2], :] += prediction[i] * weight
+        counts[oz:oz+out_patch_size[0], oy:oy+out_patch_size[1], ox:ox+out_patch_size[2], :] += weight
+
+    canvas /= (counts + 1e-8)
+
+    # 4. Crop to original dimensions * scale
+    crop_D = image_array.shape[0] * expansion_factor[0]
+    crop_H = image_array.shape[1] * expansion_factor[1]
+    crop_W = image_array.shape[2] * expansion_factor[2]
+
+    z_start = total_pad[0][0] * expansion_factor[0]
+    y_start = total_pad[1][0] * expansion_factor[1]
+    x_start = total_pad[2][0] * expansion_factor[2]
+
+    final_vol = canvas[z_start:z_start+crop_D, y_start:y_start+crop_H, x_start:x_start+crop_W, :]
+
+    if image.components == 1:
+        final_vol = np.squeeze(final_vol, axis=-1)
+        final_image = ants.from_numpy(final_vol)
+    else:
+        channels = []
+        for i in range(image.components):
+            channels.append(ants.from_numpy(final_vol[..., i]))
+        final_image = ants.merge_channels(channels)
+
+    # Re-apply spacing and direction
+    new_spacing = tuple(np.asarray(image.spacing) / np.asarray(expansion_factor))
+    ants.set_spacing(final_image, new_spacing)
+    ants.set_direction(final_image, image.direction)
+    ants.set_origin(final_image, image.origin)
+
+    return final_image
+
 def inference( # pragma: no cover
     image,
     mdl,
@@ -2468,6 +2665,10 @@ def inference( # pragma: no cover
     target_range=[1, 0],
     poly_order='hist',
     dilation_amount=0,
+    method='antspynet',
+    patch_size=(64, 64, 64),
+    patch_overlap=16,
+    batch_size=1,
     verbose=False):
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
@@ -2505,6 +2706,18 @@ def inference( # pragma: no cover
     dilation_amount : int
         Number of dilation steps applied to each segmentation label during
         region-based super-resolution (if segmentation is provided).
+
+    method : str
+        Method for inference: 'antspynet' (default, uses whole image) or 'patchwise' (uses overlapping patches to save memory).
+
+    patch_size : tuple
+        Size of patches for 'patchwise' method.
+
+    patch_overlap : int
+        Overlap between patches for 'patchwise' method.
+
+    batch_size : int
+        Batch size for 'patchwise' method.
 
     verbose : bool
         If True, print progress and status messages.
@@ -2605,9 +2818,15 @@ def inference( # pragma: no cover
             return temp
 
     # Default path: no segmentation
-    imgsr = antspynet.apply_super_resolution_model_to_image(
-        pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
-    )
+    if method == 'patchwise':
+        imgsr = overlapping_patch_inference(
+            pimg, mdl, target_range=target_range, patch_size=patch_size, 
+            overlap=patch_overlap, batch_size=batch_size, verbose=verbose
+        )
+    else:
+        imgsr = antspynet.apply_super_resolution_model_to_image(
+            pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
+        )
     ref = ants.resample_image_to_target(pimg, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
 

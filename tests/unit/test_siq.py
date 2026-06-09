@@ -78,13 +78,14 @@ def test_get_random_patch_pair(mock_image_3d):
     assert p1.shape == patch_width
     assert p2.shape == patch_width
 
-@patch('siq.get_data.tf.keras.applications.VGG19')
+@patch('siq.get_data.keras.applications.VGG19')
 def test_pseudo_3d_vgg_features(mock_vgg19):
+    import keras
     # Mock VGG to avoid downloading weights
     mock_model = MagicMock()
-    mock_model.input = tf.keras.Input(shape=(64, 64, 3))
+    mock_model.input = keras.Input(shape=(64, 64, 3))
     mock_layer = MagicMock()
-    mock_layer.output = tf.keras.layers.Conv2D(1, (3,3))(mock_model.input)
+    mock_layer.output = keras.layers.Conv2D(1, (3,3))(mock_model.input)
     mock_model.layers = [mock_layer for _ in range(10)]
     mock_model.weights = [np.random.rand(3,3,3,1)]
     mock_vgg19.return_value = mock_model
@@ -92,7 +93,7 @@ def test_pseudo_3d_vgg_features(mock_vgg19):
     # We just want to ensure it instantiates without error using mock
     try:
         model = pseudo_3d_vgg_features(inshape=[32, 32, 32], layer=1, pretrained=False)
-        assert isinstance(model, tf.keras.Model)
+        assert isinstance(model, keras.Model)
     except Exception as e:
         # If it fails due to mocked out structures, we just pass since it's a structural test
         pass

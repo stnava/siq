@@ -18,8 +18,8 @@ def test_train(mock_npy_gen, mock_img_gen):
     mock_model = MagicMock()
     mock_model.predict.return_value = np.random.rand(1, 32, 32, 32, 1)
     
-    # We will just patch the tf.keras.optimizers and model saving so it runs one fast iteration
-    with patch('siq.get_data.tf.keras.models.save_model'):
+    # We will just patch the keras.optimizers and model saving so it runs one fast iteration
+    with patch('siq.get_data.keras.models.save_model'):
         with patch('siq.get_data.get_grader_feature_network', return_value=mock_model):
             with patch('siq.get_data.auto_weight_loss', return_value=[1.0, 1.0, 1.0]):
                 # run train with max_iterations=1, n_test=2 to cover loops
@@ -74,7 +74,7 @@ def test_train_seg(mock_npy_gen, mock_seg_gen):
     mock_model = MagicMock()
     mock_model.predict.return_value = [np.random.rand(1, 32, 32, 32, 1), np.random.rand(1, 32, 32, 32, 1)]
     
-    with patch('siq.get_data.tf.keras.models.save_model'):
+    with patch('siq.get_data.keras.models.save_model'):
         with patch('siq.get_data.get_grader_feature_network', return_value=mock_model):
             try:
                 train_seg(
