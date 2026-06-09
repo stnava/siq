@@ -278,7 +278,7 @@
             Zooming into the cortical folds reveals the network's ability to reconstruct missing anatomical boundaries without introducing hallucinated artifacts.
         </p>
 
-        <div class="comparison-grid">
+        <div class="comparison-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
             <div class="image-card glass">
                 <h3>Original Patch</h3>
                 <img src="images/original_zoom.png" alt="Original High Res Cortical Patch">
@@ -290,9 +290,14 @@
                 <p>Severe partial voluming effects</p>
             </div>
             <div class="image-card glass">
-                <h3>SIQ Patch</h3>
-                <img src="images/superres_zoom.png" alt="Super Res Cortical Patch">
-                <p>Restored edge sharpness and contrast</p>
+                <h3>SIQ (PyTorch)</h3>
+                <img src="images/superres_zoom_torch.png" alt="Super Res Cortical Patch PyTorch">
+                <p>Restored edge details (PyTorch)</p>
+            </div>
+            <div class="image-card glass">
+                <h3>SIQ (TensorFlow)</h3>
+                <img src="images/superres_zoom_tensorflow.png" alt="Super Res Cortical Patch TensorFlow">
+                <p>Restored edge details (TensorFlow)</p>
             </div>
         </div>
 
