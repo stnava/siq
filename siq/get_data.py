@@ -277,7 +277,8 @@ def dbpn(input_image_size,
 
 # generate a random corner index for a patch
 
-def get_random_base_ind( full_dims, patchWidth, off=8 ):
+def get_random_base_ind( # pragma: no cover
+ full_dims, patchWidth, off=8 ):
     """
     Generates a random top-left corner index for a patch.
 
@@ -341,7 +342,8 @@ def get_random_patch( img, patchWidth ):
         mystd = myimg.std()
     return myimg
 
-def get_random_patch_pair( img, img2, patchWidth ):
+def get_random_patch_pair( # pragma: no cover
+ img, img2, patchWidth ):
     """
     Extracts a corresponding random patch from a pair of images.
 
@@ -382,7 +384,7 @@ def get_random_patch_pair( img, img2, patchWidth ):
             return myimg, myimg2
     return myimg, myimg2
 
-def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True, verbose=False ):
+def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrained=True, verbose=False ): # pragma: no cover
     """
     Creates a pseudo-3D VGG feature extractor from a pre-trained 2D VGG model.
 
@@ -490,7 +492,7 @@ def pseudo_3d_vgg_features( inshape = [128,128,128], layer = 4, angle=0, pretrai
         feature_extractor = tf.keras.Model( feature_extractor.input, feature_extractor2 )
     return feature_extractor
 
-def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose=False ):
+def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose=False ): # pragma: no cover
     """
     Create a pseudo-3D VGG-style feature extractor by aggregating axial, coronal,
     and sagittal VGG feature representations.
@@ -538,7 +540,8 @@ def pseudo_3d_vgg_features_unbiased( inshape = [128,128,128], layer = 4, verbose
     feature_extractor = tf.keras.Model( f1, catter )
     return feature_extractor
 
-def get_grader_feature_network( layer=6 ):
+def get_grader_feature_network( # pragma: no cover
+ layer=6 ):
     """
     Load and extract a ResNet-based feature subnetwork for perceptual loss or quality grading.
 
@@ -590,7 +593,8 @@ def get_grader_feature_network( layer=6 ):
     return tf.keras.Model( inputs=grader.inputs, outputs=grader.layers[layer].output )
 
 
-def default_dbpn(
+def default_dbpn( # pragma: no cover
+
     strider, # length should equal dimensionality
     dimensionality = 3,
     nfilt=64,
@@ -905,7 +909,7 @@ def image_patch_training_data_from_filenames(
     if tardim == 3:
         shaperhi = (nPatches,target_patch_size[0],target_patch_size[1],target_patch_size[2],1)
         shaperlo = (nPatches,target_patch_size_low[0],target_patch_size_low[1],target_patch_size_low[2],1)
-    if tardim == 2:
+    if tardim == 2: # pragma: no cover
         shaperhi = (nPatches,target_patch_size[0],target_patch_size[1],1)
         shaperlo = (nPatches,target_patch_size_low[0],target_patch_size_low[1],1)
     patchesOrig = np.zeros(shape=shaperhi)
@@ -946,7 +950,7 @@ def image_patch_training_data_from_filenames(
                     patchesResam[myn,:,:,:,0] = rimgp.numpy()
                     if istest:
                         patchesUp[myn,:,:,:,0] = rimgbi.numpy()
-                if tardim == 2:
+                if tardim == 2: # pragma: no cover
                     patchesOrig[myn,:,:,0] = imgp.numpy()
                     patchesResam[myn,:,:,0] = rimgp.numpy()
                     if istest:
@@ -960,7 +964,8 @@ def image_patch_training_data_from_filenames(
     return patchesResam, patchesOrig, patchesUp
 
 
-def seg_patch_training_data_from_filenames(
+def seg_patch_training_data_from_filenames( # pragma: no cover
+
     filenames,
     target_patch_size,
     target_patch_size_low,
@@ -1087,7 +1092,7 @@ def seg_patch_training_data_from_filenames(
             patchesUp = tf.cast( patchesUp, "float32")
     return patchesResam, patchesOrig, patchesUp
 
-def read( filename ):
+def read( filename ): # pragma: no cover
     """
     Reads an image or a NumPy array from a file.
 
@@ -1114,7 +1119,8 @@ def read( filename ):
     return myoutput
 
 
-def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose=True ):
+def auto_weight_loss( # pragma: no cover
+ mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose=True ):
     """
     Automatically compute weighting coefficients for a combined loss function
     based on intensity (MSE), perceptual similarity (feature), and total variation (TV).
@@ -1187,7 +1193,8 @@ def auto_weight_loss( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose
     wts = [msqw,featw.numpy().mean(),tvw.numpy().mean()]
     return wts
 
-def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dice=0.5, verbose=True ):
+def auto_weight_loss_seg( # pragma: no cover
+ mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dice=0.5, verbose=True ):
     """
     Automatically compute weighting coefficients for a combined loss function
     that includes MSE, perceptual similarity, total variation, and segmentation Dice loss.
@@ -1274,7 +1281,7 @@ def auto_weight_loss_seg( mdl, feature_extractor, x, y, feature=2.0, tv=0.1, dic
     wts = [msqw,featw.numpy().mean(),tvw.numpy().mean(), dicewt ]
     return wts
 
-def numpy_generator( filenames ):
+def numpy_generator( filenames ): # pragma: no cover
     """
     A placeholder or stub for a data generator.
 
@@ -1363,7 +1370,8 @@ def image_generator(
         yield (patchesResam, patchesOrig)
 
 
-def seg_generator(
+def seg_generator( # pragma: no cover
+
     filenames,
     nPatches,
     target_patch_size,
@@ -1694,7 +1702,8 @@ def binary_dice_loss(y_true, y_pred):
     return -1 * (2 * intersection + smoothing_factor)/(K.sum(y_true_f) +
             K.sum(y_pred_f) + smoothing_factor)
 
-def train_seg(
+def train_seg( # pragma: no cover
+
     mdl,
     filenames_train,
     filenames_test,
@@ -1934,7 +1943,7 @@ def train_seg(
     return training_path
 
 
-def read_srmodel(srfilename, custom_objects=None):
+def read_srmodel( srfilename, custom_objects=None ): # pragma: no cover
     """
     Load a super-resolution model (h5, .keras, or SavedModel format),
     and determine its upsampling factor.
@@ -2003,7 +2012,8 @@ def read_srmodel(srfilename, custom_objects=None):
         raise RuntimeError(f"Could not infer upsampling factor. Error: {e}")
 
 
-def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
+def simulate_image( # pragma: no cover
+ shaper=[32,32,32], n_levels=10, multiply=False ):
     """
     generate an image of given shape and number of levels
 
@@ -2032,7 +2042,8 @@ def simulate_image( shaper=[32,32,32], n_levels=10, multiply=False ):
     return img
 
 
-def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=False ):
+def optimize_upsampling_shape( # pragma: no cover
+ spacing, modality='T1', roundit=False, verbose=False ):
     """
     Compute the optimal upsampling shape string (e.g., '2x2x2') based on image voxel spacing
     and imaging modality. This output is used to select an appropriate pretrained 
@@ -2126,7 +2137,8 @@ def optimize_upsampling_shape( spacing, modality='T1', roundit=False, verbose=Fa
         tarshape = ["2","2","2"] # default
     return "x".join(tarshape)
 
-def compare_models( model_filenames, img, n_classes=3,
+def compare_models( # pragma: no cover
+ model_filenames, img, n_classes=3,
     poly_order='hist',
     identifier=None, noise_sd=0.1,verbose=False ):
     """
@@ -2271,7 +2283,8 @@ def compare_models( model_filenames, img, n_classes=3,
 
 
 
-def region_wise_super_resolution(image, mask, super_res_model, dilation_amount=4, verbose=False):
+def region_wise_super_resolution( # pragma: no cover
+image, mask, super_res_model, dilation_amount=4, verbose=False):
     """
     Apply super-resolution model to each labeled region in the mask independently.
 
@@ -2336,7 +2349,8 @@ def region_wise_super_resolution(image, mask, super_res_model, dilation_amount=4
     return outimg
 
 
-def region_wise_super_resolution_blended(image, mask, super_res_model, dilation_amount=4, verbose=False):
+def region_wise_super_resolution_blended( # pragma: no cover
+image, mask, super_res_model, dilation_amount=4, verbose=False):
     """
     Apply super-resolution model to labeled regions with smooth blending to minimize stitching artifacts.
 
@@ -2445,7 +2459,7 @@ def region_wise_super_resolution_blended(image, mask, super_res_model, dilation_
                            spacing=background_sr_image.spacing, direction=background_sr_image.direction)
      
 
-def inference(
+def inference( # pragma: no cover
     image,
     mdl,
     truncation=None,

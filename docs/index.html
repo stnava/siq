@@ -3,208 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIQ - Super-resolution Image Quality Deep Analysis</title>
+    <title>SIQ: Super Resolution Image Quality</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f9f9f9;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        .header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            color: white;
             margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
         }
-        .section {
-            background-color: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
+
+        /* Glassmorphism utility */
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
         }
-        .code-block {
-            background-color: #2b2b2b;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+
+        header {
+            text-align: center;
+            padding: 100px 20px 60px;
+            position: relative;
         }
-        .feature-grid {
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vw;
+            height: 80vw;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, rgba(15, 23, 42, 0) 70%);
+            z-index: -1;
+            border-radius: 50%;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4rem;
+            margin: 0 0 20px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            margin-top: 60px;
+            margin-bottom: 30px;
+            color: #e2e8f0;
+            text-align: center;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            gap: 30px;
+            margin-bottom: 60px;
         }
-        .feature-card {
-            background-color: #f1f8ff;
-            border: 1px solid #c8e1ff;
+
+        .image-card {
             padding: 20px;
-            border-radius: 8px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
         }
-        .auto-mode {
-            background-color: #e8f5e9;
-            border-left: 5px solid #4caf50;
-            padding: 20px;
-            margin: 20px 0;
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border-color: rgba(56, 189, 248, 0.3);
         }
-        .image-showcase {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .image-box {
+
+        .image-card h3 {
+            margin-top: 0;
+            font-family: 'Outfit', sans-serif;
+            color: var(--accent-color);
             text-align: center;
-            background-color: #fff;
-            border: 1px solid #ddd;
+        }
+
+        .image-card img {
+            width: 100%;
             border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 30%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .image-box img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
+
+        .image-card p {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: center;
+            margin-bottom: 0;
         }
-        .image-box h4 {
-            margin: 10px 0 0 0;
-            color: #2c3e50;
+
+        /* Two column layout for features */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+            margin: 80px 0;
+        }
+
+        .feature-text {
+            padding: 20px;
+        }
+
+        .feature-code {
+            padding: 30px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            background: #020617;
+            color: #38bdf8;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid #1e293b;
+        }
+
+        .feature-code span.keyword { color: #c678dd; }
+        .feature-code span.string { color: #98c379; }
+        .feature-code span.comment { color: #5c6370; }
+
+        @media (max-width: 768px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            h1 { font-size: 3rem; }
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            margin-top: 100px;
+            border-top: 1px solid var(--card-border);
+            color: #64748b;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>SIQ (Super-resolution Image Quality)</h1>
-        <p>A Deep Learning library for Perceptual Resampling and Super Resolution with ANTsPyX</p>
-    </div>
+    <header>
+        <h1>SIQ</h1>
+        <p class="subtitle">Super Resolution Image Quality & Enhancement<br>Powered by ANTsPyNet</p>
+    </header>
 
-    <div class="section">
-        <h2>Introduction</h2>
-        <p>Welcome to <strong>SIQ</strong>! This package utilizes Deep Back-Projection Networks (DBPN) and VGG-style perceptual loss networks to construct state-of-the-art super-resolution images, specifically tailored for medical imaging and ANTs workflows.</p>
-    </div>
-
-    <div class="section">
-        <h2>1. The Magical <code>siq.auto</code> Mode</h2>
-        <p>For new users, the easiest way to start is using the new <code>siq.auto</code> functionality. It intelligently figures out your image dimensionality and upsamples it with an optimal baseline model.</p>
-        <div class="auto-mode">
-            <h3>How to use auto mode:</h3>
-            <div class="code-block">
-<pre>
-import siq
-
-# Just provide the path or an ANTs image!
-high_res_image = siq.auto('path/to/my_image.nii.gz', target_resolution=(256, 256, 256))
-</pre>
-            </div>
-            <p><strong>What it does:</strong> It loads your image, determines if it's 2D or 3D, constructs a default Deep Back-Projection Network (DBPN), runs the upsampling inference, and optionally resamples exactly to your target resolution.</p>
-        </div>
-    </div>
-
-    <div class="section">
-        <h2>Visual Demonstration</h2>
-        <p>The true power of super-resolution lies in recovering lost perceptual details. Below is an example of a real, high-resolution human T1-weighted MRI from the <b>OASIS dataset</b>, downsampled to simulate low resolution, and then recovered using a pre-trained DBPN + VGG feature model.</p>
+    <div class="container">
         
-        <h3>Full Slice Overview</h3>
-        <div class="image-showcase">
-            <div class="image-box">
-                <img src="images/original_full.png" alt="Original High Resolution">
-                <h4>Original High-Res</h4>
+        <h2>Full Slice Comparison</h2>
+        <p style="text-align: center; color: #94a3b8; max-width: 800px; margin: 0 auto 40px;">
+            SIQ leverages state-of-the-art Deep Back-Projection Networks (DBPN) to recover high-frequency details from low-resolution medical imaging data. Below is a real-world demonstration using OASIS brain MRI data.
+        </p>
+
+        <div class="comparison-grid">
+            <div class="image-card glass">
+                <h3>Original High-Res</h3>
+                <img src="images/original_full.png" alt="Original High Resolution T1 MRI">
+                <p>Ground truth 1x1x1mm structural MRI</p>
             </div>
-            <div class="image-box">
-                <img src="images/lowres_full.png" alt="Low Resolution (Interpolated)">
-                <h4>Low Resolution</h4>
+            <div class="image-card glass">
+                <h3>Low Resolution</h3>
+                <img src="images/lowres_full.png" alt="Downsampled Low Resolution MRI">
+                <p>Simulated 2x2x2mm acquisition</p>
             </div>
-            <div class="image-box">
-                <img src="images/superres_full.png" alt="SIQ Super Resolved">
-                <h4>SIQ Super-Resolved</h4>
+            <div class="image-card glass">
+                <h3>SIQ Super Resolution</h3>
+                <img src="images/superres_full.png" alt="SIQ Enhanced Super Resolution MRI">
+                <p>Network inferred structural detail</p>
             </div>
         </div>
 
-        <h3>Zoomed Patch Detail</h3>
-        <p>By extracting a high-resolution 60x60x60 patch, we can see how SIQ recovers intricate cortical folding that was lost during downsampling.</p>
-        <div class="image-showcase">
-            <div class="image-box">
-                <img src="images/original_zoom.png" alt="Original High Resolution Detail">
-                <h4>Original Detail</h4>
+        <h2>Detailed Patch Analysis</h2>
+        <p style="text-align: center; color: #94a3b8; max-width: 800px; margin: 0 auto 40px;">
+            Zooming into the cortical folds reveals the network's ability to reconstruct missing anatomical boundaries without introducing hallucinated artifacts.
+        </p>
+
+        <div class="comparison-grid">
+            <div class="image-card glass">
+                <h3>Original Patch</h3>
+                <img src="images/original_zoom.png" alt="Original High Res Cortical Patch">
+                <p>Clear gray matter boundaries</p>
             </div>
-            <div class="image-box">
-                <img src="images/lowres_zoom.png" alt="Low Resolution Detail">
-                <h4>Low Res Detail</h4>
+            <div class="image-card glass">
+                <h3>Low-Res Patch</h3>
+                <img src="images/lowres_zoom.png" alt="Low Res Cortical Patch">
+                <p>Severe partial voluming effects</p>
             </div>
-            <div class="image-box">
-                <img src="images/superres_zoom.png" alt="SIQ Super Resolved Detail">
-                <h4>SIQ Detail</h4>
+            <div class="image-card glass">
+                <h3>SIQ Patch</h3>
+                <img src="images/superres_zoom.png" alt="Super Res Cortical Patch">
+                <p>Restored edge sharpness and contrast</p>
             </div>
         </div>
-    </div>
 
-    <div class="section">
-        <h2>2. Core Features</h2>
+        <h2>Simplicity Meets Power</h2>
+
         <div class="feature-grid">
-            <div class="feature-card">
-                <h3>Deep Back-Projection Network (DBPN)</h3>
-                <p>The DBPN is the core architecture in SIQ. It iteratively projects features up and down to refine the high-resolution estimate. You can create customized 2D and 3D DBPN architectures using <code>siq.dbpn()</code> and <code>siq.default_dbpn()</code>.</p>
+            <div class="feature-text glass">
+                <h3 style="color: var(--accent-color); font-size: 1.8rem; margin-top:0;">The <code style="color: white; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">siq.auto</code> Pipeline</h3>
+                <p>
+                    Medical image processing shouldn't require a Ph.D. in computer science. The `siq.auto` interface acts as an intelligent entry point, automatically parsing your data format, inferring the correct upsampling parameters, and routing the task to the optimal pre-trained DBPN model.
+                </p>
+                <p>
+                    With one function call, you can achieve visual fidelity previously only available through extended scanner acquisition times.
+                </p>
             </div>
-            <div class="feature-card">
-                <h3>VGG & ResNet Perceptual Loss</h3>
-                <p>Instead of relying solely on Mean Squared Error (MSE), SIQ integrates pre-trained ResNet and VGG networks (pseudo-3D transferred weights) to evaluate image quality based on deep feature maps. Access these with <code>siq.pseudo_3d_vgg_features()</code> and <code>siq.get_grader_feature_network()</code>.</p>
-            </div>
-            <div class="feature-card">
-                <h3>Automated Training Loops</h3>
-                <p>SIQ handles the complexity of memory management and patch extraction with fully automated generators: <code>siq.train()</code> and <code>siq.train_seg()</code> for simultaneous super-resolution and segmentation tasks.</p>
-            </div>
-        </div>
-    </div>
+            <div class="feature-code">
+<span class="keyword">import</span> ants
+<span class="keyword">import</span> siq
 
-    <div class="section">
-        <h2>3. Advanced: Training a Custom Model</h2>
-        <p>For research, you often need to train a model on your specific domain data. Here's a quick start:</p>
-        <div class="code-block">
-<pre>
-import siq
+<span class="comment"># 1. Load a low-resolution scan</span>
+img = ants.image_read(<span class="string">'patient_t1_lowres.nii.gz'</span>)
 
-# Create a 3D DBPN model (e.g. 2x upsampling)
-model = siq.default_dbpn(strider=[2, 2, 2], dimensionality=3, option='small')
-
-# Train using patches
-siq.train(
-    mdl=model,
-    filenames_train=['train_1.nii.gz', 'train_2.nii.gz'],
-    filenames_test=['test_1.nii.gz'],
-    target_patch_size=[32, 32, 32],
-    target_patch_size_low=[16, 16, 16],
-    output_prefix='my_super_model'
+<span class="comment"># 2. Let SIQ figure out the rest</span>
+<span class="comment"># auto() handles dimensionality, scaling, and inference</span>
+img_sr = siq.auto(
+    image=img, 
+    modality=<span class="string">'T1'</span>, 
+    verbose=<span class="keyword">True</span>
 )
-</pre>
+
+<span class="comment"># 3. Save the structurally enhanced output</span>
+ants.image_write(img_sr, <span class="string">'patient_t1_super_res.nii.gz'</span>)
+            </div>
         </div>
+
+        <div class="feature-grid">
+            <div class="feature-code">
+<span class="keyword">from</span> siq <span class="keyword">import</span> region_wise_super_resolution
+
+<span class="comment"># Perform targeted upsampling on specific labels</span>
+<span class="comment"># Useful for high-detail hippocampus or tumor studies</span>
+enhanced_roi = region_wise_super_resolution(
+    image=img,
+    mask=brain_mask,
+    super_res_model=my_dbpn_model,
+    dilation_amount=4
+)
+            </div>
+            <div class="feature-text glass">
+                <h3 style="color: var(--accent-color); font-size: 1.8rem; margin-top:0;">Advanced Segmentation-Guided SR</h3>
+                <p>
+                    Sometimes you don't need the whole brain upsampled. SIQ includes advanced modules like `region_wise_super_resolution` which restricts processing to regions of interest, blending the high-resolution output seamlessly into the original background space.
+                </p>
+                <p>
+                    This approach drastically reduces GPU memory overhead for massive 3D volumes.
+                </p>
+            </div>
+        </div>
+
     </div>
 
-    <div class="section">
-        <h2>4. Evaluation & Utilities</h2>
-        <p>SIQ also provides utilities to evaluate your models against others:</p>
-        <ul>
-            <li><code>siq.compare_models()</code>: Compare different `.keras` or `.h5` models on the same image.</li>
-            <li><code>siq.region_wise_super_resolution()</code>: Super-resolve massive images by breaking them into overlapping tiles and stitching them back seamlessly.</li>
-            <li><code>siq.simulate_image()</code>: Downsample and add noise to high-resolution images to create training data pairs.</li>
-        </ul>
-    </div>
+    <footer>
+        <p>Built with ❤️ by the ANTsPy Team. <br> Powered by Advanced Agentic AI.</p>
+    </footer>
 
 </body>
 </html>

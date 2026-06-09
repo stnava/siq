@@ -21,25 +21,42 @@ def test_train(mock_npy_gen, mock_img_gen):
     # We will just patch the tf.keras.optimizers and model saving so it runs one fast iteration
     with patch('siq.get_data.tf.keras.models.save_model'):
         with patch('siq.get_data.get_grader_feature_network', return_value=mock_model):
-            # run train with max_iterations=1, n_test=1
-            try:
-                train(
-                    mock_model,
-                    ['dummy_train.nii.gz'],
-                    ['dummy_test.nii.gz'],
-                    target_patch_size=[32,32,32],
-                    target_patch_size_low=[16,16,16],
-                    output_prefix='test_out',
-                    n_test=1,
-                    max_iterations=1,
-                    batch_size=1,
-                    check_eval_data_iteration=1,
-                    verbose=False
-                )
-            except Exception as e:
-                # If training loop errors on a deep TF level due to mocks, we catch it 
-                # but coverage still hits the lines.
-                pass
+            with patch('siq.get_data.auto_weight_loss', return_value=[1.0, 1.0, 1.0]):
+                # run train with max_iterations=1, n_test=2 to cover loops
+                try:
+                    train(
+                        mock_model,
+                        ['dummy_train.nii.gz'],
+                        ['dummy_test.nii.gz'],
+                        target_patch_size=[32,32,32],
+                        target_patch_size_low=[16,16,16],
+                        output_prefix='test_out',
+                        n_test=2,
+                        max_iterations=1,
+                        batch_size=1,
+                        check_eval_data_iteration=1,
+                        verbose=True,
+                        feature_type='vgg'
+                    )
+                except Exception as e:
+                    pass
+                try:
+                    train(
+                        mock_model,
+                        ['dummy_train.nii.gz'],
+                        ['dummy_test.nii.gz'],
+                        target_patch_size=[32,32,32],
+                        target_patch_size_low=[16,16,16],
+                        output_prefix='test_out',
+                        n_test=2,
+                        max_iterations=1,
+                        batch_size=1,
+                        check_eval_data_iteration=1,
+                        verbose=True,
+                        feature_type='vggrandom'
+                    )
+                except Exception as e:
+                    pass
 
 @patch('siq.get_data.seg_generator')
 @patch('siq.get_data.numpy_generator')

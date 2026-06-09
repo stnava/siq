@@ -3,4 +3,11 @@ siq/__pycache__/
 build/
 siq.egg-info/
 dist/
+*.keras
+*.h5
+*.csv
+test_out*
+dummy_*.nii.gz
+siq_example_output/
+siq_multi_task_example_output/
 
