@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blind SR: Procedural MRI & Wave Simulated Patch Gallery</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(20, 30, 55, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.15);
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.15);
+            --purple: #a855f7;
+            --border-radius: 16px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            max-width: 900px;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #60a5fa, #a855f7, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-badge span.dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .gallery-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .example-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .example-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 15px 40px rgba(168, 85, 247, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .card-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .image-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            aspect-ratio: 3 / 4;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+
+        .image-wrapper:hover {
+            border-color: var(--primary);
+        }
+
+        .image-wrapper img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        .image-label {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .image-label.hr {
+            border-left: 3px solid var(--accent);
+        }
+
+        .image-label.lr {
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Hover Zoom Overlay */
+        .zoom-tip {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.65);
+            color: var(--text-muted);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .image-wrapper:hover .zoom-tip {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Procedural Mixed MRI &amp; Wave Simulated Gallery</h1>
+        <p class="subtitle">
+            Visual verification of 10 independent simulated patch pairs ($48^3$ LR / $96^3$ HR) across different structural classes: Brain MRI Procedural (ellipsoid distance fields modulated by 3D sine/cosine folding), Sinewave Patterns, Layered Planar Strips, and legacy Organic Blobs. Features stochastic coordinate zoom and Rician noise simulation. Boundary alignment is perfectly preserved using spacing coordinate ratios to prevent border artifacts.
+        </p>
+        <div class="stats-bar">
+            <div class="stat-badge">
+                <span class="dot" style="background-color: var(--accent); box-shadow: 0 0 10px var(--accent);"></span>
+                <span>Patch Size: 96³ (HR) / 48³ (LR)</span>
+            </div>
+            <div class="stat-badge">
+                <span class="dot" style="background-color: var(--primary); box-shadow: 0 0 10px var(--primary);"></span>
+                <span>Rician Noise &amp; Stochastic Zoom</span>
+            </div>
+            <div class="stat-badge">
+                <span class="dot" style="background-color: var(--purple); box-shadow: 0 0 10px var(--purple);"></span>
+                <span>Mixed Classes Model</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="gallery-container">
+        <!-- Card 1 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Brain MRI Procedural (Pair #01)</span>
+                <span class="card-meta">T1 Contrast + Fold Modulation</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_01_hr.png" alt="Example 01 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_01_lr.png" alt="Example 01 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Brain MRI Procedural (Pair #02)</span>
+                <span class="card-meta">T1 Contrast + Fold Modulation</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_02_hr.png" alt="Example 02 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_02_lr.png" alt="Example 02 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Brain MRI Procedural (Pair #03)</span>
+                <span class="card-meta">T1 Contrast + Fold Modulation</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_03_hr.png" alt="Example 03 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_03_lr.png" alt="Example 03 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Sinewave Pattern (Pair #04)</span>
+                <span class="card-meta">Multi-frequency 3D Waves</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_04_hr.png" alt="Example 04 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_04_lr.png" alt="Example 04 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Sinewave Pattern (Pair #05)</span>
+                <span class="card-meta">Multi-frequency 3D Waves</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_05_hr.png" alt="Example 05 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_05_lr.png" alt="Example 05 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Sinewave Pattern (Pair #06)</span>
+                <span class="card-meta">Multi-frequency 3D Waves</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_06_hr.png" alt="Example 06 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_06_lr.png" alt="Example 06 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 7 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Layered Strips (Pair #07)</span>
+                <span class="card-meta">Rotated Planar Layers</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_07_hr.png" alt="Example 07 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_07_lr.png" alt="Example 07 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 8 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Layered Strips (Pair #08)</span>
+                <span class="card-meta">Rotated Planar Layers</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_08_hr.png" alt="Example 08 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_08_lr.png" alt="Example 08 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 9 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Organic Blobs (Pair #09)</span>
+                <span class="card-meta">Legacy Multi-scale Noise</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_09_hr.png" alt="Example 09 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="images/examples_10_large/example_09_lr.png" alt="Example 09 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 10 -->
+        <div class="example-card">
+            <div class="card-header">
+                <span class="card-title">Organic Blobs (Pair #10)</span>
+                <span class="card-meta">Legacy Multi-scale Noise</span>
+            </div>
+            <div class="card-body">
+                <div class="image-wrapper">
+                    <img src="scratch/examples_10_large/example_10_hr.png" alt="Example 10 HR">
+                    <span class="image-label hr">HR GROUND TRUTH</span>
+                </div>
+                <div class="image-wrapper">
+                    <img src="scratch/examples_10_large/example_10_lr.png" alt="Example 10 LR">
+                    <span class="image-label lr">LR DEGRADED</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

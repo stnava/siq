@@ -2153,6 +2153,182 @@ def simulate_image_multi_scale(
     return img_large
 
 
+def add_rician_noise(array, noise_std): # pragma: no cover
+    """
+    Applies Rician noise to a numpy array or ANTs image.
+    """
+    is_ants = hasattr(array, "numpy")
+    arr = array.numpy() if is_ants else array
+    n1 = np.random.normal(0, noise_std, arr.shape).astype(arr.dtype)
+    n2 = np.random.normal(0, noise_std, arr.shape).astype(arr.dtype)
+    noisy = np.sqrt((arr + n1)**2 + n2**2)
+    noisy = np.clip(noisy, 0.0, 1.0)
+    if is_ants:
+        res = ants.image_clone(array)
+        res[:] = noisy
+        return res
+    return noisy
+
+
+def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+    """
+    Procedurally generates a 2D or 3D patch resembling brain anatomy (CSF, GM, WM, Ventricles)
+    with stochastic folding and coordinate zoom.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    s = np.random.uniform(zoom_range[0], zoom_range[1])
+    grid = [g * s for g in grid]
+    
+    if ndim == 3:
+        X, Y, Z = grid[0], grid[1], grid[2]
+        R = np.sqrt(X**2 + Y**2 + Z**2)
+        
+        freq = np.random.uniform(5.0, 9.0)
+        amplitude = np.random.uniform(0.1, 0.2)
+        folding = amplitude * np.sin(freq * X) * np.cos(freq * Y) * np.sin(freq * Z)
+        modulated_R = R + folding
+        
+        seg = np.zeros(shape, dtype="float32")
+        
+        brain_mask = modulated_R < np.random.uniform(0.75, 0.85)
+        wm_mask = modulated_R < np.random.uniform(0.5, 0.55)
+        
+        v_offset = 0.15 * s
+        v_radius = 0.12 * s
+        v1 = ((X - v_offset)**2 + (Y)**2 + (Z)**2) < v_radius**2
+        v2 = ((X + v_offset)**2 + (Y)**2 + (Z)**2) < v_radius**2
+        ventricles = v1 | v2
+        
+        seg[brain_mask] = 2
+        seg[wm_mask] = 3
+        seg[ventricles & wm_mask] = 1
+        
+        intensity_map = np.zeros(shape, dtype="float32")
+        csf_val = np.random.uniform(0.1, 0.25)
+        gm_val = np.random.uniform(0.5, 0.65)
+        wm_val = np.random.uniform(0.8, 0.98)
+        
+        intensity_map[seg == 1] = csf_val
+        intensity_map[seg == 2] = gm_val
+        intensity_map[seg == 3] = wm_val
+        
+        texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+        intensity_map[seg > 0] += texture[seg > 0]
+        intensity_map = np.clip(intensity_map, 0.0, 1.0)
+        
+        return ants.from_numpy(intensity_map)
+    else:
+        # 2D case
+        X, Y = grid[0], grid[1]
+        R = np.sqrt(X**2 + Y**2)
+        
+        freq = np.random.uniform(5.0, 9.0)
+        amplitude = np.random.uniform(0.1, 0.2)
+        folding = amplitude * np.sin(freq * X) * np.cos(freq * Y)
+        modulated_R = R + folding
+        
+        seg = np.zeros(shape, dtype="float32")
+        
+        brain_mask = modulated_R < np.random.uniform(0.75, 0.85)
+        wm_mask = modulated_R < np.random.uniform(0.5, 0.55)
+        
+        v_offset = 0.15 * s
+        v_radius = 0.12 * s
+        v1 = ((X - v_offset)**2 + (Y)**2) < v_radius**2
+        v2 = ((X + v_offset)**2 + (Y)**2) < v_radius**2
+        ventricles = v1 | v2
+        
+        seg[brain_mask] = 2
+        seg[wm_mask] = 3
+        seg[ventricles & wm_mask] = 1
+        
+        intensity_map = np.zeros(shape, dtype="float32")
+        csf_val = np.random.uniform(0.1, 0.25)
+        gm_val = np.random.uniform(0.5, 0.65)
+        wm_val = np.random.uniform(0.8, 0.98)
+        
+        intensity_map[seg == 1] = csf_val
+        intensity_map[seg == 2] = gm_val
+        intensity_map[seg == 3] = wm_val
+        
+        texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+        intensity_map[seg > 0] += texture[seg > 0]
+        intensity_map = np.clip(intensity_map, 0.0, 1.0)
+        
+        return ants.from_numpy(intensity_map)
+
+
+def simulate_sinewave(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+    """
+    Procedurally generates N-dimensional multi-frequency sinusoidal wave coordinates.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    s = np.random.uniform(zoom_range[0], zoom_range[1])
+    grid = [g * s for g in grid]
+    
+    img_np = np.zeros(shape, dtype="float32")
+    num_waves = np.random.randint(2, 5)
+    for _ in range(num_waves):
+        freqs = [np.random.uniform(2.0, 8.0) for _ in range(ndim)]
+        phase = np.random.uniform(0, 2 * np.pi)
+        amp = np.random.uniform(0.2, 0.5)
+        
+        wave_term = sum(f * g for f, g in zip(freqs, grid)) + phase
+        img_np += amp * np.sin(wave_term)
+        
+    img_min, img_max = img_np.min(), img_np.max()
+    if img_max > img_min:
+        img_np = (img_np - img_min) / (img_max - img_min)
+        
+    return ants.from_numpy(img_np)
+
+
+def simulate_layered(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+    """
+    Procedurally generates N-dimensional rotated planar strip layers.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    s = np.random.uniform(zoom_range[0], zoom_range[1])
+    grid = [g * s for g in grid]
+    
+    normal = np.random.normal(size=ndim)
+    normal /= np.linalg.norm(normal)
+    
+    projection = sum(normal[i] * grid[i] for i in range(ndim))
+    
+    proj_min, proj_max = projection.min(), projection.max()
+    num_layers = np.random.randint(4, 9)
+    thresholds = np.sort(np.random.uniform(proj_min, proj_max, num_layers - 1))
+    
+    img_np = np.zeros(shape, dtype="float32")
+    last_t = proj_min
+    for i in range(num_layers):
+        if i < num_layers - 1:
+            t = thresholds[i]
+            mask = (projection >= last_t) & (projection < t)
+        else:
+            mask = (projection >= last_t)
+        
+        intensity = np.random.uniform(0.1, 0.95)
+        img_np[mask] = intensity
+        last_t = t
+        
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    img_np += texture
+    img_np = np.clip(img_np, 0.0, 1.0)
+    
+    return ants.from_numpy(img_np)
+
+
 def optimize_upsampling_shape( # pragma: no cover
  spacing, modality='T1', roundit=False, verbose=False ):
     """

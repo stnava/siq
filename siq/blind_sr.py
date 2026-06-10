@@ -2,7 +2,9 @@ import ants
 import numpy as np
 import keras
 from keras import layers, ops
-from .get_data import simulate_image, simulate_image_multi_scale, get_grader_feature_network, _sample_param
+from .get_data import (simulate_image, simulate_image_multi_scale,
+                       simulate_brain_procedural, simulate_sinewave, simulate_layered,
+                       add_rician_noise, get_grader_feature_network, _sample_param)
 from .espcn import create_espcn_3d, create_espcn_3d_residual
 import os
 import time
@@ -54,7 +56,10 @@ def blind_sr_generator(
     blur_sigma_range={"type": "poisson", "lam": 0.15},
     noise_std_range=(0.0, 0.03),
     interp_types=(0, 1, 2),
-    sim_params=None
+    sim_params=None,
+    simulation_classes=None,
+    use_rician_noise=False,
+    zoom_range=(0.7, 1.4)
 ):
     """
     Advanced generator for Blind Super-Resolution.
@@ -71,6 +76,9 @@ def blind_sr_generator(
         noise_std_range: Range for random additive Gaussian noise standard deviation.
         interp_types: Tuple of available interpolation types for resampling.
         sim_params: Optional dict of parameters for simulate_image_multi_scale.
+        simulation_classes: Optional dict of {class_name: frequency} summing to 1.0.
+        use_rician_noise: Whether to use Rician noise instead of additive Gaussian noise.
+        zoom_range: Range of scales for stochastic scaling of coordinate grids.
     """
     hr_patch_size = lr_patch_size * factor
     hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
@@ -78,10 +86,32 @@ def blind_sr_generator(
     
     if sim_params is None:
         sim_params = {}
+        
+    if simulation_classes is None:
+        simulation_classes = {"organic_blobs": 1.0}
+    else:
+        total_freq = sum(simulation_classes.values())
+        if not np.isclose(total_freq, 1.0):
+            raise ValueError(f"Frequencies in simulation_classes must sum to 1.0, got {total_freq}")
     
     # Pre-generate fallback cache if none provided
     if hr_base_cache is None:
-        hr_base_cache = [simulate_image_multi_scale(hr_large_shape, **sim_params) for _ in range(32)]
+        hr_base_cache = []
+        classes = list(simulation_classes.keys())
+        probs = list(simulation_classes.values())
+        for _ in range(32):
+            sim_class = np.random.choice(classes, p=probs)
+            if sim_class == "organic_blobs":
+                vol = simulate_image_multi_scale(hr_large_shape, scale_range=zoom_range, **sim_params)
+            elif sim_class == "brain_procedural":
+                vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range)
+            elif sim_class == "sinewave":
+                vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range)
+            elif sim_class == "layered":
+                vol = simulate_layered(hr_large_shape, zoom_range=zoom_range)
+            else:
+                raise ValueError(f"Unknown simulation class: {sim_class}")
+            hr_base_cache.append(vol)
         
     is_numpy_cache = hasattr(hr_base_cache, "shape") and len(hr_base_cache.shape) == 4
     
@@ -162,7 +192,10 @@ def blind_sr_generator(
             # 5. Noise
             noise_std = _sample_param(noise_std_range, (0.0, 0.03))
             if noise_std > 0.0:
-                lr_crop = np.clip(lr_crop + np.random.normal(0, noise_std, lr_crop.shape), 0, 1)
+                if use_rician_noise:
+                    lr_crop = add_rician_noise(lr_crop, noise_std)
+                else:
+                    lr_crop = np.clip(lr_crop + np.random.normal(0, noise_std, lr_crop.shape), 0, 1)
                 
             x_batch.append(np.expand_dims(lr_crop, -1))
             y_batch.append(np.expand_dims(hr_crop, -1))
