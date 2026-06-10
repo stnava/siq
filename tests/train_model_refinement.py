@@ -171,7 +171,7 @@ def main():
     def print_loss_components(stage_name, iteration, max_iter, x_batch, y_batch, loss):
         # Convert y_batch to a Keras tensor to prevent PyTorch/numpy subtraction errors
         y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
-        y_pred_batch = model(x_batch, training=False)
+        y_pred_batch = ops.stop_gradient(model(x_batch, training=False))
         
         # Compute terms using ops
         l2_val = float(ops.mean(ops.square(y_true_tensor - y_pred_batch)))
