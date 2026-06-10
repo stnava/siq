@@ -34,6 +34,18 @@ def main():
     scratch_dir = "/Users/stnava/.gemini/antigravity-cli/brain/bf9e3239-711d-4a46-8dd4-8a3f33959db5/scratch"
     workspace_dir = "."
     
+    import pandas as pd
+    last_iteration = 0
+    csv_log_path = os.path.join(workspace_dir, "loss_contributions.csv")
+    if os.path.exists(csv_log_path):
+        try:
+            df = pd.read_csv(csv_log_path)
+            if len(df) > 0:
+                last_iteration = int(df['iteration'].iloc[-1])
+                print(f"Detected last logged training iteration: {last_iteration}")
+        except Exception as e:
+            print(f"Could not read last iteration from CSV: {e}")
+
     # 1. Load Real MRI (OASIS) validation patches for monitoring
     print("Loading Real MRI (OASIS) validation volume...")
     img_path = antspynet.get_antsxnet_data("oasis")
@@ -81,7 +93,8 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined CA-ESPCN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            skip_stages_1_2 = True
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline CA-ESPCN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
@@ -101,7 +114,8 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined L-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
-            skip_stages_1_2 = True
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline L-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, compile=False)
@@ -120,7 +134,8 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined Reference DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
-            skip_stages_1_2 = True
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline Reference DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, compile=False)
@@ -258,7 +273,7 @@ def main():
     
     # Initialize loss contributions CSV file
     csv_log_path = os.path.join(workspace_dir, "loss_contributions.csv")
-    if not skip_stages_1_2:
+    if last_iteration == 0:
         with open(csv_log_path, "w") as f:
             f.write("stage,iteration,loss,l2_raw,l1_raw,feat_raw,tv_raw,w_l2,w_l1,w_feat,w_tv,pct_l2,pct_l1,pct_feat,pct_tv\n")
     else:
@@ -290,7 +305,7 @@ def main():
         
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-5), loss=hybrid_loss)
         
-        for iteration in range(1, 501):
+        for iteration in range(max(1, last_iteration + 1), 501):
             x_batch, y_batch = next(train_gen_clean)
             loss = model.train_on_batch(x_batch, y_batch)
             
@@ -357,7 +372,8 @@ def main():
         
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
         
-        for iteration in range(501, 2001):
+        start_iter = max(501, last_iteration + 1)
+        for iteration in range(start_iter, 2001):
             x_batch, y_batch = next(train_gen_robust)
             loss = model.train_on_batch(x_batch, y_batch)
             
@@ -442,7 +458,8 @@ def main():
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-6), loss=hybrid_loss)
     best_val_loss = float("inf")
 
-    for iteration in range(2001, 5001):
+    start_iter = max(2001, last_iteration + 1)
+    for iteration in range(start_iter, 5001):
         x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
         
