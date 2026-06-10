@@ -60,7 +60,7 @@ def blind_sr_generator(
     simulation_classes=None,
     use_rician_noise=False,
     zoom_range=(0.7, 1.4),
-    cache_size=512
+    cache_size=1024
 ):
     """
     Advanced generator for Blind Super-Resolution.

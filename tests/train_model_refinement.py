@@ -60,7 +60,7 @@ def main():
             print(f"Loading cached volumes from fallback {os.path.abspath(fallback_path)}...")
             hr_base_cache = np.load(fallback_path)
         else:
-            print("Pre-generated cache not found. Fallback: generator will dynamically create a 512-volume cache on the fly.")
+            print("Pre-generated cache not found. Fallback: generator will dynamically create a 1024-volume cache on the fly.")
             hr_base_cache = None
 
     # 3. Define Simulation Classes mixture
