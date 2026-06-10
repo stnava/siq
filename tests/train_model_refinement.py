@@ -52,15 +52,15 @@ def main():
     # 2. Try loading pre-generated cache
     cache_path = "hr_base_cache_512x128.npy"
     if os.path.exists(cache_path):
-        print(f"Loading cached volumes from local {cache_path}...")
+        print(f"Loading cached volumes from local {os.path.abspath(cache_path)}...")
         hr_base_cache = np.load(cache_path)
     else:
         fallback_path = os.path.join(scratch_dir, "hr_base_cache_512x128.npy")
         if os.path.exists(fallback_path):
-            print(f"Loading cached volumes from fallback {fallback_path}...")
+            print(f"Loading cached volumes from fallback {os.path.abspath(fallback_path)}...")
             hr_base_cache = np.load(fallback_path)
         else:
-            print("Pre-generated cache not found. Fallback: generator will dynamically create a 32-volume cache on the fly.")
+            print("Pre-generated cache not found. Fallback: generator will dynamically create a 512-volume cache on the fly.")
             hr_base_cache = None
 
     # 3. Define Simulation Classes mixture
