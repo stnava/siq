@@ -113,10 +113,10 @@ To refine and fine-tune pre-trained models using our advanced mixed-modality sim
 
 ```bash
 # Refine the Channel Attention ESPCN model
-python3 train_model_refinement.py espcn
+python3 tests/train_model_refinement.py espcn
 
 # Refine the Lightweight DBPN model
-python3 train_model_refinement.py ldbpn
+python3 tests/train_model_refinement.py ldbpn
 ```
 
 This script executes a curriculum-based training sequence: warming up geometries under clean simulations first, followed by joint optimization with stochastic blur and Rician noise. Output models are saved to `espcn_3d_attention_refined.keras` or `ldbpn_3d_refined.keras`.
