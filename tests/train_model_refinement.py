@@ -168,6 +168,37 @@ def main():
                 feat_term * feat_weight_var + 
                 tv_term * tv_weight_var)
 
+    def print_loss_components(stage_name, iteration, max_iter, x_batch, y_batch, loss):
+        # Calculate individual loss terms for the current training batch
+        y_pred_batch = model(x_batch, training=False)
+        
+        # Compute terms using ops
+        l2_val = float(ops.mean(ops.square(y_batch - y_pred_batch)))
+        l1_val = float(ops.mean(ops.abs(y_batch - y_pred_batch)))
+        
+        f_true_batch = feature_extractor(y_batch)
+        f_pred_batch = feature_extractor(y_pred_batch)
+        feat_val = float(ops.mean(ops.square(f_true_batch - f_pred_batch)))
+        
+        diff_d = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
+        diff_h = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
+        diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
+        tv_val = float(diff_d + diff_h + diff_w)
+        
+        # Weighted terms
+        w_l2 = l2_val * float(msq_weight_var)
+        w_l1 = l1_val * float(l1_weight_var)
+        w_feat = feat_val * float(feat_weight_var)
+        w_tv = tv_val * float(tv_weight_var)
+        
+        total_calculated = w_l2 + w_l1 + w_feat + w_tv
+        # Avoid division by zero
+        denom = total_calculated if total_calculated > 1e-8 else 1.0
+        
+        print(f"{stage_name} Iter {iteration:03d}/{max_iter} - Loss: {loss:.6f}")
+        print(f"  [Loss Components] Raw: L2 (MSE)={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}")
+        print(f"  [Loss Contributions] Weighted: MSE={w_l2:.4f} ({w_l2/denom*100:.1f}%), L1={w_l1:.4f} ({w_l1/denom*100:.1f}%), Feat={w_feat:.4f} ({w_feat/denom*100:.1f}%), TV={w_tv:.4f} ({w_tv/denom*100:.1f}%)")
+
     best_val_loss = float("inf")
 
     if not skip_stages_1_2:
@@ -206,7 +237,7 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print(f"Stage 1 Iter {iteration:03d}/500 - Loss: {loss:.6f}")
+                print_loss_components("Stage 1", iteration, 500, x_batch, y_batch, loss)
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -258,7 +289,7 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print(f"Stage 2 Iter {iteration:04d}/2000 - Loss: {loss:.6f}")
+                print_loss_components("Stage 2", iteration, 2000, x_batch, y_batch, loss)
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -328,7 +359,7 @@ def main():
             psnr = float(antspynet.psnr(hr_patch, sr_img))
             ssim = float(antspynet.ssim(hr_patch, sr_img))
             
-            print(f"Stage 3 Iter {iteration:04d}/5000 - Loss: {loss:.6f}")
+            print_loss_components("Stage 3", iteration, 5000, x_batch, y_batch, loss)
             print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
             
             if loss < best_val_loss:
