@@ -59,7 +59,8 @@ def blind_sr_generator(
     sim_params=None,
     simulation_classes=None,
     use_rician_noise=False,
-    zoom_range=(0.7, 1.4)
+    zoom_range=(0.7, 1.4),
+    cache_size=512
 ):
     """
     Advanced generator for Blind Super-Resolution.
@@ -99,7 +100,7 @@ def blind_sr_generator(
         hr_base_cache = []
         classes = list(simulation_classes.keys())
         probs = list(simulation_classes.values())
-        for _ in range(32):
+        for _ in range(cache_size):
             sim_class = np.random.choice(classes, p=probs)
             if sim_class == "organic_blobs":
                 vol = simulate_image_multi_scale(hr_large_shape, scale_range=zoom_range, **sim_params)
