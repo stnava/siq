@@ -21,14 +21,14 @@ def set_core_trainable(model, trainable=True):
     print(f"Set layer.trainable={trainable} for {count} core Conv3D layers.")
 
 def main():
-    # Parse command line argument for model type
-    model_type = "espcn"
-    if len(sys.argv) > 1:
-        arg = sys.argv[1].lower()
-        if arg in ["espcn", "ldbpn"]:
-            model_type = arg
-        else:
-            print(f"Invalid model type '{arg}'. Defaulting to 'espcn'. Choose from: espcn, ldbpn")
+    import argparse
+    parser = argparse.ArgumentParser(description="SIQ Super-Resolution Refinement Pipeline")
+    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size for training (default: 1)")
+    args = parser.parse_args()
+    
+    model_type = args.model
+    batch_size = args.batch_size
             
     print(f"Initializing {model_type.upper()} Refinement Pipeline...")
     scratch_dir = "/Users/stnava/.gemini/antigravity-cli/brain/bf9e3239-711d-4a46-8dd4-8a3f33959db5/scratch"
@@ -94,7 +94,7 @@ def main():
                 n_res_blocks=8,
                 use_global_skip=True
             )
-    else: # ldbpn
+    elif model_type == "ldbpn":
         output_model_path = os.path.join(workspace_dir, "ldbpn_3d_refined.keras")
         best_model_path = os.path.join(workspace_dir, "ldbpn_3d_best_mdl.keras")
         
@@ -112,6 +112,24 @@ def main():
                 factor=2,
                 n_filters=64,
                 n_stages=3
+            )
+    else: # ref-dbpn
+        output_model_path = os.path.join(workspace_dir, "ref_dbpn_3d_refined.keras")
+        best_model_path = os.path.join(workspace_dir, "exp_baseline_best.keras")
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined Reference DBPN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, compile=False)
+            skip_stages_1_2 = True
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline Reference DBPN model from {best_model_path}...")
+            model = keras.models.load_model(best_model_path, compile=False)
+        else:
+            print("Baseline model not found. Building a new Reference DBPN 3D model...")
+            model = siq.default_dbpn(
+                strider=[2, 2, 2],
+                dimensionality=3,
+                option="large"
             )
         
     # 5. Load feature extractor for perceptual loss
@@ -165,7 +183,7 @@ def main():
         
         train_gen_clean = siq.blind_sr_generator(
             hr_base_cache=hr_base_cache,
-            batch_size=1,
+            batch_size=batch_size,
             lr_patch_size=48,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
@@ -216,7 +234,7 @@ def main():
         
         train_gen_robust = siq.blind_sr_generator(
             hr_base_cache=hr_base_cache,
-            batch_size=1,
+            batch_size=batch_size,
             lr_patch_size=48,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
@@ -285,7 +303,7 @@ def main():
 
     train_gen_refine = siq.blind_sr_generator(
         hr_base_cache=hr_base_cache,
-        batch_size=1,
+        batch_size=batch_size,
         lr_patch_size=48,
         factor=2,
         blur_sigma_range=(0.0, 0.0),

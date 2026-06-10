@@ -112,14 +112,24 @@ export TF_NUM_INTEROP_THREADS=8
 To refine and fine-tune pre-trained models using our advanced mixed-modality simulation engine (supporting brain structures, sinewaves, layered strips, Rician noise, and coordinate zoom):
 
 ```bash
-# Refine the Channel Attention ESPCN model
-python3 tests/train_model_refinement.py espcn
+# Refine the Channel Attention ESPCN model (default: batch size 1)
+python3 tests/train_model_refinement.py espcn --batch-size 1
 
 # Refine the Lightweight DBPN model
-python3 tests/train_model_refinement.py ldbpn
+python3 tests/train_model_refinement.py ldbpn --batch-size 2
+
+# Refine the Reference DBPN model
+python3 tests/train_model_refinement.py ref-dbpn --batch-size 1
 ```
 
-This script executes a curriculum-based training sequence: warming up geometries under clean simulations first, followed by joint optimization with stochastic blur and Rician noise. Output models are saved to `espcn_3d_attention_refined.keras` or `ldbpn_3d_refined.keras`.
+The script executes a curriculum-based training sequence across 3 stages:
+1. **Stage 1: Adaptation Phase (Clean Mixed Geometries)**: 100 warmup iterations on clean mixed geometries.
+2. **Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)**: 150 joint fine-tuning iterations introducing Rician noise.
+3. **Stage 3: Dedicated Refinement Phase (High-Fidelity Brain Focus)**: 200 iterations focusing on high-fidelity brain anatomy structures with a very low learning rate ($1 \times 10^{-7}$).
+
+**Intelligent Restart & Skipping:**
+* If a refined model checkpoint already exists (e.g., `espcn_3d_attention_refined.keras`, `ldbpn_3d_refined.keras`, or `ref_dbpn_3d_refined.keras`), the script automatically loads it, **skips Stage 1 and Stage 2**, and proceeds directly to **Stage 3 (Dedicated Refinement)**.
+* To train from scratch starting from the baseline model, delete or rename the existing refined `.keras` file in the workspace.
 
 ### Publishing a New Release
 
