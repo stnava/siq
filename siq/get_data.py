@@ -2054,6 +2054,105 @@ def simulate_image( # pragma: no cover
     return img
 
 
+def _sample_param(p, default_val=None, is_int=False): # pragma: no cover
+    """
+    Internal helper to sample a parameter from various formats:
+    - Scalar: returned as-is.
+    - Tuple/List: sampled uniformly between [0] and [1].
+    - Callable: called to get a value.
+    - Dict: uses 'type' to determine distribution (uniform, gaussian, poisson).
+    """
+    if p is None:
+        p = default_val
+    if isinstance(p, (int, float)):
+        return p
+    if isinstance(p, (list, tuple)):
+        if is_int:
+            return np.random.randint(p[0], p[1])
+        return np.random.uniform(p[0], p[1])
+    if callable(p):
+        return p()
+    if isinstance(p, dict):
+        dist_type = p.get("type", "uniform")
+        if dist_type == "uniform":
+            low, high = p.get("low", 0), p.get("high", 1)
+            return np.random.randint(low, high) if is_int else np.random.uniform(low, high)
+        if dist_type in ["gaussian", "normal"]:
+            val = np.random.normal(p.get("mean", 0), p.get("std", 1))
+            return int(round(val)) if is_int else val
+        if dist_type == "poisson":
+            return np.random.poisson(p.get("lam", 1))
+    return p
+
+def simulate_image_multi_scale(
+    large_shape=(48, 48, 48),
+    scale_range=(0.7, 1.4),
+    n_levels_range=(3, 9),
+    sigma_range={'type': 'poisson', 'lam': 0.1},
+    multiply=None,
+    interp_types=(0, 2),
+    min_sim_shape=24
+): # pragma: no cover
+    """
+    Generates a simulated tissue-like image at a random scale and orientation.
+    Returns an ants.image of shape large_shape.
+
+    Parameters
+    ----------
+    large_shape : tuple
+        Target shape for the output image.
+    scale_range : tuple, dict, or callable
+        Control for the random scale factor applied to large_shape.
+    n_levels_range : tuple, dict, or callable
+        Control for the number of noise levels/layers.
+    sigma_range : tuple, dict, or callable
+        Control for the Gaussian smoothing sigma per level.
+        Defaults to Poisson distribution with lambda=0.1.
+    multiply : bool or None
+        If True, layers are multiplied by their index. If None, randomized.
+    interp_types : tuple
+        Available interpolation types for resampling.
+    min_sim_shape : int
+        Minimum size for any dimension during simulation.
+    """
+    # 1. Randomize the simulation size to vary structure scale/zoom
+    scale_factor = _sample_param(scale_range, (0.7, 1.4))
+    sim_shape = [int(round(s * scale_factor)) for s in large_shape]
+    sim_shape = [max(min_sim_shape, s) for s in sim_shape]
+    
+    n_levels = _sample_param(n_levels_range, (3, 9), is_int=True)
+    if multiply is None:
+        multiply = np.random.choice([True, False])
+    
+    img_np = np.zeros(sim_shape, dtype="float32")
+    
+    # 2. Generate multi-scale layers
+    for k in range(n_levels):
+        temp_np = np.random.normal(0, 1.0, size=sim_shape).astype("float32")
+        temp = ants.from_numpy(temp_np)
+        
+        # Randomize sigma per level
+        sigma = _sample_param(sigma_range, {'type': 'poisson', 'lam': 0.1})
+        if sigma > 0:
+            temp = ants.smooth_image(temp, sigma)
+        
+        # Otsu thresholding
+        temp = ants.threshold_image(temp, "Otsu", 1)
+        temp_np = temp.numpy()
+        
+        if multiply:
+            temp_np = temp_np * (k + 1)
+            
+        img_np += temp_np
+        
+    # 3. Convert to ANTs image and resample to large_shape
+    img = ants.from_numpy(img_np)
+    interp = np.random.choice(interp_types) 
+    img_large = ants.resample_image(img, large_shape, use_voxels=True, interp_type=interp)
+    
+    return img_large
+
+
 def optimize_upsampling_shape( # pragma: no cover
  spacing, modality='T1', roundit=False, verbose=False ):
     """

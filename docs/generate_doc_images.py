@@ -1,5 +1,5 @@
 import os
-os.environ["KERAS_BACKEND"] = "tensorflow"
+os.environ["KERAS_BACKEND"] = "torch"
 import keras
 import ants
 import antspynet
@@ -47,15 +47,11 @@ def main():
     ants.plot(lr_patch_upsampled, filename='docs/images/lowres_zoom.png', title="Low-Res Detail", axis=2)
 
     # 1. ESPCN Inference on Patch
-    espcn_path = "espcn_3d_perceptual.keras"
+    espcn_path = "espcn_3d_blind_kitchen_sink_best_mdl.keras"
     if os.path.exists(espcn_path):
         print("Running ESPCN inference on patch...")
         custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D}
-        model_weights = keras.models.load_model(espcn_path, custom_objects=custom_objects, compile=False)
-        
-        # Reconstruct ESPCN with dynamic input shape to support full-patch input
-        model_espcn = siq.create_espcn_3d_residual(input_shape=(None, None, None, 1))
-        model_espcn.set_weights(model_weights.get_weights())
+        model_espcn = keras.models.load_model(espcn_path, custom_objects=custom_objects, compile=False)
         
         sr_espcn_patch = siq.inference(lr_patch, model_espcn, method='antspynet', verbose=True)
         ants.plot(sr_espcn_patch, filename='docs/images/superres_zoom_espcn.png', title="ESPCN Detail", axis=2)

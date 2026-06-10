@@ -24,7 +24,7 @@ from .get_data import binary_dice_loss
 from .get_data import pseudo_3d_vgg_features
 from .get_data import pseudo_3d_vgg_features_unbiased
 from .get_data import read_srmodel
-from .get_data import simulate_image
+from .get_data import simulate_image, simulate_image_multi_scale
 from .get_data import compare_models
 from .get_data import optimize_upsampling_shape
 from .get_data import region_wise_super_resolution
@@ -32,3 +32,5 @@ from .get_data import region_wise_super_resolution_blended
 
 from .auto import auto
 from .espcn import create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D
+from .blind_sr import (blind_sr_generator_simple, blind_sr_generator, 
+                       train_blind_espcn_perceptual, train_blind_sr_kitchen_sink)
