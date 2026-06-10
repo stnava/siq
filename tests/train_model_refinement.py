@@ -132,16 +132,16 @@ def main():
                 option="large"
             )
         
-    # 5. Load feature extractor for perceptual loss
-    print("Loading pseudo-3D VGG feature extractor...")
-    feature_extractor = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=4)
+    # 5. Load feature extractor for perceptual loss (VGG Layer 6 matching reference DBPN)
+    print("Loading pseudo-3D VGG feature extractor (Layer 6)...")
+    feature_extractor = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=6)
     feature_extractor.trainable = False
     
-    # 6. Hybrid loss function variables
+    # 6. Hybrid loss function variables (Mimicking successful reference DBPN weights)
     msq_weight_var = keras.Variable(1.0, dtype="float32")
-    feat_weight_var = keras.Variable(0.1, dtype="float32")
-    tv_weight_var = keras.Variable(0.005, dtype="float32")
-    l1_weight_var = keras.Variable(0.5, dtype="float32")
+    feat_weight_var = keras.Variable(2.0, dtype="float32")
+    tv_weight_var = keras.Variable(0.1, dtype="float32")
+    l1_weight_var = keras.Variable(0.0, dtype="float32")
 
     def hybrid_loss(y_true, y_pred):
         # L2 Loss (MSE)
@@ -172,10 +172,10 @@ def main():
 
     if not skip_stages_1_2:
         # ==============================================================
-        # Stage 1: Warmup & Adaptation on Clean Mixed Classes (Iter 1-100)
+        # Stage 1: Warmup & Adaptation on Clean Mixed Classes (Iter 1-500)
         # ==============================================================
         print("\n=======================================================")
-        print("Stage 1: Adaptation Phase (Clean Mixed Geometries)")
+        print("Stage 1: Adaptation Phase (Clean Mixed Geometries) (Iter 1-500)")
         print("=======================================================")
         
         if model_type == "espcn":
@@ -192,13 +192,13 @@ def main():
             zoom_range=(0.75, 1.3)
         )
         
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-5), loss=hybrid_loss)
         
-        for iteration in range(1, 101):
+        for iteration in range(1, 501):
             x_batch, y_batch = next(train_gen_clean)
             loss = model.train_on_batch(x_batch, y_batch)
             
-            if iteration % 25 == 0 or iteration == 1:
+            if iteration % 50 == 0 or iteration == 1:
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
                 sr_np = sr_img.numpy()
@@ -206,7 +206,7 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print(f"Stage 1 Iter {iteration:03d}/100 - Loss: {loss:.6f}")
+                print(f"Stage 1 Iter {iteration:03d}/500 - Loss: {loss:.6f}")
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -215,10 +215,10 @@ def main():
                     print(f"  --> Saved checkpoint to {output_model_path}")
 
         # ==============================================================
-        # Stage 2: Joint Fine-Tuning with Rician Noise & Blur (Iter 101-250)
+        # Stage 2: Joint Fine-Tuning with Rician Noise (Iter 501-2000)
         # ==============================================================
         print("\n=======================================================")
-        print("Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)")
+        print("Stage 2: Robustness Fine-Tuning Phase (Iter 501-2000)")
         print("=======================================================")
         
         if os.path.exists(output_model_path):
@@ -244,13 +244,13 @@ def main():
             zoom_range=(0.75, 1.3)
         )
         
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-7), loss=hybrid_loss)
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
         
-        for iteration in range(101, 251):
+        for iteration in range(501, 2001):
             x_batch, y_batch = next(train_gen_robust)
             loss = model.train_on_batch(x_batch, y_batch)
             
-            if iteration % 25 == 0 or iteration == 101:
+            if iteration % 100 == 0 or iteration == 501:
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
                 sr_np = sr_img.numpy()
@@ -258,7 +258,7 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print(f"Stage 2 Iter {iteration:03d}/250 - Loss: {loss:.6f}")
+                print(f"Stage 2 Iter {iteration:04d}/2000 - Loss: {loss:.6f}")
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -269,10 +269,10 @@ def main():
         print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
     # ==============================================================
-    # Stage 3: Dedicated Refinement Strategy (Iter 251-450)
+    # Stage 3: Dedicated Refinement Strategy (Iter 2001-5000)
     # ==============================================================
     print("\n=======================================================")
-    print("Stage 3: Dedicated Refinement Phase (High-Fidelity Brain Focus)")
+    print("Stage 3: Dedicated Refinement Phase (High-Fidelity Brain Focus) (Iter 2001-5000)")
     print("=======================================================")
     
     if skip_stages_1_2:
@@ -313,14 +313,14 @@ def main():
         zoom_range=(0.75, 1.3)
     )
     
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-7), loss=hybrid_loss)
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-6), loss=hybrid_loss)
     best_val_loss = float("inf")
 
-    for iteration in range(251, 451):
+    for iteration in range(2001, 5001):
         x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
         
-        if iteration % 25 == 0 or iteration == 251:
+        if iteration % 100 == 0 or iteration == 2001:
             sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
             ants.copy_image_info(hr_patch, sr_img)
             sr_np = sr_img.numpy()
@@ -328,7 +328,7 @@ def main():
             psnr = float(antspynet.psnr(hr_patch, sr_img))
             ssim = float(antspynet.ssim(hr_patch, sr_img))
             
-            print(f"Stage 3 Iter {iteration:03d}/450 - Loss: {loss:.6f}")
+            print(f"Stage 3 Iter {iteration:04d}/5000 - Loss: {loss:.6f}")
             print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
             
             if loss < best_val_loss:
