@@ -298,6 +298,19 @@ def main():
             print_loss_components("Stage 1", iteration, 500, x_batch, y_batch, loss)
             
             if iteration % 50 == 0 or iteration == 1:
+                # Save actual training batch inputs sent to model.train_on_batch
+                try:
+                    os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
+                    x_img_actual = ants.from_numpy(np.squeeze(x_batch))
+                    y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                    actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage1_iter_{iteration}_lr_input.png")
+                    actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage1_iter_{iteration}_hr_target.png")
+                    ants.plot(x_img_actual, filename=actual_lr_png, title=f"Actual LR Input Iter {iteration}", axis=2)
+                    ants.plot(y_img_actual, filename=actual_hr_png, title=f"Actual HR Target Iter {iteration}", axis=2)
+                    print(f"  --> Saved actual training batch images to {actual_lr_png} and {actual_hr_png}")
+                except Exception as e:
+                    print(f"  [Warning] Failed to save actual training batch images: {e}")
+
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
                 sr_np = sr_img.numpy()
@@ -352,6 +365,19 @@ def main():
             print_loss_components("Stage 2", iteration, 2000, x_batch, y_batch, loss)
             
             if iteration % 100 == 0 or iteration == 501:
+                # Save actual training batch inputs sent to model.train_on_batch
+                try:
+                    os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
+                    x_img_actual = ants.from_numpy(np.squeeze(x_batch))
+                    y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                    actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage2_iter_{iteration}_lr_input.png")
+                    actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage2_iter_{iteration}_hr_target.png")
+                    ants.plot(x_img_actual, filename=actual_lr_png, title=f"Actual LR Input Iter {iteration}", axis=2)
+                    ants.plot(y_img_actual, filename=actual_hr_png, title=f"Actual HR Target Iter {iteration}", axis=2)
+                    print(f"  --> Saved actual training batch images to {actual_lr_png} and {actual_hr_png}")
+                except Exception as e:
+                    print(f"  [Warning] Failed to save actual training batch images: {e}")
+
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
                 sr_np = sr_img.numpy()
@@ -424,6 +450,19 @@ def main():
         print_loss_components("Stage 3", iteration, 5000, x_batch, y_batch, loss)
         
         if iteration % 100 == 0 or iteration == 2001:
+            # Save actual training batch inputs sent to model.train_on_batch
+            try:
+                os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
+                x_img_actual = ants.from_numpy(np.squeeze(x_batch))
+                y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage3_iter_{iteration}_lr_input.png")
+                actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage3_iter_{iteration}_hr_target.png")
+                ants.plot(x_img_actual, filename=actual_lr_png, title=f"Actual LR Input Iter {iteration}", axis=2)
+                ants.plot(y_img_actual, filename=actual_hr_png, title=f"Actual HR Target Iter {iteration}", axis=2)
+                print(f"  --> Saved actual training batch images to {actual_lr_png} and {actual_hr_png}")
+            except Exception as e:
+                print(f"  [Warning] Failed to save actual training batch images: {e}")
+
             sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
             ants.copy_image_info(hr_patch, sr_img)
             sr_np = sr_img.numpy()
