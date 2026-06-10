@@ -72,8 +72,9 @@ def blind_sr_generator(
         interp_types: Tuple of available interpolation types for resampling.
         sim_params: Optional dict of parameters for simulate_image_multi_scale.
     """
-    hr_large_shape = (48, 48, 48)
-    lr_large_shape = (24, 24, 24)
+    hr_patch_size = lr_patch_size * factor
+    hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
+    lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
     
     if sim_params is None:
         sim_params = {}
@@ -92,11 +93,12 @@ def blind_sr_generator(
             if is_numpy_cache:
                 idx = np.random.randint(0, hr_base_cache.shape[0])
                 vol = hr_base_cache[idx]
-                if vol.shape[0] > 48:
-                    x_s = np.random.randint(0, vol.shape[0] - 48 + 1)
-                    y_s = np.random.randint(0, vol.shape[1] - 48 + 1)
-                    z_s = np.random.randint(0, vol.shape[2] - 48 + 1)
-                    hr_large_np = vol[x_s:x_s+48, y_s:y_s+48, z_s:z_s+48].astype("float32")
+                h_size = hr_large_shape[0]
+                if vol.shape[0] > h_size:
+                    x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
+                    y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
+                    z_s = np.random.randint(0, vol.shape[2] - h_size + 1)
+                    hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size, z_s:z_s+h_size].astype("float32")
                 else:
                     hr_large_np = vol.astype("float32")
                 hr_large = ants.from_numpy(hr_large_np)
@@ -131,9 +133,14 @@ def blind_sr_generator(
             if lr_patch_size == 8: # Small warmup
                 hr_crop = hr_large_np[16:32, 16:32, 16:32]
                 lr_crop = lr_large_np[8:16, 8:16, 8:16]
-            else: # Standard (16x16x16 LR -> 32x32x32 HR)
-                hr_crop = hr_large_np[8:40, 8:40, 8:40]
-                lr_crop = lr_large_np[4:20, 4:20, 4:20]
+            else:
+                hr_start = (hr_large_shape[0] - hr_patch_size) // 2
+                hr_end = hr_start + hr_patch_size
+                lr_start = (lr_large_shape[0] - lr_patch_size) // 2
+                lr_end = lr_start + lr_patch_size
+                
+                hr_crop = hr_large_np[hr_start:hr_end, hr_start:hr_end, hr_start:hr_end]
+                lr_crop = lr_large_np[lr_start:lr_end, lr_start:lr_end, lr_start:lr_end]
                 
             # 4. Augmentations
             for axis in range(3):
