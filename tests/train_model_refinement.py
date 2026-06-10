@@ -186,21 +186,45 @@ def main():
         diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
         tv_val = float(diff_d + diff_h + diff_w)
         
-        # Weighted terms
-        w_l2 = l2_val * float(msq_weight_var)
-        w_l1 = l1_val * float(l1_weight_var)
-        w_feat = feat_val * float(feat_weight_var)
-        w_tv = tv_val * float(tv_weight_var)
+        # Weighted terms (using ops.convert_to_numpy to avoid PyTorch warnings)
+        w_l2 = l2_val * float(ops.convert_to_numpy(msq_weight_var))
+        w_l1 = l1_val * float(ops.convert_to_numpy(l1_weight_var))
+        w_feat = feat_val * float(ops.convert_to_numpy(feat_weight_var))
+        w_tv = tv_val * float(ops.convert_to_numpy(tv_weight_var))
         
         total_calculated = w_l2 + w_l1 + w_feat + w_tv
         # Avoid division by zero
         denom = total_calculated if total_calculated > 1e-8 else 1.0
         
+        pct_l2 = w_l2 / denom * 100
+        pct_l1 = w_l1 / denom * 100
+        pct_feat = w_feat / denom * 100
+        pct_tv = w_tv / denom * 100
+        
         print(f"{stage_name} Iter {iteration:03d}/{max_iter} - Loss: {loss:.6f}")
         print(f"  [Loss Components] Raw: L2 (MSE)={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}")
-        print(f"  [Loss Contributions] Weighted: MSE={w_l2:.4f} ({w_l2/denom*100:.1f}%), L1={w_l1:.4f} ({w_l1/denom*100:.1f}%), Feat={w_feat:.4f} ({w_feat/denom*100:.1f}%), TV={w_tv:.4f} ({w_tv/denom*100:.1f}%)")
+        print(f"  [Loss Contributions] Weighted: MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%)")
+        
+        # Log to CSV
+        csv_log_path = os.path.join(workspace_dir, "loss_contributions.csv")
+        try:
+            with open(csv_log_path, "a") as f:
+                f.write(f"{stage_name},{iteration},{loss:.6f},{l2_val:.6f},{l1_val:.6f},{feat_val:.6f},{tv_val:.6f},"
+                        f"{w_l2:.6f},{w_l1:.6f},{w_feat:.6f},{w_tv:.6f},{pct_l2:.2f},{pct_l1:.2f},{pct_feat:.2f},{pct_tv:.2f}\n")
+        except Exception as e:
+            print(f"  [Warning] Failed to write loss contributions to CSV: {e}")
 
     best_val_loss = float("inf")
+    
+    # Initialize loss contributions CSV file
+    csv_log_path = os.path.join(workspace_dir, "loss_contributions.csv")
+    if not skip_stages_1_2:
+        with open(csv_log_path, "w") as f:
+            f.write("stage,iteration,loss,l2_raw,l1_raw,feat_raw,tv_raw,w_l2,w_l1,w_feat,w_tv,pct_l2,pct_l1,pct_feat,pct_tv\n")
+    else:
+        if not os.path.exists(csv_log_path):
+            with open(csv_log_path, "w") as f:
+                f.write("stage,iteration,loss,l2_raw,l1_raw,feat_raw,tv_raw,w_l2,w_l1,w_feat,w_tv,pct_l2,pct_l1,pct_feat,pct_tv\n")
 
     if not skip_stages_1_2:
         # ==============================================================
@@ -230,6 +254,9 @@ def main():
             x_batch, y_batch = next(train_gen_clean)
             loss = model.train_on_batch(x_batch, y_batch)
             
+            # Track and log loss components on every iteration
+            print_loss_components("Stage 1", iteration, 500, x_batch, y_batch, loss)
+            
             if iteration % 50 == 0 or iteration == 1:
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
@@ -238,7 +265,6 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print_loss_components("Stage 1", iteration, 500, x_batch, y_batch, loss)
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -282,6 +308,9 @@ def main():
             x_batch, y_batch = next(train_gen_robust)
             loss = model.train_on_batch(x_batch, y_batch)
             
+            # Track and log loss components on every iteration
+            print_loss_components("Stage 2", iteration, 2000, x_batch, y_batch, loss)
+            
             if iteration % 100 == 0 or iteration == 501:
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
@@ -290,7 +319,6 @@ def main():
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 
-                print_loss_components("Stage 2", iteration, 2000, x_batch, y_batch, loss)
                 print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
                 
                 if loss < best_val_loss:
@@ -352,6 +380,9 @@ def main():
         x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
         
+        # Track and log loss components on every iteration
+        print_loss_components("Stage 3", iteration, 5000, x_batch, y_batch, loss)
+        
         if iteration % 100 == 0 or iteration == 2001:
             sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
             ants.copy_image_info(hr_patch, sr_img)
@@ -360,7 +391,6 @@ def main():
             psnr = float(antspynet.psnr(hr_patch, sr_img))
             ssim = float(antspynet.ssim(hr_patch, sr_img))
             
-            print_loss_components("Stage 3", iteration, 5000, x_batch, y_batch, loss)
             print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
             
             if loss < best_val_loss:
