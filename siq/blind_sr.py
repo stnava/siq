@@ -51,7 +51,7 @@ def blind_sr_generator(
     lr_patch_size=16,
     factor=2,
     gamma_range=(0.6, 1.7),
-    blur_sigma_range=(0.0, 2.0),
+    blur_sigma_range={"type": "poisson", "lam": 0.15},
     noise_std_range=(0.0, 0.03),
     interp_types=(0, 1, 2),
     sim_params=None
