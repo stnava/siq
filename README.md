@@ -107,6 +107,20 @@ export TF_NUM_INTRAOP_THREADS=8
 export TF_NUM_INTEROP_THREADS=8
 ```
 
+### Model Refinement & Fine-Tuning
+
+To refine and fine-tune pre-trained models using our advanced mixed-modality simulation engine (supporting brain structures, sinewaves, layered strips, Rician noise, and coordinate zoom):
+
+```bash
+# Refine the Channel Attention ESPCN model
+python3 train_model_refinement.py espcn
+
+# Refine the Lightweight DBPN model
+python3 train_model_refinement.py ldbpn
+```
+
+This script executes a curriculum-based training sequence: warming up geometries under clean simulations first, followed by joint optimization with stochastic blur and Rician noise. Output models are saved to `espcn_3d_attention_refined.keras` or `ldbpn_3d_refined.keras`.
+
 ### Publishing a New Release
 
 To publish a new version of `siq` to PyPI:
