@@ -137,11 +137,51 @@ def main():
     feature_extractor = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=6)
     feature_extractor.trainable = False
     
-    # 6. Hybrid loss function variables (Mimicking successful reference DBPN weights)
-    msq_weight_var = keras.Variable(1.0, dtype="float32")
-    feat_weight_var = keras.Variable(2.0, dtype="float32")
-    tv_weight_var = keras.Variable(0.1, dtype="float32")
+    # 6. Hybrid loss function variables (using auto_weight_loss mimicking successful training)
+    import pandas as pd
+    msq_weight_var = keras.Variable(10.0, dtype="float32")
+    feat_weight_var = keras.Variable(0.0, dtype="float32")
+    tv_weight_var = keras.Variable(0.0, dtype="float32")
     l1_weight_var = keras.Variable(0.0, dtype="float32")
+    
+    wts_csv = os.path.join(workspace_dir, f"{model_type}_refined_training_weights.csv")
+    if os.path.exists(wts_csv):
+        print(f"Loading preset weights from {wts_csv}...")
+        wtsdf = pd.read_csv(wts_csv)
+        wts = [float(wtsdf['msq'].iloc[0]), float(wtsdf['feat'].iloc[0]), float(wtsdf['tv'].iloc[0])]
+    else:
+        print("Computing automatic loss weights using a sample clean training batch...")
+        # Temporary generator to obtain clean patches for calibration
+        temp_gen = siq.blind_sr_generator(
+            hr_base_cache=hr_base_cache,
+            batch_size=1,
+            lr_patch_size=48,
+            factor=2,
+            blur_sigma_range=(0.0, 0.0),
+            noise_std_range=(0.0, 0.0),
+            simulation_classes=simulation_classes,
+            zoom_range=(1.0, 1.0)
+        )
+        x_init, y_init = next(temp_gen)
+        x_init_t = ops.convert_to_tensor(x_init, dtype="float32")
+        y_init_t = ops.convert_to_tensor(y_init, dtype="float32")
+        
+        wts = siq.auto_weight_loss(
+            model,
+            feature_extractor,
+            x_init_t,
+            y_init_t,
+            feature=2.0,
+            tv=0.1,
+            verbose=True
+        )
+        print(f"Automatic weights computed: MSE={wts[0]}, Feat={wts[1]}, TV={wts[2]}")
+        pd.DataFrame([[wts[0], wts[1], wts[2]]], columns=["msq", "feat", "tv"]).to_csv(wts_csv, index=False)
+        print(f"Saved weights to {wts_csv}")
+        
+    msq_weight_var.assign(wts[0])
+    feat_weight_var.assign(wts[1])
+    tv_weight_var.assign(wts[2])
 
     def hybrid_loss(y_true, y_pred):
         # L2 Loss (MSE)
