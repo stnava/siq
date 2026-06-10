@@ -215,7 +215,7 @@ def main():
         batch_size=1,
         lr_patch_size=48,
         factor=2,
-        blur_sigma_range=(0.0, 1.2),
+        blur_sigma_range=(0.0, 0.0),
         noise_std_range=(0.0, 0.02),
         use_rician_noise=True,
         simulation_classes=simulation_classes,
