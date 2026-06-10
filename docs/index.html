@@ -284,7 +284,7 @@
             Zooming into the cortical folds reveals the network's ability to reconstruct missing anatomical boundaries without introducing hallucinated artifacts.
         </p>
 
-        <div class="comparison-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="comparison-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
             <div class="image-card glass">
                 <h3>Original Patch</h3>
                 <img src="images/original_zoom.png" alt="Original High Res Cortical Patch">
@@ -296,14 +296,19 @@
                 <p>Severe partial voluming effects</p>
             </div>
             <div class="image-card glass">
-                <h3>Attention ESPCN (New)</h3>
+                <h3>Residual ESPCN</h3>
                 <img src="images/superres_zoom_espcn.png" alt="ESPCN Cortical Patch">
-                <p>Artifact-free fast inference (Corr: 0.927, PSNR: 27.0 dB, SSIM: 0.929)</p>
+                <p>Fast standard reconstruction (Corr: 0.923, PSNR: 26.8 dB, SSIM: 0.925)</p>
             </div>
             <div class="image-card glass">
-                <h3>DBPN (Legacy)</h3>
+                <h3>Attention ESPCN</h3>
+                <img src="images/superres_zoom_attention.png" alt="Attention ESPCN Cortical Patch">
+                <p>Enhanced details & skip connections (Corr: 0.927, PSNR: 27.0 dB, SSIM: 0.929)</p>
+            </div>
+            <div class="image-card glass">
+                <h3>DBPN (SOTA Target)</h3>
                 <img src="images/superres_zoom.png" alt="DBPN Cortical Patch">
-                <p>Classical Back-Projection (Corr: 0.932, PSNR: 27.1 dB, SSIM: 0.932)</p>
+                <p>Classical Back-Projection (Corr: 0.934, PSNR: 27.4 dB, SSIM: 0.936)</p>
             </div>
         </div>
 

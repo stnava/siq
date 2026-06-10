@@ -58,6 +58,18 @@ def main():
     else:
         print("ESPCN model not found.")
 
+    # 1.5. Attention ESPCN Inference on Patch
+    attention_path = "espcn_3d_attention_best_mdl.keras"
+    if os.path.exists(attention_path):
+        print("Running Attention ESPCN inference on patch...")
+        custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+        model_attn = keras.models.load_model(attention_path, custom_objects=custom_objects, compile=False)
+        
+        sr_attn_patch = siq.inference(lr_patch, model_attn, method='antspynet', verbose=True)
+        ants.plot(sr_attn_patch, filename='docs/images/superres_zoom_attention.png', title="Attention ESPCN Detail", axis=2)
+    else:
+        print("Attention ESPCN model not found.")
+
     # 2. DBPN Inference on Patch
     dbpn_path = os.path.expanduser("~/.antspymm/siq_smallshort_train_2x2x2_1chan_featvggL6_best.keras")
     if os.path.exists(dbpn_path):
