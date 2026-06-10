@@ -73,13 +73,18 @@ def main():
     
     # 4. Instantiate Model
     if model_type == "espcn":
+        output_model_path = os.path.join(workspace_dir, "espcn_3d_attention_refined.keras")
         best_model_path = os.path.join(workspace_dir, "espcn_3d_attention_clean_best_mdl.keras")
-        if os.path.exists(best_model_path):
-            print(f"Loading existing best CA-ESPCN model from {best_model_path}...")
-            custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+        custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined CA-ESPCN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline CA-ESPCN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
         else:
-            print("Existing best CA-ESPCN model not found. Building a new Attention-Enhanced ESPCN 3D model...")
+            print("Baseline model not found. Building a new Attention-Enhanced ESPCN 3D model...")
             model = siq.create_espcn_3d_attention(
                 input_shape=(None, None, None, 1),
                 factor=2,
@@ -87,21 +92,24 @@ def main():
                 n_res_blocks=8,
                 use_global_skip=True
             )
-        output_model_path = os.path.join(workspace_dir, "espcn_3d_attention_refined.keras")
     else: # ldbpn
+        output_model_path = os.path.join(workspace_dir, "ldbpn_3d_refined.keras")
         best_model_path = os.path.join(workspace_dir, "ldbpn_3d_best_mdl.keras")
-        if os.path.exists(best_model_path):
-            print(f"Loading existing best L-DBPN model from {best_model_path}...")
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined L-DBPN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, compile=False)
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline L-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, compile=False)
         else:
-            print("Existing L-DBPN model not found. Building a new Lightweight DBPN 3D model...")
+            print("Baseline model not found. Building a new Lightweight DBPN 3D model...")
             model = siq.create_ldbpn_3d(
                 input_shape=(None, None, None, 1),
                 factor=2,
                 n_filters=64,
                 n_stages=3
             )
-        output_model_path = os.path.join(workspace_dir, "ldbpn_3d_refined.keras")
         
     # 5. Load feature extractor for perceptual loss
     print("Loading pseudo-3D VGG feature extractor...")
