@@ -72,6 +72,7 @@ def main():
     }
     
     # 4. Instantiate Model
+    skip_stages_1_2 = False
     if model_type == "espcn":
         output_model_path = os.path.join(workspace_dir, "espcn_3d_attention_refined.keras")
         best_model_path = os.path.join(workspace_dir, "espcn_3d_attention_clean_best_mdl.keras")
@@ -80,6 +81,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined CA-ESPCN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+            skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline CA-ESPCN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
@@ -99,6 +101,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined L-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
+            skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline L-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, compile=False)
@@ -149,86 +152,157 @@ def main():
 
     best_val_loss = float("inf")
 
-    # ==============================================================
-    # Stage 1: Warmup & Adaptation on Clean Mixed Classes (Iter 1-100)
-    # ==============================================================
-    print("\n=======================================================")
-    print("Stage 1: Adaptation Phase (Clean Mixed Geometries)")
-    print("=======================================================")
-    
-    if model_type == "espcn":
-        set_core_trainable(model, trainable=False)
-    
-    train_gen_clean = siq.blind_sr_generator(
-        hr_base_cache=hr_base_cache,
-        batch_size=1,
-        lr_patch_size=48,
-        factor=2,
-        blur_sigma_range=(0.0, 0.0),
-        noise_std_range=(0.0, 0.0),
-        simulation_classes=simulation_classes,
-        zoom_range=(0.75, 1.3)
-    )
-    
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
-    
-    for iteration in range(1, 101):
-        x_batch, y_batch = next(train_gen_clean)
-        loss = model.train_on_batch(x_batch, y_batch)
+    if not skip_stages_1_2:
+        # ==============================================================
+        # Stage 1: Warmup & Adaptation on Clean Mixed Classes (Iter 1-100)
+        # ==============================================================
+        print("\n=======================================================")
+        print("Stage 1: Adaptation Phase (Clean Mixed Geometries)")
+        print("=======================================================")
         
-        if iteration % 25 == 0 or iteration == 1:
-            sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
-            ants.copy_image_info(hr_patch, sr_img)
-            sr_np = sr_img.numpy()
-            corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
-            psnr = float(antspynet.psnr(hr_patch, sr_img))
-            ssim = float(antspynet.ssim(hr_patch, sr_img))
+        if model_type == "espcn":
+            set_core_trainable(model, trainable=False)
+        
+        train_gen_clean = siq.blind_sr_generator(
+            hr_base_cache=hr_base_cache,
+            batch_size=1,
+            lr_patch_size=48,
+            factor=2,
+            blur_sigma_range=(0.0, 0.0),
+            noise_std_range=(0.0, 0.0),
+            simulation_classes=simulation_classes,
+            zoom_range=(0.75, 1.3)
+        )
+        
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
+        
+        for iteration in range(1, 101):
+            x_batch, y_batch = next(train_gen_clean)
+            loss = model.train_on_batch(x_batch, y_batch)
             
-            print(f"Stage 1 Iter {iteration:03d}/100 - Loss: {loss:.6f}")
-            print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+            if iteration % 25 == 0 or iteration == 1:
+                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
+                ants.copy_image_info(hr_patch, sr_img)
+                sr_np = sr_img.numpy()
+                corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
+                psnr = float(antspynet.psnr(hr_patch, sr_img))
+                ssim = float(antspynet.ssim(hr_patch, sr_img))
+                
+                print(f"Stage 1 Iter {iteration:03d}/100 - Loss: {loss:.6f}")
+                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+                
+                if loss < best_val_loss:
+                    best_val_loss = loss
+                    model.save(output_model_path)
+                    print(f"  --> Saved checkpoint to {output_model_path}")
+
+        # ==============================================================
+        # Stage 2: Joint Fine-Tuning with Rician Noise & Blur (Iter 101-250)
+        # ==============================================================
+        print("\n=======================================================")
+        print("Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)")
+        print("=======================================================")
+        
+        if os.path.exists(output_model_path):
+            print(f"Loading best Stage 1 checkpoint from {output_model_path}...")
+            if model_type == "espcn":
+                custom_objs_load = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+                model = keras.models.load_model(output_model_path, custom_objects=custom_objs_load, compile=False)
+            else:
+                model = keras.models.load_model(output_model_path, compile=False)
+        
+        if model_type == "espcn":
+            set_core_trainable(model, trainable=True)
+        
+        train_gen_robust = siq.blind_sr_generator(
+            hr_base_cache=hr_base_cache,
+            batch_size=1,
+            lr_patch_size=48,
+            factor=2,
+            blur_sigma_range=(0.0, 0.0),
+            noise_std_range=(0.0, 0.02),
+            use_rician_noise=True,
+            simulation_classes=simulation_classes,
+            zoom_range=(0.75, 1.3)
+        )
+        
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-7), loss=hybrid_loss)
+        
+        for iteration in range(101, 251):
+            x_batch, y_batch = next(train_gen_robust)
+            loss = model.train_on_batch(x_batch, y_batch)
             
-            if loss < best_val_loss:
-                best_val_loss = loss
-                model.save(output_model_path)
-                print(f"  --> Saved checkpoint to {output_model_path}")
+            if iteration % 25 == 0 or iteration == 101:
+                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
+                ants.copy_image_info(hr_patch, sr_img)
+                sr_np = sr_img.numpy()
+                corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
+                psnr = float(antspynet.psnr(hr_patch, sr_img))
+                ssim = float(antspynet.ssim(hr_patch, sr_img))
+                
+                print(f"Stage 2 Iter {iteration:03d}/250 - Loss: {loss:.6f}")
+                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+                
+                if loss < best_val_loss:
+                    best_val_loss = loss
+                    model.save(output_model_path)
+                    print(f"  --> Saved checkpoint to {output_model_path}")
+    else:
+        print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
     # ==============================================================
-    # Stage 2: Joint Fine-Tuning with Rician Noise & Blur (Iter 101-250)
+    # Stage 3: Dedicated Refinement Strategy (Iter 251-450)
     # ==============================================================
     print("\n=======================================================")
-    print("Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)")
+    print("Stage 3: Dedicated Refinement Phase (High-Fidelity Brain Focus)")
     print("=======================================================")
     
-    if os.path.exists(output_model_path):
-        print(f"Loading best Stage 1 checkpoint from {output_model_path}...")
+    if skip_stages_1_2:
+        # Load existing refined model with compile=False and make it trainable
         if model_type == "espcn":
             custom_objs_load = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
             model = keras.models.load_model(output_model_path, custom_objects=custom_objs_load, compile=False)
+            set_core_trainable(model, trainable=True)
         else:
             model = keras.models.load_model(output_model_path, compile=False)
-    
-    if model_type == "espcn":
-        set_core_trainable(model, trainable=True)
-    
-    train_gen_robust = siq.blind_sr_generator(
+    else:
+        # Load best Stage 2 checkpoint if it exists
+        if os.path.exists(output_model_path):
+            print(f"Loading best Stage 2 checkpoint from {output_model_path}...")
+            if model_type == "espcn":
+                custom_objs_load = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+                model = keras.models.load_model(output_model_path, custom_objects=custom_objs_load, compile=False)
+                set_core_trainable(model, trainable=True)
+            else:
+                model = keras.models.load_model(output_model_path, compile=False)
+
+    refinement_classes = {
+        "brain_procedural": 0.60,
+        "layered": 0.20,
+        "sinewave": 0.10,
+        "organic_blobs": 0.10
+    }
+
+    train_gen_refine = siq.blind_sr_generator(
         hr_base_cache=hr_base_cache,
         batch_size=1,
         lr_patch_size=48,
         factor=2,
         blur_sigma_range=(0.0, 0.0),
-        noise_std_range=(0.0, 0.02),
+        noise_std_range=(0.0, 0.01),
         use_rician_noise=True,
-        simulation_classes=simulation_classes,
+        simulation_classes=refinement_classes,
         zoom_range=(0.75, 1.3)
     )
     
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-7), loss=hybrid_loss)
-    
-    for iteration in range(101, 251):
-        x_batch, y_batch = next(train_gen_robust)
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-7), loss=hybrid_loss)
+    best_val_loss = float("inf")
+
+    for iteration in range(251, 451):
+        x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
         
-        if iteration % 25 == 0 or iteration == 101:
+        if iteration % 25 == 0 or iteration == 251:
             sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
             ants.copy_image_info(hr_patch, sr_img)
             sr_np = sr_img.numpy()
@@ -236,7 +310,7 @@ def main():
             psnr = float(antspynet.psnr(hr_patch, sr_img))
             ssim = float(antspynet.ssim(hr_patch, sr_img))
             
-            print(f"Stage 2 Iter {iteration:03d}/250 - Loss: {loss:.6f}")
+            print(f"Stage 3 Iter {iteration:03d}/450 - Loss: {loss:.6f}")
             print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
             
             if loss < best_val_loss:
