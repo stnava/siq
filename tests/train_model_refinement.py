@@ -169,14 +169,15 @@ def main():
                 tv_term * tv_weight_var)
 
     def print_loss_components(stage_name, iteration, max_iter, x_batch, y_batch, loss):
-        # Calculate individual loss terms for the current training batch
+        # Convert y_batch to a Keras tensor to prevent PyTorch/numpy subtraction errors
+        y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
         y_pred_batch = model(x_batch, training=False)
         
         # Compute terms using ops
-        l2_val = float(ops.mean(ops.square(y_batch - y_pred_batch)))
-        l1_val = float(ops.mean(ops.abs(y_batch - y_pred_batch)))
+        l2_val = float(ops.mean(ops.square(y_true_tensor - y_pred_batch)))
+        l1_val = float(ops.mean(ops.abs(y_true_tensor - y_pred_batch)))
         
-        f_true_batch = feature_extractor(y_batch)
+        f_true_batch = feature_extractor(y_true_tensor)
         f_pred_batch = feature_extractor(y_pred_batch)
         feat_val = float(ops.mean(ops.square(f_true_batch - f_pred_batch)))
         
