@@ -894,7 +894,7 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
     
     if use_global_skip:
         skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
-        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
     outputs = LearnableSharpening(name="final_sharpening")(outputs)
@@ -940,7 +940,7 @@ def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
     
     if use_global_skip:
         skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
-        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
     outputs = LearnableSharpening3D(name="final_sharpening")(outputs)

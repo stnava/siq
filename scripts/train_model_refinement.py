@@ -6,6 +6,7 @@ os.environ["KERAS_BACKEND"] = "torch"
 
 import numpy as np
 import keras
+keras.config.enable_unsafe_deserialization()
 from keras import ops
 import ants
 import antspynet
@@ -143,9 +144,13 @@ def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, ori
         w_percep_tgt = current_weights['percep']
         w_tv_tgt = current_weights['tv']
         
-    new_mae = beta_damp * current_weights['mae'] + (1.0 - beta_damp) * w_mae_tgt
-    new_percep = beta_damp * current_weights['percep'] + (1.0 - beta_damp) * w_percep_tgt
-    new_tv = beta_damp * current_weights['tv'] + (1.0 - beta_damp) * w_tv_tgt
+    # Introduce a linear fall-off of dynamic balancing over 3000 iterations to guarantee stationary convergence
+    decay_factor = max(0.0, 1.0 - current_iteration / 3000.0)
+    effective_step = (1.0 - beta_damp) * decay_factor
+    
+    new_mae = (1.0 - effective_step) * current_weights['mae'] + effective_step * w_mae_tgt
+    new_percep = (1.0 - effective_step) * current_weights['percep'] + effective_step * w_percep_tgt
+    new_tv = (1.0 - effective_step) * current_weights['tv'] + effective_step * w_tv_tgt
     
     return {'mae': new_mae, 'percep': new_percep, 'tv': new_tv}, smoothed
 
@@ -201,7 +206,7 @@ def main():
     parser.add_argument("--stage3-iter", type=int, default=5000, help="Max iterations for Stage 3 (default: 5000)")
     parser.add_argument("--target-percep", type=float, default=65.0, help="Target perceptual loss percentage contribution (default: 65.0)")
     parser.add_argument("--target-mae", type=float, default=30.0, help="Target MAE loss percentage contribution (default: 30.0)")
-    parser.add_argument("--target-tv", type=float, default=5.0, help="Target TV loss percentage contribution (default: 5.0)")
+    parser.add_argument("--target-tv", type=float, default=0.5, help="Target TV loss percentage contribution (default: 0.5)")
     parser.add_argument("--dampening", type=float, default=0.98, help="Dampening factor beta for weight transition (default: 0.98)")
     parser.add_argument("--smooth-window", type=int, default=100, help="LOWESS smoothing window size (default: 100)")
     parser.add_argument("--update-freq", type=int, default=10, help="Weight update frequency in iterations (default: 10)")

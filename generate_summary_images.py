@@ -9,6 +9,7 @@ import ants
 import antspynet
 import antspyt1w
 import keras
+keras.config.enable_unsafe_deserialization()
 import siq
 from siq.get_data import compute_gmsd, compute_hfen
 
@@ -457,6 +458,7 @@ def main():
             <thead>
                 <tr>
                     <th>Model</th>
+                    <th>Rank Score (Avg Rank)</th>
                     <th>PSNR (dB)</th>
                     <th>SSIM</th>
                     <th>GMSD</th>
@@ -467,6 +469,7 @@ def main():
             <tbody>
                 <tr>
                     <td>Ground Truth</td>
+                    <td>-</td>
                     <td>&infin;</td>
                     <td>1.0000</td>
                     <td>0.0000</td>
@@ -521,20 +524,41 @@ def main():
             "status": r["status"]
         })
         
-    # Sort all rows by PSNR descending, TBD sorted to bottom
-    def get_sort_key(row):
-        return row["psnr"] if row["psnr"] is not None else -1.0
+    # Calculate Rank of Ranks for r16 done rows
+    import pandas as pd
+    done_rows = [row for row in all_rows if row["status"] == "done"]
+    if done_rows:
+        df_r16 = pd.DataFrame(done_rows)
+        df_r16["psnr_rank"] = df_r16["psnr"].rank(ascending=False)
+        df_r16["ssim_rank"] = df_r16["ssim"].rank(ascending=False)
+        df_r16["gmsd_rank"] = df_r16["gmsd"].rank(ascending=True)
+        df_r16["hfen_rank"] = df_r16["hfen"].rank(ascending=True)
+        df_r16["corr_rank"] = df_r16["corr"].rank(ascending=False)
+        df_r16["rank_score"] = df_r16[["psnr_rank", "ssim_rank", "gmsd_rank", "hfen_rank", "corr_rank"]].mean(axis=1)
         
-    all_rows.sort(key=get_sort_key, reverse=True)
+        rank_map = dict(zip(df_r16["name"], df_r16["rank_score"]))
+        for row in all_rows:
+            row["rank_score"] = rank_map.get(row["name"], None)
+    else:
+        for row in all_rows:
+            row["rank_score"] = None
+
+    # Sort all rows by rank_score ascending, with TBD/None at bottom
+    def get_sort_key(row):
+        return row["rank_score"] if row["rank_score"] is not None else 999.0
+        
+    all_rows.sort(key=get_sort_key)
     
     for row in all_rows:
         if row["status"] == "done":
+            rank_score_val = f"{row['rank_score']:.2f}"
             psnr_val = f"{row['psnr']:.2f} dB"
             ssim_val = f"{row['ssim']:.4f}"
             gmsd_val = f"{row['gmsd']:.4f}"
             hfen_val = f"{row['hfen']:.4f}"
             corr_val = f"{row['corr']:.4f}"
         else:
+            rank_score_val = "TBD"
             psnr_val = "TBD"
             ssim_val = "TBD"
             gmsd_val = "TBD"
@@ -543,6 +567,7 @@ def main():
             
         html_content += f"""                <tr>
                     <td>{row['name']}{row['badge']}</td>
+                    <td><strong>{rank_score_val}</strong></td>
                     <td>{psnr_val}</td>
                     <td>{ssim_val}</td>
                     <td>{gmsd_val}</td>
@@ -651,16 +676,25 @@ def main():
 """
     
     # Try to extract quantitative results from class_performance_summary.md
+    rank_table_html = ""
     psnr_table_html = ""
     ssim_table_html = ""
     gmsd_table_html = ""
     hfen_table_html = ""
+    corr_table_html = ""
     class_perf_path = os.path.join(artifact_dir, "class_performance_summary.md")
     if os.path.exists(class_perf_path):
         try:
             with open(class_perf_path, "r") as f:
                 content = f.read()
                 
+            rank_start = content.find("## Overall Performance: Rank of Ranks")
+            if rank_start != -1:
+                rank_end = content.find("## Average PSNR (dB) per Class", rank_start)
+                rank_section = content[rank_start:rank_end] if rank_end != -1 else content[rank_start:]
+                rank_table_md = "\n".join([line for line in rank_section.split("\n") if line.strip().startswith("|")])
+                rank_table_html = parse_markdown_table_to_html(rank_table_md, "Overall 9-Class Simulation Rank of Ranks")
+
             psnr_start = content.find("## Average PSNR (dB) per Class")
             if psnr_start != -1:
                 psnr_end = content.find("## Average SSIM per Class", psnr_start)
@@ -684,21 +718,30 @@ def main():
 
             hfen_start = content.find("## Average HFEN per Class")
             if hfen_start != -1:
-                hfen_end = content.find("## Key Findings", hfen_start)
+                hfen_end = content.find("## Average Correlation per Class", hfen_start)
                 hfen_section = content[hfen_start:hfen_end] if hfen_end != -1 else content[hfen_start:]
                 hfen_table_md = "\n".join([line for line in hfen_section.split("\n") if line.strip().startswith("|")])
                 hfen_table_html = parse_markdown_table_to_html(hfen_table_md, "Average HFEN per Simulation Class")
+
+            corr_start = content.find("## Average Correlation per Class")
+            if corr_start != -1:
+                corr_end = content.find("## Key Findings", corr_start)
+                corr_section = content[corr_start:corr_end] if corr_end != -1 else content[corr_start:]
+                corr_table_md = "\n".join([line for line in corr_section.split("\n") if line.strip().startswith("|")])
+                corr_table_html = parse_markdown_table_to_html(corr_table_md, "Average Correlation per Simulation Class")
         except Exception as e:
             print(f"Error parsing class_performance_summary.md: {e}")
 
     html_content += html_grid_table
     
-    if psnr_table_html or ssim_table_html or gmsd_table_html or hfen_table_html:
+    if rank_table_html or psnr_table_html or ssim_table_html or gmsd_table_html or hfen_table_html or corr_table_html:
         html_content += "<h2>9-Class Simulation Quantitative Performance</h2>"
+        html_content += rank_table_html
         html_content += psnr_table_html
         html_content += ssim_table_html
         html_content += gmsd_table_html
         html_content += hfen_table_html
+        html_content += corr_table_html
         
         html_content += """
         <h2>Simulation Performance Visualization</h2>
