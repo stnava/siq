@@ -24,7 +24,11 @@ from .get_data import binary_dice_loss
 from .get_data import pseudo_3d_vgg_features
 from .get_data import pseudo_3d_vgg_features_unbiased
 from .get_data import read_srmodel
-from .get_data import simulate_image, simulate_image_multi_scale, simulate_brain_procedural, simulate_sinewave, simulate_layered, add_rician_noise
+from .get_data import (simulate_image, simulate_image_multi_scale, 
+                        simulate_brain_procedural, simulate_sinewave, simulate_layered, 
+                        simulate_vessel_tubes, simulate_cellular_voronoi, 
+                        simulate_geometric_phantoms, simulate_grid_patterns, 
+                        simulate_fractal_noise, add_rician_noise)
 from .get_data import compare_models
 from .get_data import optimize_upsampling_shape
 from .get_data import region_wise_super_resolution

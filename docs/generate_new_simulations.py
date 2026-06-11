@@ -11,7 +11,6 @@ import ants
 import siq
 
 
-
 def apply_layer2_vol_effects(img_np):
     # Contrast inversion
     if np.random.choice([True, False]):
@@ -43,7 +42,17 @@ def main():
         ("sinewave", "Standard (Layer 1)", False, "sinewave_ex1"),
         ("sinewave", "Enhanced (Layer 2)", True, "sinewave_ex2"),
         ("organic_blobs", "Standard (Layer 1)", False, "organic_blobs_ex1"),
-        ("organic_blobs", "Enhanced (Layer 2)", True, "organic_blobs_ex2")
+        ("organic_blobs", "Enhanced (Layer 2)", True, "organic_blobs_ex2"),
+        ("vessel_tubes", "Standard (Layer 1)", False, "vessel_tubes_ex1"),
+        ("vessel_tubes", "Enhanced (Layer 2)", True, "vessel_tubes_ex2"),
+        ("cellular_voronoi", "Standard (Layer 1)", False, "cellular_voronoi_ex1"),
+        ("cellular_voronoi", "Enhanced (Layer 2)", True, "cellular_voronoi_ex2"),
+        ("geometric_phantoms", "Standard (Layer 1)", False, "geometric_phantoms_ex1"),
+        ("geometric_phantoms", "Enhanced (Layer 2)", True, "geometric_phantoms_ex2"),
+        ("grid_patterns", "Standard (Layer 1)", False, "grid_patterns_ex1"),
+        ("grid_patterns", "Enhanced (Layer 2)", True, "grid_patterns_ex2"),
+        ("fractal_noise", "Standard (Layer 1)", False, "fractal_noise_ex1"),
+        ("fractal_noise", "Enhanced (Layer 2)", True, "fractal_noise_ex2")
     ]
 
     print("Generating simulation examples...")
@@ -57,6 +66,16 @@ def main():
             y_img = siq.simulate_layered(hr_shape, use_layer2=use_layer2)
         elif sim_type == "sinewave":
             y_img = siq.simulate_sinewave(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "vessel_tubes":
+            y_img = siq.simulate_vessel_tubes(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "cellular_voronoi":
+            y_img = siq.simulate_cellular_voronoi(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "geometric_phantoms":
+            y_img = siq.simulate_geometric_phantoms(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "grid_patterns":
+            y_img = siq.simulate_grid_patterns(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "fractal_noise":
+            y_img = siq.simulate_fractal_noise(hr_shape, use_layer2=use_layer2)
         else: # organic_blobs
             y_img = siq.simulate_image_multi_scale(hr_shape, scale_range=(0.8, 1.2), n_levels_range=(4, 8))
             if use_layer2:
@@ -112,7 +131,132 @@ def main():
     html_path = os.path.join(docs_dir, "simulated_examples.html")
     print(f"Generating HTML report at {html_path}...")
 
-    html_content = """<!DOCTYPE html>
+    sim_classes_metadata = [
+        {
+            "num": 1,
+            "key": "brain_procedural",
+            "title": "Brain Procedural",
+            "desc": "Simulates multi-class gray matter, white matter, ventricles, and CSF boundaries using modulated ellipsoids and trigonometric folding. Mimics cortical sulci/gyri folding configurations.",
+            "ex1": "brain_procedural_ex1",
+            "ex2": "brain_procedural_ex2"
+        },
+        {
+            "num": 2,
+            "key": "layered",
+            "title": "Layered",
+            "desc": "Generates planar boundary interfaces rotated stochastically in space to simulate striated tissue layers such as muscle fibers, cranial bone boundaries, or meningeal sheets.",
+            "ex1": "layered_ex1",
+            "ex2": "layered_ex2"
+        },
+        {
+            "num": 3,
+            "key": "sinewave",
+            "title": "Sinewave",
+            "desc": "Intersects multiple periodic sine waves oriented along random angles to mimic regular structures, vascular lattices, or scanning grid line patterns.",
+            "ex1": "sinewave_ex1",
+            "ex2": "sinewave_ex2"
+        },
+        {
+            "num": 4,
+            "key": "organic_blobs",
+            "title": "Organic Blobs",
+            "desc": "Compiles multi-scale thresholded white-noise fields smoothed by Gaussian filters to model general organic shapes, tumors, lesions, or arbitrary anatomical boundaries.",
+            "ex1": "organic_blobs_ex1",
+            "ex2": "organic_blobs_ex2"
+        },
+        {
+            "num": 5,
+            "key": "vessel_tubes",
+            "title": "Vessel Tubes",
+            "desc": "Simulates vascular tree structures and tubular networks using random control point Bezier curves projected as a continuous Euclidean distance field.",
+            "ex1": "vessel_tubes_ex1",
+            "ex2": "vessel_tubes_ex2"
+        },
+        {
+            "num": 6,
+            "key": "cellular_voronoi",
+            "title": "Cellular Voronoi",
+            "desc": "Generates honeycomb-like cellular boundaries or tissue tessellations using seed-point Euclidean distance partitioning and thickness modulated cell walls.",
+            "ex1": "cellular_voronoi_ex1",
+            "ex2": "cellular_voronoi_ex2"
+        },
+        {
+            "num": 7,
+            "key": "geometric_phantoms",
+            "title": "Geometric Phantoms",
+            "desc": "Constructs calibration-like phantom objects composed of procedurally positioned circles, ellipses, and rectangular boxes of variable intensities.",
+            "ex1": "geometric_phantoms_ex1",
+            "ex2": "geometric_phantoms_ex2"
+        },
+        {
+            "num": 8,
+            "key": "grid_patterns",
+            "title": "Grid Patterns",
+            "desc": "Generates high-frequency checkerboard cells or grid lines with stochastic period/width parameterization to challenge super-resolution edge reconstruction.",
+            "ex1": "grid_patterns_ex1",
+            "ex2": "grid_patterns_ex2"
+        },
+        {
+            "num": 9,
+            "key": "fractal_noise",
+            "title": "Fractal Noise",
+            "desc": "Synthesizes multi-octave Fractional Brownian Motion (fBm) noise with stochastic direction projecting to simulate diffuse textures and complex fractal structures.",
+            "ex1": "fractal_noise_ex1",
+            "ex2": "fractal_noise_ex2"
+        }
+    ]
+
+    html_sections = ""
+    for m in sim_classes_metadata:
+        html_sections += f"""
+    <!-- CLASS {m['num']}: {m['title'].upper()} -->
+    <div class="class-section">
+        <div class="class-header">
+            <div class="class-title">{m['num']}. {m['title']} (<code>{m['key']}</code>)</div>
+            <p class="class-description">
+                {m['desc']}
+            </p>
+        </div>
+        <div class="examples-grid">
+            <!-- Example 1 -->
+            <div class="example-card">
+                <div class="example-header">
+                    <span class="example-title">Example 1 (Standard)</span>
+                    <span class="example-badge badge-standard">Standard</span>
+                </div>
+                <div class="image-pair">
+                    <div class="image-container">
+                        <img src="images/simulation_gallery/{m['ex1']}_hr.png" alt="{m['title']} Standard HR">
+                        <span class="image-label hr">HR GT</span>
+                    </div>
+                    <div class="image-container">
+                        <img src="images/simulation_gallery/{m['ex1']}_lr.png" alt="{m['title']} Standard LR">
+                        <span class="image-label lr">LR Blurry</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Example 2 -->
+            <div class="example-card">
+                <div class="example-header">
+                    <span class="example-title">Example 2 (Enhanced)</span>
+                    <span class="example-badge badge-enhanced">Enhanced L2</span>
+                </div>
+                <div class="image-pair">
+                    <div class="image-container">
+                        <img src="images/simulation_gallery/{m['ex2']}_hr.png" alt="{m['title']} Enhanced HR">
+                        <span class="image-label hr">HR GT</span>
+                    </div>
+                    <div class="image-container">
+                        <img src="images/simulation_gallery/{m['ex2']}_lr.png" alt="{m['title']} Enhanced LR">
+                        <span class="image-label lr">LR Blurry</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+"""
+
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -121,7 +265,7 @@ def main():
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
         
-        :root {
+        :root {{
             --bg-color: #0b0f19;
             --card-bg: rgba(20, 30, 55, 0.5);
             --border-color: rgba(255, 255, 255, 0.08);
@@ -133,9 +277,9 @@ def main():
             --accent-glow: rgba(16, 185, 129, 0.15);
             --purple: #a855f7;
             --border-radius: 20px;
-        }
+        }}
 
-        body {
+        body {{
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: 'Outfit', sans-serif;
@@ -146,15 +290,15 @@ def main():
             align-items: center;
             min-height: 100vh;
             overflow-x: hidden;
-        }
+        }}
 
-        header {
+        header {{
             text-align: center;
             max-width: 900px;
             margin-bottom: 50px;
-        }
+        }}
 
-        h1 {
+        h1 {{
             font-size: 3rem;
             font-weight: 700;
             margin-bottom: 15px;
@@ -162,24 +306,24 @@ def main():
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.03em;
-        }
+        }}
 
-        p.subtitle {
+        p.subtitle {{
             font-size: 1.2rem;
             color: var(--text-muted);
             line-height: 1.6;
             margin-bottom: 30px;
-        }
+        }}
 
-        .stats-bar {
+        .stats-bar {{
             display: flex;
             gap: 20px;
             justify-content: center;
             flex-wrap: wrap;
             margin-bottom: 40px;
-        }
+        }}
 
-        .stat-badge {
+        .stat-badge {{
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-color);
             padding: 8px 20px;
@@ -189,17 +333,17 @@ def main():
             align-items: center;
             gap: 10px;
             backdrop-filter: blur(8px);
-        }
+        }}
 
-        .stat-badge span.dot {
+        .stat-badge span.dot {{
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background-color: var(--accent);
             box-shadow: 0 0 10px var(--accent);
-        }
+        }}
 
-        .class-section {
+        .class-section {{
             background-color: rgba(15, 23, 42, 0.6);
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
@@ -209,15 +353,15 @@ def main():
             max-width: 1100px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
             backdrop-filter: blur(12px);
-        }
+        }}
 
-        .class-header {
+        .class-header {{
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             padding-bottom: 15px;
             margin-bottom: 30px;
-        }
+        }}
 
-        .class-title {
+        .class-title {{
             font-size: 1.8rem;
             font-weight: 700;
             color: #60a5fa;
@@ -225,28 +369,28 @@ def main():
             display: flex;
             align-items: center;
             gap: 12px;
-        }
+        }}
 
-        .class-description {
+        .class-description {{
             color: var(--text-muted);
             margin: 0;
             font-size: 1.05rem;
             line-height: 1.5;
-        }
+        }}
 
-        .examples-grid {
+        .examples-grid {{
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 35px;
-        }
+        }}
 
-        @media (max-width: 992px) {
-            .examples-grid {
+        @media (max-width: 992px) {{
+            .examples-grid {{
                 grid-template-columns: 1fr;
-            }
-        }
+            }}
+        }}
 
-        .example-card {
+        .example-card {{
             background: rgba(30, 41, 59, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 16px;
@@ -254,54 +398,54 @@ def main():
             display: flex;
             flex-direction: column;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        }}
 
-        .example-card:hover {
+        .example-card:hover {{
             transform: translateY(-5px);
             border-color: rgba(96, 165, 250, 0.3);
             box-shadow: 0 15px 30px rgba(96, 165, 250, 0.08);
-        }
+        }}
 
-        .example-header {
+        .example-header {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 18px;
-        }
+        }}
 
-        .example-title {
+        .example-title {{
             font-size: 1.15rem;
             font-weight: 600;
             color: #fff;
-        }
+        }}
 
-        .example-badge {
+        .example-badge {{
             font-size: 0.8rem;
             font-weight: 700;
             padding: 4px 10px;
             border-radius: 6px;
             text-transform: uppercase;
-        }
+        }}
 
-        .badge-standard {
+        .badge-standard {{
             background: rgba(16, 185, 129, 0.1);
             color: #34d399;
             border: 1px solid rgba(16, 185, 129, 0.25);
-        }
+        }}
 
-        .badge-enhanced {
+        .badge-enhanced {{
             background: rgba(168, 85, 247, 0.1);
             color: #c084fc;
             border: 1px solid rgba(168, 85, 247, 0.25);
-        }
+        }}
 
-        .image-pair {
+        .image-pair {{
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-        }
+        }}
 
-        .image-container {
+        .image-container {{
             position: relative;
             background: #000;
             border-radius: 10px;
@@ -312,20 +456,20 @@ def main():
             align-items: center;
             justify-content: center;
             transition: border-color 0.2s;
-        }
+        }}
 
-        .image-container:hover {
+        .image-container:hover {{
             border-color: var(--primary);
-        }
+        }}
 
-        .image-container img {
+        .image-container img {{
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
-        }
+        }}
 
-        .image-label {
+        .image-label {{
             position: absolute;
             bottom: 10px;
             left: 10px;
@@ -338,17 +482,17 @@ def main():
             font-weight: 600;
             letter-spacing: 0.05em;
             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        }}
 
-        .image-label.hr {
+        .image-label.hr {{
             border-left: 3px solid var(--accent);
-        }
+        }}
 
-        .image-label.lr {
+        .image-label.lr {{
             border-left: 3px solid var(--primary);
-        }
+        }}
 
-        .back-link {
+        .back-link {{
             margin-top: 20px;
             color: #60a5fa;
             text-decoration: none;
@@ -357,11 +501,11 @@ def main():
             align-items: center;
             gap: 8px;
             transition: color 0.2s;
-        }
+        }}
 
-        .back-link:hover {
+        .back-link:hover {{
             color: #a78bfa;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -382,195 +526,13 @@ def main():
             </div>
             <div class="stat-badge">
                 <span class="dot" style="background-color: var(--purple); box-shadow: 0 0 10px var(--purple);"></span>
-                <span>4 Distinct Simulation Classes</span>
+                <span>9 Distinct Simulation Classes</span>
             </div>
         </div>
         <a href="index.html" class="back-link">&larr; Back to Documentation Home</a>
     </header>
 
-    <!-- CLASS 1: BRAIN PROCEDURAL -->
-    <div class="class-section">
-        <div class="class-header">
-            <div class="class-title">1. Brain Procedural (<code>brain_procedural</code>)</div>
-            <p class="class-description">
-                Simulates multi-class gray matter, white matter, ventricles, and CSF boundaries using modulated ellipsoids and trigonometric folding. Mimics cortical sulci/gyri folding configurations.
-            </p>
-        </div>
-        <div class="examples-grid">
-            <!-- Example 1 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 1 (Standard)</span>
-                    <span class="example-badge badge-standard">Standard</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/brain_procedural_ex1_hr.png" alt="Brain Procedural Standard HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/brain_procedural_ex1_lr.png" alt="Brain Procedural Standard LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Example 2 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 2 (Enhanced)</span>
-                    <span class="example-badge badge-enhanced">Enhanced L2</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/brain_procedural_ex2_hr.png" alt="Brain Procedural Enhanced HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/brain_procedural_ex2_lr.png" alt="Brain Procedural Enhanced LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CLASS 2: LAYERED STRIPS -->
-    <div class="class-section">
-        <div class="class-header">
-            <div class="class-title">2. Layered (<code>layered</code>)</div>
-            <p class="class-description">
-                Generates planar boundary interfaces rotated stochastically in space to simulate striated tissue layers such as muscle fibers, cranial bone boundaries, or meningeal sheets.
-            </p>
-        </div>
-        <div class="examples-grid">
-            <!-- Example 1 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 1 (Standard)</span>
-                    <span class="example-badge badge-standard">Standard</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/layered_ex1_hr.png" alt="Layered Standard HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/layered_ex1_lr.png" alt="Layered Standard LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Example 2 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 2 (Enhanced)</span>
-                    <span class="example-badge badge-enhanced">Enhanced L2</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/layered_ex2_hr.png" alt="Layered Enhanced HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/layered_ex2_lr.png" alt="Layered Enhanced LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CLASS 3: SINEWAVE PATTERNS -->
-    <div class="class-section">
-        <div class="class-header">
-            <div class="class-title">3. Sinewave (<code>sinewave</code>)</div>
-            <p class="class-description">
-                Intersects multiple periodic sine waves oriented along random angles to mimic regular structures, vascular lattices, or scanning grid line patterns.
-            </p>
-        </div>
-        <div class="examples-grid">
-            <!-- Example 1 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 1 (Standard)</span>
-                    <span class="example-badge badge-standard">Standard</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/sinewave_ex1_hr.png" alt="Sinewave Standard HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/sinewave_ex1_lr.png" alt="Sinewave Standard LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Example 2 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 2 (Enhanced)</span>
-                    <span class="example-badge badge-enhanced">Enhanced L2</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/sinewave_ex2_hr.png" alt="Sinewave Enhanced HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/sinewave_ex2_lr.png" alt="Sinewave Enhanced LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CLASS 4: ORGANIC BLOBS -->
-    <div class="class-section">
-        <div class="class-header">
-            <div class="class-title">4. Organic Blobs (<code>organic_blobs</code>)</div>
-            <p class="class-description">
-                Compiles multi-scale thresholded white-noise fields smoothed by Gaussian filters to model general organic shapes, tumors, lesions, or arbitrary anatomical boundaries.
-            </p>
-        </div>
-        <div class="examples-grid">
-            <!-- Example 1 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 1 (Standard)</span>
-                    <span class="example-badge badge-standard">Standard</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/organic_blobs_ex1_hr.png" alt="Organic Blobs Standard HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/organic_blobs_ex1_lr.png" alt="Organic Blobs Standard LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Example 2 -->
-            <div class="example-card">
-                <div class="example-header">
-                    <span class="example-title">Example 2 (Enhanced)</span>
-                    <span class="example-badge badge-enhanced">Enhanced L2</span>
-                </div>
-                <div class="image-pair">
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/organic_blobs_ex2_hr.png" alt="Organic Blobs Enhanced HR">
-                        <span class="image-label hr">HR GT</span>
-                    </div>
-                    <div class="image-container">
-                        <img src="images/simulation_gallery/organic_blobs_ex2_lr.png" alt="Organic Blobs Enhanced LR">
-                        <span class="image-label lr">LR Blurry</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    {html_sections}
 
     <footer style="margin-top: 50px; color: var(--text-muted); font-size: 0.9rem; text-align: center;">
         <p>&copy; 2026 SIQ Advanced Agentic Coding. All procedural assets simulated on the fly.</p>

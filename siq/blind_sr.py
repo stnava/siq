@@ -4,6 +4,9 @@ import keras
 from keras import layers, ops
 from .get_data import (simulate_image, simulate_image_multi_scale,
                        simulate_brain_procedural, simulate_sinewave, simulate_layered,
+                       simulate_vessel_tubes, simulate_cellular_voronoi,
+                       simulate_geometric_phantoms, simulate_grid_patterns,
+                       simulate_fractal_noise,
                        add_rician_noise, get_grader_feature_network, _sample_param)
 from .espcn import create_espcn_3d, create_espcn_3d_residual
 import os
@@ -124,6 +127,16 @@ def blind_sr_generator(
                 vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             elif sim_class == "layered":
                 vol = simulate_layered(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+            elif sim_class == "vessel_tubes":
+                vol = simulate_vessel_tubes(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+            elif sim_class == "cellular_voronoi":
+                vol = simulate_cellular_voronoi(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+            elif sim_class == "geometric_phantoms":
+                vol = simulate_geometric_phantoms(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+            elif sim_class == "grid_patterns":
+                vol = simulate_grid_patterns(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+            elif sim_class == "fractal_noise":
+                vol = simulate_fractal_noise(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             else:
                 raise ValueError(f"Unknown simulation class: {sim_class}")
             hr_base_cache.append(vol)
@@ -148,6 +161,16 @@ def blind_sr_generator(
                     vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
                 elif sim_class == "layered":
                     vol = simulate_layered(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+                elif sim_class == "vessel_tubes":
+                    vol = simulate_vessel_tubes(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+                elif sim_class == "cellular_voronoi":
+                    vol = simulate_cellular_voronoi(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+                elif sim_class == "geometric_phantoms":
+                    vol = simulate_geometric_phantoms(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+                elif sim_class == "grid_patterns":
+                    vol = simulate_grid_patterns(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
+                elif sim_class == "fractal_noise":
+                    vol = simulate_fractal_noise(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
                 else:
                     raise ValueError(f"Unknown simulation class: {sim_class}")
                 hr_large = vol

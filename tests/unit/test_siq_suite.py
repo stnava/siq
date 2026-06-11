@@ -581,3 +581,61 @@ def test_layer2_simulations():
     x3, y3 = next(gen3)
     assert x3.shape == (1, 8, 8, 8, 1)
     assert y3.shape == (1, 16, 16, 16, 1)
+
+def test_new_simulations():
+    from siq.get_data import (
+        simulate_vessel_tubes,
+        simulate_cellular_voronoi,
+        simulate_geometric_phantoms,
+        simulate_grid_patterns,
+        simulate_fractal_noise
+    )
+    from siq.blind_sr import blind_sr_generator
+    import ants
+    
+    shape_2d = (32, 32)
+    shape_3d = (16, 16, 16)
+    
+    # Test 2D standard and layer 2
+    for use_l2 in [False, True]:
+        img1 = simulate_vessel_tubes(shape_2d, use_layer2=use_l2)
+        img2 = simulate_cellular_voronoi(shape_2d, use_layer2=use_l2)
+        img3 = simulate_geometric_phantoms(shape_2d, use_layer2=use_l2)
+        img4 = simulate_grid_patterns(shape_2d, use_layer2=use_l2)
+        img5 = simulate_fractal_noise(shape_2d, use_layer2=use_l2)
+        
+        assert isinstance(img1, ants.ANTsImage) and img1.shape == shape_2d
+        assert isinstance(img2, ants.ANTsImage) and img2.shape == shape_2d
+        assert isinstance(img3, ants.ANTsImage) and img3.shape == shape_2d
+        assert isinstance(img4, ants.ANTsImage) and img4.shape == shape_2d
+        assert isinstance(img5, ants.ANTsImage) and img5.shape == shape_2d
+
+    # Test 3D standard and layer 2
+    for use_l2 in [False, True]:
+        img1 = simulate_vessel_tubes(shape_3d, use_layer2=use_l2)
+        img2 = simulate_cellular_voronoi(shape_3d, use_layer2=use_l2)
+        img3 = simulate_geometric_phantoms(shape_3d, use_layer2=use_l2)
+        img4 = simulate_grid_patterns(shape_3d, use_layer2=use_l2)
+        img5 = simulate_fractal_noise(shape_3d, use_layer2=use_l2)
+        
+        assert isinstance(img1, ants.ANTsImage) and img1.shape == shape_3d
+        assert isinstance(img2, ants.ANTsImage) and img2.shape == shape_3d
+        assert isinstance(img3, ants.ANTsImage) and img3.shape == shape_3d
+        assert isinstance(img4, ants.ANTsImage) and img4.shape == shape_3d
+        assert isinstance(img5, ants.ANTsImage) and img5.shape == shape_3d
+
+    # Test generator with the new classes
+    for new_class in ["vessel_tubes", "cellular_voronoi", "geometric_phantoms", "grid_patterns", "fractal_noise"]:
+        gen = blind_sr_generator(
+            batch_size=1,
+            lr_patch_size=8,
+            factor=2,
+            simulation_classes={new_class: 1.0},
+            use_cache=False,
+            dimensionality=2,
+            use_layer2=True
+        )
+        x, y = next(gen)
+        assert x.shape == (1, 8, 8, 1)
+        assert y.shape == (1, 16, 16, 1)
+

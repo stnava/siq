@@ -1219,6 +1219,7 @@ def auto_weight_loss( # pragma: no cover
 
     This function is typically used to balance loss terms before training.
     """    
+    y = ops.convert_to_tensor(y)
     y_pred = mdl( x )
     squared_difference = ops.square( y - y_pred)
     if len( y.shape ) == 5:
@@ -1302,6 +1303,7 @@ def auto_weight_loss_seg( # pragma: no cover
     --------
     binary_dice_loss : Computes Dice loss between predicted and ground-truth masks.
     """    
+    y = ops.convert_to_tensor(y)
     y_pred = mdl( x )
     if len( y.shape ) == 5:
             tdim = 3
@@ -3224,4 +3226,312 @@ def inference( # pragma: no cover
         )
     ref = ants.resample_image_to_target(pimg, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
+
+
+def simulate_vessel_tubes(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
+    """
+    Procedurally generates tubular/vessel-like tree structures using Bezier curves
+    and Euclidean distance fields.
+    """
+    import math
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
+        
+    flat_grid = np.stack([g.ravel() for g in grid], axis=-1)
+    
+    num_pts = np.random.randint(4, 7)
+    ctrl_pts = np.random.uniform(-0.8, 0.8, size=(num_pts, ndim))
+    
+    M = 100
+    t = np.linspace(0, 1, M)
+    curve_pts = np.zeros((M, ndim))
+    for i in range(num_pts):
+        coeff = float(math.comb(num_pts - 1, i)) * ((1 - t) ** (num_pts - 1 - i)) * (t ** i)
+        for d in range(ndim):
+            curve_pts[:, d] += coeff * ctrl_pts[i, d]
+            
+    min_dist_sq = np.full(flat_grid.shape[0], np.inf, dtype="float32")
+    for j in range(M - 1):
+        p0 = curve_pts[j]
+        p1 = curve_pts[j+1]
+        v = p1 - p0
+        v_norm_sq = np.sum(v**2) + 1e-8
+        
+        w = flat_grid - p0
+        t_proj = np.sum(w * v, axis=-1) / v_norm_sq
+        t_proj = np.clip(t_proj, 0.0, 1.0)
+        
+        closest = p0 + t_proj[:, np.newaxis] * v
+        dist_sq = np.sum((flat_grid - closest)**2, axis=-1)
+        min_dist_sq = np.minimum(min_dist_sq, dist_sq)
+        
+    dist_field = np.sqrt(min_dist_sq).reshape(shape)
+    base_radius = np.random.uniform(0.08, 0.16)
+    
+    intensity = np.zeros(shape, dtype="float32")
+    mask = dist_field < base_radius
+    
+    val = np.random.uniform(0.6, 0.9)
+    intensity[mask] = val
+    
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    intensity[mask] += texture[mask]
+    
+    intensity = np.clip(intensity, 0.0, 1.0)
+    return ants.from_numpy(intensity)
+
+
+def simulate_cellular_voronoi(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
+    """
+    Procedurally generates honeycomb or cellular Voronoi tessellation meshes.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            warp_amp = np.random.uniform(0.03, 0.06)
+            warp_freq = np.random.uniform(4.0, 6.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            warp_amp = np.random.uniform(0.03, 0.06)
+            warp_freq = np.random.uniform(4.0, 6.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
+        
+    flat_grid = np.stack([g.ravel() for g in grid], axis=-1)
+    
+    num_seeds = np.random.randint(15, 30)
+    seeds = np.random.uniform(-1.0, 1.0, size=(num_seeds, ndim))
+    
+    grid_sq = np.sum(flat_grid**2, axis=-1, keepdims=True)
+    seeds_sq = np.sum(seeds**2, axis=-1, keepdims=True).T
+    cross = 2 * (flat_grid @ seeds.T)
+    dists_sq = np.maximum(grid_sq - cross + seeds_sq, 0.0)
+    dists = np.sqrt(dists_sq)
+    
+    sorted_dists = np.partition(dists, 1, axis=-1)
+    d1 = sorted_dists[:, 0]
+    d2 = sorted_dists[:, 1]
+    
+    diff = (d2 - d1).reshape(shape)
+    thickness = np.random.uniform(0.02, 0.06)
+    
+    intensity = np.zeros(shape, dtype="float32")
+    mask = diff < thickness
+    
+    val = np.random.uniform(0.7, 0.95)
+    intensity[mask] = val
+    
+    nearest_idx = np.argmin(dists, axis=-1).reshape(shape)
+    cell_greys = np.random.uniform(0.1, 0.4, size=num_seeds)
+    bg_intensity = cell_greys[nearest_idx]
+    
+    intensity[~mask] = bg_intensity[~mask]
+    
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    intensity += texture
+    intensity = np.clip(intensity, 0.0, 1.0)
+    
+    return ants.from_numpy(intensity)
+
+
+def simulate_geometric_phantoms(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
+    """
+    Procedurally compiles geometric phantom circles, ellipsoids, and boxes.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
+        
+    intensity = np.zeros(shape, dtype="float32")
+    
+    if ndim == 2:
+        X, Y = grid[0], grid[1]
+        mask_bg = (X**2 / 0.8**2 + Y**2 / 0.6**2) < 1.0
+        intensity[mask_bg] = np.random.uniform(0.15, 0.3)
+    else:
+        X, Y, Z = grid[0], grid[1], grid[2]
+        mask_bg = (X**2 / 0.8**2 + Y**2 / 0.6**2 + Z**2 / 0.6**2) < 1.0
+        intensity[mask_bg] = np.random.uniform(0.15, 0.3)
+        
+    num_shapes = np.random.randint(4, 8)
+    for _ in range(num_shapes):
+        cx = np.random.uniform(-0.5, 0.5)
+        cy = np.random.uniform(-0.5, 0.5)
+        val = np.random.uniform(0.4, 0.9)
+        
+        rx = np.random.uniform(0.1, 0.25)
+        ry = np.random.uniform(0.1, 0.25)
+        
+        shape_type = np.random.choice(["ellipse", "box"])
+        if ndim == 2:
+            if shape_type == "ellipse":
+                mask = ((X - cx)**2 / rx**2 + (Y - cy)**2 / ry**2) < 1.0
+            else:
+                mask = (np.abs(X - cx) < rx) & (np.abs(Y - cy) < ry)
+        else:
+            cz = np.random.uniform(-0.5, 0.5)
+            rz = np.random.uniform(0.1, 0.25)
+            if shape_type == "ellipse":
+                mask = ((X - cx)**2 / rx**2 + (Y - cy)**2 / ry**2 + (Z - cz)**2 / rz**2) < 1.0
+            else:
+                mask = (np.abs(X - cx) < rx) & (np.abs(Y - cy) < ry) & (np.abs(Z - cz) < rz)
+                
+        intensity[mask] = val
+        
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    intensity += texture
+    intensity = np.clip(intensity, 0.0, 1.0)
+    
+    return ants.from_numpy(intensity)
+
+
+def simulate_grid_patterns(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
+    """
+    Procedurally generates orthotropic grid lines or checkerboard patterns.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
+        
+    pattern_type = np.random.choice(["checker", "lines"])
+    freq = np.random.uniform(6.0, 12.0)
+    img_np = np.zeros(shape, dtype="float32")
+    
+    if pattern_type == "checker":
+        term = 1.0
+        for g in grid:
+            term *= np.sign(np.sin(freq * np.pi * g))
+        img_np = 0.5 + 0.3 * term
+    else:
+        width = np.random.uniform(0.03, 0.08)
+        term = np.zeros(shape, dtype="float32")
+        for g in grid:
+            line_mask = np.abs(np.sin(freq * np.pi * g)) < width
+            term[line_mask] = 1.0
+        img_np = 0.2 + 0.6 * term
+        
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    img_np += texture
+    img_np = np.clip(img_np, 0.0, 1.0)
+    
+    return ants.from_numpy(img_np)
+
+
+def simulate_fractal_noise(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
+    """
+    Procedurally compiles fractional Brownian motion (fBm) fractal noise.
+    """
+    ndim = len(shape)
+    coords = [np.linspace(-1, 1, s) for s in shape]
+    grid = np.meshgrid(*coords, indexing="ij")
+    
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            warp_amp = np.random.uniform(0.04, 0.08)
+            warp_freq = np.random.uniform(3.0, 5.0)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
+        
+    img_np = np.zeros(shape, dtype="float32")
+    num_octaves = 4
+    amplitude = 0.5
+    frequency = np.random.uniform(2.0, 4.0)
+    
+    for _ in range(num_octaves):
+        phase = np.random.uniform(0, 2 * np.pi)
+        direction = np.random.normal(size=ndim)
+        direction /= np.linalg.norm(direction)
+        
+        proj = sum(direction[i] * grid[i] for i in range(ndim))
+        img_np += amplitude * np.sin(frequency * np.pi * proj + phase)
+        
+        amplitude *= 0.5
+        frequency *= 2.0
+        
+    img_min, img_max = img_np.min(), img_np.max()
+    if img_max > img_min:
+        img_np = 0.1 + 0.8 * (img_np - img_min) / (img_max - img_min)
+        
+    texture = np.random.normal(0, 0.015, size=shape).astype("float32")
+    img_np += texture
+    img_np = np.clip(img_np, 0.0, 1.0)
+    
+    return ants.from_numpy(img_np)
+
 

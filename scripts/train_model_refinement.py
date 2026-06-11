@@ -150,6 +150,7 @@ def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, ori
     return {'mae': new_mae, 'percep': new_percep, 'tv': new_tv}, smoothed
 
 def auto_weight_loss_multi(mdl, feature_extractor, x, y, feature=2.0, tv=0.1, verbose=True):
+    y = ops.convert_to_tensor(y)
     y_pred = mdl(x)
     squared_difference = ops.square(y - y_pred)
     myax = list(range(1, len(y.shape)))
