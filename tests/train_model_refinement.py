@@ -520,11 +520,11 @@ def main():
         if dim == 2:
             output_model_path = os.path.join(workspace_dir, "srfbn_2d_refined.keras")
             best_model_path = os.path.join(workspace_dir, "srfbn_2d_best_mdl.keras")
-            custom_objects = {"LearnableScale": siq.LearnableScale}
+            custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening": siq.LearnableSharpening}
         else:
             output_model_path = os.path.join(workspace_dir, "srfbn_3d_refined.keras")
             best_model_path = os.path.join(workspace_dir, "srfbn_3d_best_mdl.keras")
-            custom_objects = {"LearnableScale": siq.LearnableScale}
+            custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening3D": siq.LearnableSharpening3D}
         
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined SRFBN model from {output_model_path}...")
@@ -541,7 +541,7 @@ def main():
                     input_shape=(None, None, 1),
                     factor=2,
                     n_filters=64,
-                    n_steps=4,
+                    n_steps=8,
                     use_global_skip=True
                 )
             else:
@@ -550,7 +550,7 @@ def main():
                     input_shape=(None, None, None, 1),
                     factor=2,
                     n_filters=64,
-                    n_steps=4,
+                    n_steps=8,
                     use_global_skip=True
                 )
     elif model_type == "san":

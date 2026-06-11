@@ -121,6 +121,94 @@ class LearnableScale(layers.Layer):
         config.update({"initial_value": self.initial_value})
         return config
 
+
+@keras.saving.register_keras_serializable(package="siq")
+class LearnableSharpening(layers.Layer):
+    """
+    Keras layer that blends the input with a learnable high-pass (sharpened) version.
+    Initializes weight to 0.1 and kernels to a Laplacian high-pass filter.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.amount = None
+        self.detail_conv = None
+
+    def build(self, input_shape):
+        import numpy as np
+        self.amount = self.add_weight(
+            shape=(1,),
+            initializer=keras.initializers.Constant(0.1),
+            trainable=True,
+            name="amount"
+        )
+        self.detail_conv = layers.Conv2D(
+            filters=1,
+            kernel_size=3,
+            padding="same",
+            use_bias=False,
+            name="detail_conv_kernel"
+        )
+        self.detail_conv.build(input_shape)
+        laplacian = np.array([[[[0.0]], [[1.0]], [[0.0]]],
+                              [[[1.0]], [[-4.0]], [[1.0]]],
+                              [[[0.0]], [[1.0]], [[0.0]]]], dtype=np.float32)
+        self.detail_conv.set_weights([laplacian])
+        super().build(input_shape)
+
+    def call(self, inputs):
+        detail = self.detail_conv(inputs)
+        return inputs + self.amount * detail
+
+    def get_config(self):
+        return super().get_config()
+
+
+@keras.saving.register_keras_serializable(package="siq")
+class LearnableSharpening3D(layers.Layer):
+    """
+    3D Keras layer that blends the input with a learnable high-pass (sharpened) version.
+    Initializes weight to 0.1 and kernels to a 3D Laplacian high-pass filter.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.amount = None
+        self.detail_conv = None
+
+    def build(self, input_shape):
+        import numpy as np
+        self.amount = self.add_weight(
+            shape=(1,),
+            initializer=keras.initializers.Constant(0.1),
+            trainable=True,
+            name="amount"
+        )
+        self.detail_conv = layers.Conv3D(
+            filters=1,
+            kernel_size=3,
+            padding="same",
+            use_bias=False,
+            name="detail_conv_kernel"
+        )
+        self.detail_conv.build(input_shape)
+        laplacian = np.zeros((3, 3, 3, 1, 1), dtype=np.float32)
+        laplacian[1, 1, 1, 0, 0] = -6.0
+        laplacian[0, 1, 1, 0, 0] = 1.0
+        laplacian[2, 1, 1, 0, 0] = 1.0
+        laplacian[1, 0, 1, 0, 0] = 1.0
+        laplacian[1, 2, 1, 0, 0] = 1.0
+        laplacian[1, 1, 0, 0, 0] = 1.0
+        laplacian[1, 1, 2, 0, 0] = 1.0
+        self.detail_conv.set_weights([laplacian])
+        super().build(input_shape)
+
+    def call(self, inputs):
+        detail = self.detail_conv(inputs)
+        return inputs + self.amount * detail
+
+    def get_config(self):
+        return super().get_config()
+
+
 def channel_attention_block(input_tensor, reduction_ratio=16, name_prefix=""):
     channels = input_tensor.shape[-1]
     squeeze = layers.GlobalAveragePooling3D(name=f"{name_prefix}_ca_squeeze")(input_tensor)
@@ -809,6 +897,7 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
+    outputs = LearnableSharpening(name="final_sharpening")(outputs)
     return keras.Model(inputs, outputs, name="srfbn_2d")
 
 
@@ -854,6 +943,7 @@ def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
+    outputs = LearnableSharpening3D(name="final_sharpening")(outputs)
     return keras.Model(inputs, outputs, name="srfbn_3d")
 
 

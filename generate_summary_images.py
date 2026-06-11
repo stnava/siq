@@ -12,6 +12,47 @@ import keras
 import siq
 from siq.get_data import compute_gmsd, compute_hfen
 
+def parse_markdown_table_to_html(md_text, title):
+    lines = md_text.strip().split("\n")
+    if not lines:
+        return ""
+    
+    html = f'<h3 style="color: #3b82f6; margin-top: 30px;">{title}</h3>\n'
+    html += '<div style="overflow-x: auto; margin-bottom: 30px;">\n'
+    html += '  <table class="metrics-table" style="font-size: 0.9em;">\n'
+    
+    in_thead = True
+    html += '    <thead>\n'
+    
+    for line in lines:
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if all(c.startswith("-") or c.startswith(":") or c.endswith(":") for c in cells):
+            continue
+            
+        if in_thead:
+            html += '      <tr>\n'
+            for cell in cells:
+                html += f'        <th>{cell}</th>\n'
+            html += '      </tr>\n'
+            html += '    </thead>\n'
+            html += '    <tbody>\n'
+            in_thead = False
+        else:
+            html += '      <tr>\n'
+            for i, cell in enumerate(cells):
+                if i == 0:
+                    html += f'        <td><strong>{cell}</strong></td>\n'
+                else:
+                    html += f'        <td>{cell}</td>\n'
+            html += '      </tr>\n'
+            
+    html += '    </tbody>\n'
+    html += '  </table>\n'
+    html += '</div>\n'
+    return html
+
 def main():
     print("Generating validation patches from r16...")
     img = ants.image_read(ants.get_data("r16"))
@@ -76,7 +117,8 @@ def main():
 
     custom_objects = {
         "PixelShuffle2D": siq.PixelShuffle2D,
-        "LearnableScale": siq.LearnableScale
+        "LearnableScale": siq.LearnableScale,
+        "LearnableSharpening": siq.LearnableSharpening
     }
 
     # Run inference and save images
@@ -606,9 +648,41 @@ def main():
                 </tr>
             </tbody>
         </table>
+"""
+    
+    # Try to extract quantitative results from class_performance_summary.md
+    psnr_table_html = ""
+    ssim_table_html = ""
+    class_perf_path = os.path.join(artifact_dir, "class_performance_summary.md")
+    if os.path.exists(class_perf_path):
+        try:
+            with open(class_perf_path, "r") as f:
+                content = f.read()
+                
+            psnr_start = content.find("## Average PSNR (dB) per Class")
+            if psnr_start != -1:
+                psnr_end = content.find("## Average SSIM per Class", psnr_start)
+                psnr_section = content[psnr_start:psnr_end] if psnr_end != -1 else content[psnr_start:]
+                psnr_table_md = "\n".join([line for line in psnr_section.split("\n") if line.strip().startswith("|")])
+                psnr_table_html = parse_markdown_table_to_html(psnr_table_md, "Average PSNR (dB) per Simulation Class")
+                
+            ssim_start = content.find("## Average SSIM per Class")
+            if ssim_start != -1:
+                ssim_end = content.find("## Key Findings", ssim_start)
+                ssim_section = content[ssim_start:ssim_end] if ssim_end != -1 else content[ssim_start:]
+                ssim_table_md = "\n".join([line for line in ssim_section.split("\n") if line.strip().startswith("|")])
+                ssim_table_html = parse_markdown_table_to_html(ssim_table_md, "Average SSIM per Simulation Class")
+        except Exception as e:
+            print(f"Error parsing class_performance_summary.md: {e}")
 
-        {html_grid_table}
-
+    html_content += html_grid_table
+    
+    if psnr_table_html or ssim_table_html:
+        html_content += "<h2>9-Class Simulation Quantitative Performance</h2>"
+        html_content += psnr_table_html
+        html_content += ssim_table_html
+    
+    html_content += """
         <h2>Visual Comparison Grid (r16)</h2>
         <div class="grid">
             <div class="card">
@@ -666,6 +740,23 @@ def main():
     with open(html_path, "w") as f:
         f.write(html_content)
     print(f"Successfully generated summary HTML at {html_path}")
+
+    # Copy all generated files to workspace directory for user visibility
+    workspace_dir = "/Users/stnava/Library/Mobile Documents/com~apple~CloudDocs/code/siq"
+    import shutil
+    try:
+        print(f"Copying results to workspace directory: {workspace_dir}")
+        shutil.copy2(html_path, os.path.join(workspace_dir, "summary_results.html"))
+        ws_grid_dir = os.path.join(workspace_dir, "class_grid")
+        if os.path.exists(ws_grid_dir):
+            shutil.rmtree(ws_grid_dir)
+        shutil.copytree(grid_dir, ws_grid_dir)
+        for f in os.listdir(artifact_dir):
+            if f.endswith(".png") and not f.startswith("class_"):
+                shutil.copy2(os.path.join(artifact_dir, f), os.path.join(workspace_dir, f))
+        print("Successfully copied all results to workspace.")
+    except Exception as e:
+        print(f"Failed to copy results to workspace: {e}")
 
 if __name__ == "__main__":
     main()
