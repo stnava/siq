@@ -464,6 +464,8 @@ def main():
                     <th>GMSD</th>
                     <th>HFEN</th>
                     <th>Correlation</th>
+                    <th>Parameters</th>
+                    <th>Latency (MPS)</th>
                 </tr>
             </thead>
             <tbody>
@@ -475,6 +477,8 @@ def main():
                     <td>0.0000</td>
                     <td>0.0000</td>
                     <td>1.0000</td>
+                    <td>-</td>
+                    <td>-</td>
                 </tr>
 """
     
@@ -549,6 +553,21 @@ def main():
         
     all_rows.sort(key=get_sort_key)
     
+    model_complexity = {
+        "Bilinear Interpolation": {"params": "-", "latency": "-"},
+        "Nearest Neighbor": {"params": "-", "latency": "-"},
+        "ESPCN": {"params": "2,541,762", "latency": "20.88 ms"},
+        "ESPCN-RC": {"params": "637,858", "latency": "17.39 ms"},
+        "WDSR": {"params": "2,431,970", "latency": "17.89 ms"},
+        "WDSR-RC": {"params": "2,404,226", "latency": "18.63 ms"},
+        "CARN": {"params": "328,802", "latency": "10.37 ms"},
+        "RCAN": {"params": "1,074,130", "latency": "23.30 ms"},
+        "LDBPN": {"params": "1,580,929", "latency": "20.27 ms"},
+        "REF-DBPN": {"params": "4,356,993", "latency": "648.40 ms"},
+        "SRFBN": {"params": "60,556", "latency": "14.45 ms"},
+        "SAN": {"params": "1,189,874", "latency": "22.30 ms"}
+    }
+    
     for row in all_rows:
         if row["status"] == "done":
             rank_score_val = f"{row['rank_score']:.2f}"
@@ -565,6 +584,10 @@ def main():
             hfen_val = "TBD"
             corr_val = "TBD"
             
+        complexity = model_complexity.get(row["name"], {"params": "TBD", "latency": "TBD"})
+        params_val = complexity["params"]
+        latency_val = complexity["latency"]
+            
         html_content += f"""                <tr>
                     <td>{row['name']}{row['badge']}</td>
                     <td><strong>{rank_score_val}</strong></td>
@@ -573,6 +596,8 @@ def main():
                     <td>{gmsd_val}</td>
                     <td>{hfen_val}</td>
                     <td>{corr_val}</td>
+                    <td>{params_val}</td>
+                    <td>{latency_val}</td>
                 </tr>\n"""
 
     html_content += """            </tbody>
