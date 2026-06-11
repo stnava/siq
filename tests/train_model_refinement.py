@@ -205,6 +205,7 @@ def main():
     parser.add_argument("--dampening", type=float, default=0.98, help="Dampening factor beta for weight transition (default: 0.98)")
     parser.add_argument("--smooth-window", type=int, default=100, help="LOWESS smoothing window size (default: 100)")
     parser.add_argument("--update-freq", type=int, default=10, help="Weight update frequency in iterations (default: 10)")
+    parser.add_argument("--use-layer2", action="store_true", default=False, help="Enable Layer 2 procedural shape simulations (default: False)")
     args = parser.parse_args()
     
     model_type = args.model
@@ -602,7 +603,8 @@ def main():
             simulation_classes=simulation_classes,
             zoom_range=(1.0, 1.0),
             use_cache=False,
-            dimensionality=dim
+            dimensionality=dim,
+            use_layer2=args.use_layer2
         )
         x_init, y_init = next(temp_gen)
         x_init_t = ops.convert_to_tensor(x_init, dtype="float32")
@@ -632,7 +634,8 @@ def main():
         simulation_classes=simulation_classes,
         zoom_range=(1.0, 1.0),
         use_cache=False,
-        dimensionality=dim
+        dimensionality=dim,
+        use_layer2=args.use_layer2
     )
     x_init, y_init = next(temp_gen)
     x_init_t = ops.convert_to_tensor(x_init, dtype="float32")
@@ -864,7 +867,8 @@ def main():
             simulation_classes=simulation_classes,
             zoom_range=(0.75, 1.3),
             use_cache=False,
-            dimensionality=dim
+            dimensionality=dim,
+            use_layer2=args.use_layer2
         )
         
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-5), loss=hybrid_loss)
@@ -938,7 +942,8 @@ def main():
             simulation_classes=simulation_classes,
             zoom_range=(0.75, 1.3),
             use_cache=False,
-            dimensionality=dim
+            dimensionality=dim,
+            use_layer2=args.use_layer2
         )
         
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
@@ -1026,7 +1031,8 @@ def main():
         simulation_classes=refinement_classes,
         zoom_range=(0.75, 1.3),
         use_cache=False,
-        dimensionality=dim
+        dimensionality=dim,
+        use_layer2=args.use_layer2
     )
     
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-6), loss=hybrid_loss)

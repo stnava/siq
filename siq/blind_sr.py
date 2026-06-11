@@ -62,7 +62,8 @@ def blind_sr_generator(
     zoom_range=(0.7, 1.4),
     cache_size=1024,
     use_cache=True,
-    dimensionality=3
+    dimensionality=3,
+    use_layer2=False
 ):
     """
     Advanced generator for Blind Super-Resolution.
@@ -118,11 +119,11 @@ def blind_sr_generator(
                     s_params["scale_range"] = zoom_range
                 vol = simulate_image_multi_scale(hr_large_shape, **s_params)
             elif sim_class == "brain_procedural":
-                vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range)
+                vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             elif sim_class == "sinewave":
-                vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range)
+                vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             elif sim_class == "layered":
-                vol = simulate_layered(hr_large_shape, zoom_range=zoom_range)
+                vol = simulate_layered(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             else:
                 raise ValueError(f"Unknown simulation class: {sim_class}")
             hr_base_cache.append(vol)
@@ -142,11 +143,11 @@ def blind_sr_generator(
                         s_params["scale_range"] = zoom_range
                     vol = simulate_image_multi_scale(hr_large_shape, **s_params)
                 elif sim_class == "brain_procedural":
-                    vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range)
+                    vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
                 elif sim_class == "sinewave":
-                    vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range)
+                    vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
                 elif sim_class == "layered":
-                    vol = simulate_layered(hr_large_shape, zoom_range=zoom_range)
+                    vol = simulate_layered(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
                 else:
                     raise ValueError(f"Unknown simulation class: {sim_class}")
                 hr_large = vol
@@ -181,6 +182,26 @@ def blind_sr_generator(
             
             gamma = _sample_param(gamma_range, (0.6, 1.7))
             hr_large_np = np.clip(hr_large_np ** gamma, 0, 1)
+            
+            if use_layer2:
+                # 1. Modality/Contrast Negation (50% probability)
+                if np.random.choice([True, False]):
+                    hr_large_np = 1.0 - hr_large_np
+                # 2. Stochastic Bias Field Inhomogeneity
+                if np.random.choice([True, False]):
+                    grid_bias = [np.linspace(-1, 1, s) for s in hr_large_shape]
+                    mesh_bias = np.meshgrid(*grid_bias, indexing="ij")
+                    cx = np.random.uniform(-0.5, 0.5)
+                    cy = np.random.uniform(-0.5, 0.5)
+                    strength = np.random.uniform(0.08, 0.22)
+                    if dimensionality == 3:
+                           cz = np.random.uniform(-0.5, 0.5)
+                           dist_sq = (mesh_bias[0] - cx)**2 + (mesh_bias[1] - cy)**2 + (mesh_bias[2] - cz)**2
+                    else:
+                           dist_sq = (mesh_bias[0] - cx)**2 + (mesh_bias[1] - cy)**2
+                    bias_field = 1.0 - strength * dist_sq
+                    hr_large_np = np.clip(hr_large_np * bias_field, 0.0, 1.0)
+            
             hr_large = ants.from_numpy(hr_large_np)
             
             # 2. Stochastic Degradation (Blur + Resample)

@@ -2215,7 +2215,7 @@ def add_rician_noise(array, noise_std): # pragma: no cover
     return noisy
 
 
-def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
     """
     Procedurally generates a 2D or 3D patch resembling brain anatomy (CSF, GM, WM, Ventricles)
     with stochastic folding and coordinate zoom.
@@ -2224,8 +2224,31 @@ def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
     coords = [np.linspace(-1, 1, s) for s in shape]
     grid = np.meshgrid(*coords, indexing="ij")
     
-    s = np.random.uniform(zoom_range[0], zoom_range[1])
-    grid = [g * s for g in grid]
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            shear_val = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + shear_val * grid[1], grid[1]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            sh_xy = np.random.uniform(-0.12, 0.12)
+            sh_xz = np.random.uniform(-0.12, 0.12)
+            sh_yz = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + sh_xy * grid[1] + sh_xz * grid[2],
+                    grid[1] + sh_yz * grid[2],
+                    grid[2]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
     
     if ndim == 3:
         X, Y, Z = grid[0], grid[1], grid[2]
@@ -2241,8 +2264,8 @@ def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
         brain_mask = modulated_R < np.random.uniform(0.75, 0.85)
         wm_mask = modulated_R < np.random.uniform(0.5, 0.55)
         
-        v_offset = 0.15 * s
-        v_radius = 0.12 * s
+        v_offset = 0.15 * (s_axis[0] if use_layer2 else s)
+        v_radius = 0.12 * (s_axis[0] if use_layer2 else s)
         v1 = ((X - v_offset)**2 + (Y)**2 + (Z)**2) < v_radius**2
         v2 = ((X + v_offset)**2 + (Y)**2 + (Z)**2) < v_radius**2
         ventricles = v1 | v2
@@ -2262,6 +2285,9 @@ def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
         
         texture = np.random.normal(0, 0.015, size=shape).astype("float32")
         intensity_map[seg > 0] += texture[seg > 0]
+        if use_layer2:
+            ripple = 0.03 * np.sin(20.0 * X) * np.cos(20.0 * Y) * np.sin(20.0 * Z)
+            intensity_map[seg == 3] += ripple[seg == 3]
         intensity_map = np.clip(intensity_map, 0.0, 1.0)
         
         return ants.from_numpy(intensity_map)
@@ -2280,8 +2306,8 @@ def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
         brain_mask = modulated_R < np.random.uniform(0.75, 0.85)
         wm_mask = modulated_R < np.random.uniform(0.5, 0.55)
         
-        v_offset = 0.15 * s
-        v_radius = 0.12 * s
+        v_offset = 0.15 * (s_axis[0] if use_layer2 else s)
+        v_radius = 0.12 * (s_axis[0] if use_layer2 else s)
         v1 = ((X - v_offset)**2 + (Y)**2) < v_radius**2
         v2 = ((X + v_offset)**2 + (Y)**2) < v_radius**2
         ventricles = v1 | v2
@@ -2301,12 +2327,15 @@ def simulate_brain_procedural(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
         
         texture = np.random.normal(0, 0.015, size=shape).astype("float32")
         intensity_map[seg > 0] += texture[seg > 0]
+        if use_layer2:
+            ripple = 0.03 * np.sin(20.0 * X) * np.cos(20.0 * Y)
+            intensity_map[seg == 3] += ripple[seg == 3]
         intensity_map = np.clip(intensity_map, 0.0, 1.0)
         
         return ants.from_numpy(intensity_map)
 
 
-def simulate_sinewave(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+def simulate_sinewave(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
     """
     Procedurally generates N-dimensional multi-frequency sinusoidal wave coordinates.
     """
@@ -2314,8 +2343,31 @@ def simulate_sinewave(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
     coords = [np.linspace(-1, 1, s) for s in shape]
     grid = np.meshgrid(*coords, indexing="ij")
     
-    s = np.random.uniform(zoom_range[0], zoom_range[1])
-    grid = [g * s for g in grid]
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            shear_val = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + shear_val * grid[1], grid[1]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            sh_xy = np.random.uniform(-0.12, 0.12)
+            sh_xz = np.random.uniform(-0.12, 0.12)
+            sh_yz = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + sh_xy * grid[1] + sh_xz * grid[2],
+                    grid[1] + sh_yz * grid[2],
+                    grid[2]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
     
     img_np = np.zeros(shape, dtype="float32")
     num_waves = np.random.randint(2, 5)
@@ -2334,7 +2386,7 @@ def simulate_sinewave(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
     return ants.from_numpy(img_np)
 
 
-def simulate_layered(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
+def simulate_layered(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
     """
     Procedurally generates N-dimensional rotated planar strip layers.
     """
@@ -2342,8 +2394,31 @@ def simulate_layered(shape, zoom_range=(0.7, 1.4)): # pragma: no cover
     coords = [np.linspace(-1, 1, s) for s in shape]
     grid = np.meshgrid(*coords, indexing="ij")
     
-    s = np.random.uniform(zoom_range[0], zoom_range[1])
-    grid = [g * s for g in grid]
+    if use_layer2:
+        s_axis = np.random.uniform(zoom_range[0], zoom_range[1], size=ndim)
+        grid = [g * s_axis[i] for i, g in enumerate(grid)]
+        if ndim == 2:
+            shear_val = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + shear_val * grid[1], grid[1]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0])]
+        else:
+            sh_xy = np.random.uniform(-0.12, 0.12)
+            sh_xz = np.random.uniform(-0.12, 0.12)
+            sh_yz = np.random.uniform(-0.12, 0.12)
+            grid = [grid[0] + sh_xy * grid[1] + sh_xz * grid[2],
+                    grid[1] + sh_yz * grid[2],
+                    grid[2]]
+            warp_amp = np.random.uniform(0.04, 0.10)
+            warp_freq = np.random.uniform(3.5, 6.5)
+            grid = [grid[0] + warp_amp * np.sin(warp_freq * grid[1]) * np.cos(warp_freq * grid[2]),
+                    grid[1] + warp_amp * np.cos(warp_freq * grid[0]) * np.sin(warp_freq * grid[2]),
+                    grid[2] + warp_amp * np.sin(warp_freq * grid[0]) * np.cos(warp_freq * grid[1])]
+    else:
+        s = np.random.uniform(zoom_range[0], zoom_range[1])
+        grid = [g * s for g in grid]
     
     normal = np.random.normal(size=ndim)
     normal /= np.linalg.norm(normal)

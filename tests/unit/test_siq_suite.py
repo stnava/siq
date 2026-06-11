@@ -533,3 +533,51 @@ def test_perceptual_metrics():
     hfen_3d_c = compute_hfen(x3d_c, y3d_c)
     assert isinstance(gmsd_3d_c, float)
     assert isinstance(hfen_3d_c, float)
+
+def test_layer2_simulations():
+    from siq.get_data import simulate_brain_procedural, simulate_sinewave, simulate_layered
+    from siq.blind_sr import blind_sr_generator
+    
+    # 1. 2D shape simulations
+    b2 = simulate_brain_procedural((16, 16), use_layer2=True)
+    s2 = simulate_sinewave((16, 16), use_layer2=True)
+    l2 = simulate_layered((16, 16), use_layer2=True)
+    assert b2.shape == (16, 16)
+    assert s2.shape == (16, 16)
+    assert l2.shape == (16, 16)
+    
+    # 2. 3D shape simulations
+    b3 = simulate_brain_procedural((16, 16, 16), use_layer2=True)
+    s3 = simulate_sinewave((16, 16, 16), use_layer2=True)
+    l3 = simulate_layered((16, 16, 16), use_layer2=True)
+    assert b3.shape == (16, 16, 16)
+    assert s3.shape == (16, 16, 16)
+    assert l3.shape == (16, 16, 16)
+    
+    # 3. 2D generator with use_layer2=True
+    gen2 = blind_sr_generator(
+        batch_size=1,
+        lr_patch_size=8,
+        factor=2,
+        simulation_classes={"brain_procedural": 0.5, "layered": 0.5},
+        use_cache=False,
+        dimensionality=2,
+        use_layer2=True
+    )
+    x2, y2 = next(gen2)
+    assert x2.shape == (1, 8, 8, 1)
+    assert y2.shape == (1, 16, 16, 1)
+    
+    # 4. 3D generator with use_layer2=True
+    gen3 = blind_sr_generator(
+        batch_size=1,
+        lr_patch_size=8,
+        factor=2,
+        simulation_classes={"brain_procedural": 0.5, "layered": 0.5},
+        use_cache=False,
+        dimensionality=3,
+        use_layer2=True
+    )
+    x3, y3 = next(gen3)
+    assert x3.shape == (1, 8, 8, 8, 1)
+    assert y3.shape == (1, 16, 16, 16, 1)
