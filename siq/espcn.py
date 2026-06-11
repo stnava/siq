@@ -126,7 +126,7 @@ def channel_attention_block(input_tensor, reduction_ratio=16, name_prefix=""):
     squeeze = layers.GlobalAveragePooling3D(name=f"{name_prefix}_ca_squeeze")(input_tensor)
     squeeze = layers.Reshape((1, 1, 1, channels), name=f"{name_prefix}_ca_reshape")(squeeze)
     
-    excitation = layers.Conv3D(channels // reduction_ratio, kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
+    excitation = layers.Conv3D(max(1, channels // reduction_ratio), kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
     excitation = layers.Conv3D(channels, kernel_size=1, activation='sigmoid',
                                kernel_initializer='zeros', bias_initializer='ones', name=f"{name_prefix}_ca_conv2")(excitation)
     
@@ -345,7 +345,7 @@ def create_espcn_2d_attention(input_shape=(None, None, 1), factor=2, n_filters=6
         channels = res.shape[-1]
         squeeze = keras.layers.GlobalAveragePooling2D(name=f"res_{i}_ca_squeeze")(res)
         squeeze = keras.layers.Reshape((1, 1, channels), name=f"res_{i}_ca_reshape")(squeeze)
-        excitation = keras.layers.Conv2D(channels // 16, kernel_size=1, activation='relu', name=f"res_{i}_ca_conv1")(squeeze)
+        excitation = keras.layers.Conv2D(max(1, channels // 16), kernel_size=1, activation='relu', name=f"res_{i}_ca_conv1")(squeeze)
         excitation = keras.layers.Conv2D(channels, kernel_size=1, activation='sigmoid',
                                          kernel_initializer='zeros', bias_initializer='ones', name=f"res_{i}_ca_conv2")(excitation)
         res = keras.layers.Multiply(name=f"res_{i}_ca_scale")([res, excitation])
@@ -516,7 +516,7 @@ def rcab_2d(x, n_filters, reduction=16, name_prefix=""):
     channels = n_filters
     squeeze = keras.layers.GlobalAveragePooling2D(name=f"{name_prefix}_ca_squeeze")(res)
     squeeze = keras.layers.Reshape((1, 1, channels), name=f"{name_prefix}_ca_reshape")(squeeze)
-    excitation = keras.layers.Conv2D(channels // reduction, kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
+    excitation = keras.layers.Conv2D(max(1, channels // reduction), kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
     excitation = keras.layers.Conv2D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_ca_conv2")(excitation)
     res = keras.layers.Multiply(name=f"{name_prefix}_ca_scale")([res, excitation])
     
@@ -530,7 +530,7 @@ def rcab_3d(x, n_filters, reduction=16, name_prefix=""):
     channels = n_filters
     squeeze = keras.layers.GlobalAveragePooling3D(name=f"{name_prefix}_ca_squeeze")(res)
     squeeze = keras.layers.Reshape((1, 1, 1, channels), name=f"{name_prefix}_ca_reshape")(squeeze)
-    excitation = keras.layers.Conv3D(channels // reduction, kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
+    excitation = keras.layers.Conv3D(max(1, channels // reduction), kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
     excitation = keras.layers.Conv3D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_ca_conv2")(excitation)
     res = keras.layers.Multiply(name=f"{name_prefix}_ca_scale")([res, excitation])
     
@@ -709,7 +709,7 @@ def create_espcn_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters
         channels = res.shape[-1]
         squeeze = keras.layers.GlobalAveragePooling2D(name=f"res_{i}_ca_squeeze")(res)
         squeeze = keras.layers.Reshape((1, 1, channels), name=f"res_{i}_ca_reshape")(squeeze)
-        excitation = keras.layers.Conv2D(channels // 16, kernel_size=1, activation='relu', name=f"res_{i}_ca_conv1")(squeeze)
+        excitation = keras.layers.Conv2D(max(1, channels // 16), kernel_size=1, activation='relu', name=f"res_{i}_ca_conv1")(squeeze)
         excitation = keras.layers.Conv2D(channels, kernel_size=1, activation='sigmoid',
                                          kernel_initializer='zeros', bias_initializer='ones', name=f"res_{i}_ca_conv2")(excitation)
         res = keras.layers.Multiply(name=f"res_{i}_ca_scale")([res, excitation])
@@ -760,3 +760,230 @@ def create_wdsr_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters=
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
     return keras.Model(inputs, outputs, name="wdsr_2d_resize_conv")
+
+
+# ==============================================================================
+# SRFBN (Super-Resolution Feedback Network) Models
+# ==============================================================================
+
+def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True):
+    """
+    Creates a 2D Super-Resolution Feedback Network (SRFBN) model.
+    It uses a recurrent feedback block across n_steps to iteratively refine low-resolution representations.
+    """
+    inputs = layers.Input(shape=input_shape)
+    
+    # Feature extraction block
+    F_in = layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
+    
+    # Instantiate recurrent layers to share weights across steps
+    if n_steps > 1:
+        project_layer = layers.Conv2D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
+    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_up")
+    down_layer = layers.Conv2D(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_down")
+    
+    # Recurrent feedback loop
+    L_t = F_in
+    H_t = None
+    
+    for t in range(n_steps):
+        # Feedback block (FB)
+        if t == 0:
+            x = F_in
+        else:
+            x = layers.Concatenate(axis=-1, name=f"fb_{t}_concat")([F_in, L_t])
+            x = project_layer(x)
+        
+        # Up-projection (Deconvolution)
+        H_t = up_layer(x)
+        
+        # Down-projection (Stride Conv)
+        L_t = down_layer(H_t)
+        
+    # Reconstruction block using final HR representation H_t
+    outputs = layers.Conv2D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)
+    outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
+    
+    if use_global_skip:
+        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    return keras.Model(inputs, outputs, name="srfbn_2d")
+
+
+def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True):
+    """
+    Creates a 3D Super-Resolution Feedback Network (SRFBN) model.
+    """
+    inputs = layers.Input(shape=input_shape)
+    
+    # Feature extraction block
+    F_in = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
+    
+    # Instantiate recurrent layers to share weights across steps
+    if n_steps > 1:
+        project_layer = layers.Conv3D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
+    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_up")
+    down_layer = layers.Conv3D(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_down")
+    
+    # Recurrent feedback loop
+    L_t = F_in
+    H_t = None
+    
+    for t in range(n_steps):
+        # Feedback block (FB)
+        if t == 0:
+            x = F_in
+        else:
+            x = layers.Concatenate(axis=-1, name=f"fb_{t}_concat")([F_in, L_t])
+            x = project_layer(x)
+        
+        # Up-projection (Deconvolution)
+        H_t = up_layer(x)
+        
+        # Down-projection (Stride Conv)
+        L_t = down_layer(H_t)
+        
+    # Reconstruction block using final HR representation H_t
+    outputs = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)
+    outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
+    
+    if use_global_skip:
+        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    return keras.Model(inputs, outputs, name="srfbn_3d")
+
+
+# ==============================================================================
+# SAN (Second-order Attention Network) Models
+# ==============================================================================
+
+def soca_block_2d(input_tensor, reduction_ratio=16, name_prefix=""):
+    """
+    Second-order Channel Attention (SOCA) block for 2D.
+    It uses channel-wise variance to model second-order statistics.
+    """
+    channels = input_tensor.shape[-1]
+    mean = layers.GlobalAveragePooling2D(keepdims=True, name=f"{name_prefix}_soca_mean")(input_tensor)
+    sq_diff = layers.Lambda(lambda inputs: (inputs[0] - inputs[1])**2, name=f"{name_prefix}_soca_sq_diff")([input_tensor, mean])
+    variance = layers.GlobalAveragePooling2D(keepdims=True, name=f"{name_prefix}_soca_var")(sq_diff)
+    
+    excitation = layers.Conv2D(max(1, channels // reduction_ratio), kernel_size=1, activation='relu', name=f"{name_prefix}_soca_conv1")(variance)
+    excitation = layers.Conv2D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_soca_conv2")(excitation)
+    
+    return layers.Multiply(name=f"{name_prefix}_soca_scale")([input_tensor, excitation])
+
+
+def soca_block_3d(input_tensor, reduction_ratio=16, name_prefix=""):
+    """
+    Second-order Channel Attention (SOCA) block for 3D.
+    It uses channel-wise variance to model second-order statistics.
+    """
+    channels = input_tensor.shape[-1]
+    mean = layers.GlobalAveragePooling3D(keepdims=True, name=f"{name_prefix}_soca_mean")(input_tensor)
+    sq_diff = layers.Lambda(lambda inputs: (inputs[0] - inputs[1])**2, name=f"{name_prefix}_soca_sq_diff")([input_tensor, mean])
+    variance = layers.GlobalAveragePooling3D(keepdims=True, name=f"{name_prefix}_soca_var")(sq_diff)
+    
+    excitation = layers.Conv3D(max(1, channels // reduction_ratio), kernel_size=1, activation='relu', name=f"{name_prefix}_soca_conv1")(variance)
+    excitation = layers.Conv3D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_soca_conv2")(excitation)
+    
+    return layers.Multiply(name=f"{name_prefix}_soca_scale")([input_tensor, excitation])
+
+
+def lsrab_2d(x, n_filters, reduction=16, name_prefix=""):
+    """
+    Local Second-order Residual Attention Block (LSRAB) for 2D.
+    """
+    res = layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_conv1")(x)
+    res = layers.Conv2D(n_filters, kernel_size=3, padding="same", name=f"{name_prefix}_conv2")(res)
+    res = soca_block_2d(res, reduction_ratio=reduction, name_prefix=name_prefix)
+    return layers.add([x, res], name=f"{name_prefix}_add")
+
+
+def lsrab_3d(x, n_filters, reduction=16, name_prefix=""):
+    """
+    Local Second-order Residual Attention Block (LSRAB) for 3D.
+    """
+    res = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_conv1")(x)
+    res = layers.Conv3D(n_filters, kernel_size=3, padding="same", name=f"{name_prefix}_conv2")(res)
+    res = soca_block_3d(res, reduction_ratio=reduction, name_prefix=name_prefix)
+    return layers.add([x, res], name=f"{name_prefix}_add")
+
+
+def residual_group_soca_2d(x, n_filters, n_blocks=4, name_prefix=""):
+    """
+    Residual Group of LSRAB blocks in 2D.
+    """
+    res = x
+    for i in range(n_blocks):
+        res = lsrab_2d(res, n_filters, name_prefix=f"{name_prefix}_lsrab_{i}")
+    res = layers.Conv2D(n_filters, kernel_size=3, padding="same", name=f"{name_prefix}_conv")(res)
+    return layers.add([x, res], name=f"{name_prefix}_add")
+
+
+def residual_group_soca_3d(x, n_filters, n_blocks=4, name_prefix=""):
+    """
+    Residual Group of LSRAB blocks in 3D.
+    """
+    res = x
+    for i in range(n_blocks):
+        res = lsrab_3d(res, n_filters, name_prefix=f"{name_prefix}_lsrab_{i}")
+    res = layers.Conv3D(n_filters, kernel_size=3, padding="same", name=f"{name_prefix}_conv")(res)
+    return layers.add([x, res], name=f"{name_prefix}_add")
+
+
+def create_san_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
+    """
+    Creates a 2D Second-order Attention Network (SAN) model.
+    """
+    inputs = layers.Input(shape=input_shape)
+    x = layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
+    
+    # Stack residual groups
+    res = x
+    for i in range(n_groups):
+        res = residual_group_soca_2d(res, n_filters, n_blocks=n_blocks, name_prefix=f"group_{i}")
+    res = layers.Conv2D(n_filters, kernel_size=3, padding="same", name="group_conv")(res)
+    x = layers.add([x, res], name="group_add")
+    
+    # Upsampling via PixelShuffle
+    x = layers.Conv2D(n_filters * (factor ** 2), kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
+    x = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="final_conv")(x)
+    
+    if use_global_skip:
+        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    return keras.Model(inputs, outputs, name="san_2d")
+
+
+def create_san_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
+    """
+    Creates a 3D Second-order Attention Network (SAN) model.
+    """
+    inputs = layers.Input(shape=input_shape)
+    x = layers.Conv3D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
+    
+    # Stack residual groups
+    res = x
+    for i in range(n_groups):
+        res = residual_group_soca_3d(res, n_filters, n_blocks=n_blocks, name_prefix=f"group_{i}")
+    res = layers.Conv3D(n_filters, kernel_size=3, padding="same", name="group_conv")(res)
+    x = layers.add([x, res], name="group_add")
+    
+    # Upsampling via PixelShuffle
+    x = layers.Conv3D(n_filters * (factor ** 3), kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
+    x = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="final_conv")(x)
+    
+    if use_global_skip:
+        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    return keras.Model(inputs, outputs, name="san_3d")

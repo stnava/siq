@@ -194,7 +194,7 @@ def auto_weight_loss_multi(mdl, feature_extractor, x, y, feature=2.0, tv=0.1, ve
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SIQ Super-Resolution Refinement Pipeline")
-    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
+    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc", "srfbn", "san"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size for training (default: 1)")
     parser.add_argument("--dim", type=int, choices=[2, 3], default=3, help="Dimensionality (2 or 3) (default: 3)")
     parser.add_argument("--stage1-iter", type=int, default=100, help="Max iterations for Stage 1 (default: 100)")
@@ -516,6 +516,82 @@ def main():
                 n_res_blocks=8,
                 use_global_skip=True
             )
+    elif model_type == "srfbn":
+        if dim == 2:
+            output_model_path = os.path.join(workspace_dir, "srfbn_2d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "srfbn_2d_best_mdl.keras")
+            custom_objects = {"LearnableScale": siq.LearnableScale}
+        else:
+            output_model_path = os.path.join(workspace_dir, "srfbn_3d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "srfbn_3d_best_mdl.keras")
+            custom_objects = {"LearnableScale": siq.LearnableScale}
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined SRFBN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline SRFBN model from {best_model_path}...")
+            model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
+        else:
+            if dim == 2:
+                print("Baseline model not found. Building a new SRFBN 2D model...")
+                model = siq.create_srfbn_2d(
+                    input_shape=(None, None, 1),
+                    factor=2,
+                    n_filters=64,
+                    n_steps=4,
+                    use_global_skip=True
+                )
+            else:
+                print("Baseline model not found. Building a new SRFBN 3D model...")
+                model = siq.create_srfbn_3d(
+                    input_shape=(None, None, None, 1),
+                    factor=2,
+                    n_filters=64,
+                    n_steps=4,
+                    use_global_skip=True
+                )
+    elif model_type == "san":
+        if dim == 2:
+            output_model_path = os.path.join(workspace_dir, "san_2d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "san_2d_best_mdl.keras")
+            custom_objects = {"PixelShuffle2D": siq.PixelShuffle2D, "LearnableScale": siq.LearnableScale}
+        else:
+            output_model_path = os.path.join(workspace_dir, "san_3d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "san_3d_best_mdl.keras")
+            custom_objects = {"PixelShuffle3D": siq.PixelShuffle3D, "LearnableScale": siq.LearnableScale}
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined SAN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline SAN model from {best_model_path}...")
+            model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
+        else:
+            if dim == 2:
+                print("Baseline model not found. Building a new SAN 2D model...")
+                model = siq.create_san_2d(
+                    input_shape=(None, None, 1),
+                    factor=2,
+                    n_filters=64,
+                    n_groups=3,
+                    n_blocks=4,
+                    use_global_skip=True
+                )
+            else:
+                print("Baseline model not found. Building a new SAN 3D model...")
+                model = siq.create_san_3d(
+                    input_shape=(None, None, None, 1),
+                    factor=2,
+                    n_filters=64,
+                    n_groups=3,
+                    n_blocks=4,
+                    use_global_skip=True
+                )
     else: # ref-dbpn
         if dim == 2:
             output_model_path = os.path.join(workspace_dir, "ref_dbpn_2d_refined.keras")
@@ -852,6 +928,77 @@ def main():
             l1_weight_var.assign(new_w['mae'])
             feat_weight_var.assign(new_w['percep'])
             tv_weight_var.assign(new_w['tv'])
+
+    if last_iteration == 0:
+        import time
+        print("\n=======================================================")
+        print("Dedicated MSE-Only Warmup Phase (Targeting Bilinear Parity)")
+        print("=======================================================")
+        
+        # Calculate target Bilinear PSNR on validation patch
+        lr_patch_temp = ants.image_clone(lr_patch)
+        hr_patch_temp = ants.image_clone(hr_patch)
+        if dim == 2:
+            lr_patch_temp.set_spacing([2.0, 2.0])
+            hr_patch_temp.set_spacing([1.0, 1.0])
+        else:
+            lr_patch_temp.set_spacing([2.0, 2.0, 2.0])
+            hr_patch_temp.set_spacing([1.0, 1.0, 1.0])
+
+        bilinear_monitor_sr = ants.resample_image_to_target(lr_patch_temp, hr_patch_temp, interp_type=0)
+        target_psnr = float(antspynet.psnr(hr_patch_temp, bilinear_monitor_sr))
+        print(f"[Warmup Gate] Bilinear baseline target PSNR: {target_psnr:.4f} dB")
+        
+        # Compile model with pure MSE loss for warmup
+        # We use a slightly higher learning rate for warmup as suggested
+        warmup_lr = 1e-4 if model_type in ["ref-dbpn", "ldbpn"] else 5e-5
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=warmup_lr), loss="mse")
+        
+        # Instantiate generator for warmup (using clean mixed geometries)
+        train_gen_warmup = siq.blind_sr_generator(
+            hr_base_cache=None,
+            batch_size=batch_size,
+            lr_patch_size=48,
+            factor=2,
+            blur_sigma_range=(0.0, 0.0),
+            noise_std_range=(0.0, 0.0),
+            simulation_classes=simulation_classes,
+            zoom_range=(0.8, 1.2),
+            use_cache=False,
+            dimensionality=dim,
+            use_layer2=args.use_layer2
+        )
+        
+        warmup_max_iter = 5000
+        start_time_warmup = time.time()
+        warmup_completed = False
+        
+        for warmup_iter in range(1, warmup_max_iter + 1):
+            x_batch, y_batch = next(train_gen_warmup)
+            mse_loss = model.train_on_batch(x_batch, y_batch)
+            
+            # Print every 20 iterations and evaluate validation PSNR
+            if warmup_iter % 20 == 0 or warmup_iter == 1:
+                # Run validation evaluation
+                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
+                ants.copy_image_info(hr_patch, sr_img)
+                val_psnr = float(antspynet.psnr(hr_patch, sr_img))
+                val_ssim = float(antspynet.ssim(hr_patch, sr_img))
+                
+                print(f"[Warmup] Iter {warmup_iter:04d}/{warmup_max_iter} - MSE Loss: {mse_loss:.6f} - Val PSNR: {val_psnr:.2f} dB (Target: {target_psnr:.2f} dB) - Val SSIM: {val_ssim:.4f}")
+                
+                # Check stopping condition
+                if val_psnr >= target_psnr:
+                    elapsed_warmup = time.time() - start_time_warmup
+                    print(f"\n[Warmup Gate] Parity with Bilinear reached! Val PSNR ({val_psnr:.2f} dB) >= Target ({target_psnr:.2f} dB)")
+                    print(f"[Warmup Gate] Reached target in {warmup_iter} iterations ({elapsed_warmup:.1f}s). Saving checkpoint and exiting warmup phase.")
+                    model.save(output_model_path)
+                    warmup_completed = True
+                    break
+                    
+        if not warmup_completed:
+            print(f"\n[Warmup Gate] Finished max warmup iterations ({warmup_max_iter}) without reaching target PSNR. Proceeding to normal stages.")
+            model.save(output_model_path)
 
     if not skip_stages_1_2:
         # ==============================================================
