@@ -113,7 +113,8 @@ def main():
         "ESPCN-RC": "./espcn_2d_resize_conv_refined.keras",
         "WDSR-RC": "./wdsr_2d_resize_conv_refined.keras",
         "SRFBN": "./srfbn_2d_refined.keras",
-        "SAN": "./san_2d_refined.keras"
+        "SAN": "./san_2d_refined.keras",
+        "AS-DBPN": "./asdbpn_2d_refined.keras"
     }
 
     custom_objects = {
@@ -565,7 +566,8 @@ def main():
         "LDBPN": {"params": "1,580,929", "latency": "20.27 ms"},
         "REF-DBPN": {"params": "4,356,993", "latency": "648.40 ms"},
         "SRFBN": {"params": "60,556", "latency": "14.45 ms"},
-        "SAN": {"params": "1,189,874", "latency": "22.30 ms"}
+        "SAN": {"params": "1,189,874", "latency": "22.30 ms"},
+        "AS-DBPN": {"params": "1,321,220", "latency": "261.13 ms"}
     }
     
     for row in all_rows:

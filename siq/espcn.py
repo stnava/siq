@@ -1077,3 +1077,112 @@ def create_san_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_g
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
     return keras.Model(inputs, outputs, name="san_3d")
+
+
+def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True, projection_kernel_size=None):
+    """
+    Creates a 2D Attention-Guided Shared Back-Projection Network (AS-DBPN) model.
+    It combines recurrent feedback loops with channel attention to guide refinement.
+    """
+    inputs = layers.Input(shape=input_shape)
+    
+    # Feature extraction block
+    F_in = layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
+    
+    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor
+
+    # Instantiate recurrent layers to share weights across steps
+    if n_steps > 1:
+        project_layer = layers.Conv2D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
+    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_up")
+    down_layer = layers.Conv2D(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_down")
+    
+    # Recurrent feedback loop
+    L_t = F_in
+    H_t = None
+    
+    for t in range(n_steps):
+        # Feedback block (FB)
+        if t == 0:
+            x = F_in
+        else:
+            x = layers.Concatenate(axis=-1, name=f"fb_{t}_concat")([F_in, L_t])
+            x = project_layer(x)
+            
+        x = layers.ReLU(name=f"fb_{t}_relu1")(x)
+        
+        # Up-projection (Deconvolution)
+        H_t = up_layer(x)
+        # Apply SOCA Attention
+        H_t = soca_block_2d(H_t, name_prefix=f"fb_{t}_hr")
+        
+        # Down-projection (Stride Conv)
+        L_t = down_layer(layers.ReLU(name=f"fb_{t}_relu2")(H_t))
+        # Apply SOCA Attention
+        L_t = soca_block_2d(L_t, name_prefix=f"fb_{t}_lr")
+        
+    # Reconstruction block using final HR representation H_t
+    outputs = layers.Conv2D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)
+    outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
+    
+    if use_global_skip:
+        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    outputs = LearnableSharpening(name="final_sharpening")(outputs)
+    return keras.Model(inputs, outputs, name="asdbpn_2d")
+
+
+def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True):
+    """
+    Creates a 3D Attention-Guided Shared Back-Projection Network (AS-DBPN) model.
+    It combines recurrent feedback loops with channel attention to guide refinement.
+    """
+    inputs = layers.Input(shape=input_shape)
+    
+    # Feature extraction block
+    F_in = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
+    
+    # Instantiate recurrent layers to share weights across steps
+    if n_steps > 1:
+        project_layer = layers.Conv3D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
+    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_up")
+    down_layer = layers.Conv3D(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_down")
+    
+    # Recurrent feedback loop
+    L_t = F_in
+    H_t = None
+    
+    for t in range(n_steps):
+        # Feedback block (FB)
+        if t == 0:
+            x = F_in
+        else:
+            x = layers.Concatenate(axis=-1, name=f"fb_{t}_concat")([F_in, L_t])
+            x = project_layer(x)
+            
+        x = layers.ReLU(name=f"fb_{t}_relu1")(x)
+        
+        # Up-projection (Deconvolution)
+        H_t = up_layer(x)
+        # Apply SOCA Attention
+        H_t = soca_block_3d(H_t, name_prefix=f"fb_{t}_hr")
+        
+        # Down-projection (Stride Conv)
+        L_t = down_layer(layers.ReLU(name=f"fb_{t}_relu2")(H_t))
+        # Apply SOCA Attention
+        L_t = soca_block_3d(L_t, name_prefix=f"fb_{t}_lr")
+        
+    # Reconstruction block using final HR representation H_t
+    outputs = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)
+    outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
+    
+    if use_global_skip:
+        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
+        outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
+        
+    outputs = LearnableSharpening3D(name="final_sharpening")(outputs)
+    return keras.Model(inputs, outputs, name="asdbpn_3d")
+

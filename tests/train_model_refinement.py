@@ -199,7 +199,7 @@ def auto_weight_loss_multi(mdl, feature_extractor, x, y, feature=2.0, tv=0.1, ve
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SIQ Super-Resolution Refinement Pipeline")
-    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc", "srfbn", "san"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
+    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc", "srfbn", "san", "asdbpn"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size for training (default: 1)")
     parser.add_argument("--dim", type=int, choices=[2, 3], default=3, help="Dimensionality (2 or 3) (default: 3)")
     parser.add_argument("--stage1-iter", type=int, default=100, help="Max iterations for Stage 1 (default: 100)")
@@ -552,6 +552,44 @@ def main():
             else:
                 print("Baseline model not found. Building a new SRFBN 3D model...")
                 model = siq.create_srfbn_3d(
+                    input_shape=(None, None, None, 1),
+                    factor=2,
+                    n_filters=64,
+                    n_steps=8,
+                    use_global_skip=True
+                )
+    elif model_type == "asdbpn":
+        if dim == 2:
+            output_model_path = os.path.join(workspace_dir, "asdbpn_2d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "asdbpn_2d_best_mdl.keras")
+            custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening": siq.LearnableSharpening}
+        else:
+            output_model_path = os.path.join(workspace_dir, "asdbpn_3d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "asdbpn_3d_best_mdl.keras")
+            custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening3D": siq.LearnableSharpening3D}
+        
+        if os.path.exists(output_model_path):
+            print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
+        elif os.path.exists(best_model_path):
+            print(f"Starting fresh: loading baseline AS-DBPN model from {best_model_path}...")
+            model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
+        else:
+            if dim == 2:
+                print("Baseline model not found. Building a new AS-DBPN 2D model...")
+                model = siq.create_asdbpn_2d(
+                    input_shape=(None, None, 1),
+                    factor=2,
+                    n_filters=128,
+                    n_steps=8,
+                    use_global_skip=True,
+                    projection_kernel_size=6
+                )
+            else:
+                print("Baseline model not found. Building a new AS-DBPN 3D model...")
+                model = siq.create_asdbpn_3d(
                     input_shape=(None, None, None, 1),
                     factor=2,
                     n_filters=64,
