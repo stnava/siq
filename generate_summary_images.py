@@ -699,6 +699,18 @@ def main():
         html_content += ssim_table_html
         html_content += gmsd_table_html
         html_content += hfen_table_html
+        
+        html_content += """
+        <h2>Simulation Performance Visualization</h2>
+        <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Overall model rankings and class-wise detail heatmaps across all metrics.</p>
+        <div style="display: flex; flex-direction: column; gap: 30px; margin-bottom: 50px;">
+            <img src="summary_overall_comparison.png" alt="Overall Metrics Comparison" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px;">
+                <img src="summary_psnr_heatmap.png" alt="PSNR Heatmap" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+                <img src="summary_ssim_heatmap.png" alt="SSIM Heatmap" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+            </div>
+        </div>
+        """
     
     html_content += """
         <h2>Visual Comparison Grid (r16)</h2>
