@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Super-Resolution 2D Pilot Comparison Report</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 1.1em;
+            margin-bottom: 40px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+        .card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-bottom: 1px solid #30363d;
+            background-color: #000;
+        }
+        .card-content {
+            padding: 15px;
+        }
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #3b82f6;
+        }
+        .card-metrics {
+            font-size: 0.95em;
+            color: #e5e7eb;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .metrics-table th, .metrics-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
+        }
+        .metrics-table th {
+            background-color: #21262d;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .metrics-table tr:hover {
+            background-color: #1f242c;
+        }
+        .badge {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 50px;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow-x: auto;
+            display: block;
+        }
+        .grid-table th, .grid-table td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #30363d;
+            min-width: 100px;
+        }
+        .grid-table img {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 6px;
+            transition: transform 0.2s;
+            display: block;
+            margin: 0 auto;
+        }
+        .grid-table img:hover {
+            transform: scale(2.5);
+            z-index: 10;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+        }
+        .grid-tbd-cell {
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0c1017;
+            color: #8b949e;
+            font-size: 0.85em;
+            font-family: monospace;
+            border-radius: 6px;
+            border: 1px dashed #30363d;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Super-Resolution 2D Pilot Comparison</h1>
+        <p class="subtitle">Visual and quantitative evaluation of all models trained for 300 iterations on the r16 brain MRI test image.</p>
+        
+        <h2>Quantitative Results</h2>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Rank Score (Avg Rank)</th>
+                    <th>PSNR (dB)</th>
+                    <th>SSIM</th>
+                    <th>GMSD</th>
+                    <th>HFEN</th>
+                    <th>Correlation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Ground Truth</td>
+                    <td>-</td>
+                    <td>&infin;</td>
+                    <td>1.0000</td>
+                    <td>0.0000</td>
+                    <td>0.0000</td>
+                    <td>1.0000</td>
+                </tr>
+                <tr>
+                    <td>SAN <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span></td>
+                    <td><strong>3.00</strong></td>
+                    <td>22.86 dB</td>
+                    <td>0.9400</td>
+                    <td>0.2056</td>
+                    <td>0.4808</td>
+                    <td>0.9432</td>
+                </tr>
+                <tr>
+                    <td>LDBPN</td>
+                    <td><strong>3.80</strong></td>
+                    <td>22.97 dB</td>
+                    <td>0.9415</td>
+                    <td>0.2102</td>
+                    <td>0.5040</td>
+                    <td>0.9447</td>
+                </tr>
+                <tr>
+                    <td>WDSR</td>
+                    <td><strong>5.00</strong></td>
+                    <td>22.59 dB</td>
+                    <td>0.9363</td>
+                    <td>0.2054</td>
+                    <td>0.4745</td>
+                    <td>0.9397</td>
+                </tr>
+                <tr>
+                    <td>RCAN</td>
+                    <td><strong>5.40</strong></td>
+                    <td>22.66 dB</td>
+                    <td>0.9372</td>
+                    <td>0.2082</td>
+                    <td>0.4949</td>
+                    <td>0.9404</td>
+                </tr>
+                <tr>
+                    <td>REF-DBPN <span class="badge">Heavy Baseline</span></td>
+                    <td><strong>5.40</strong></td>
+                    <td>22.92 dB</td>
+                    <td>0.9409</td>
+                    <td>0.2128</td>
+                    <td>0.5111</td>
+                    <td>0.9442</td>
+                </tr>
+                <tr>
+                    <td>SRFBN <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span></td>
+                    <td><strong>5.40</strong></td>
+                    <td>22.82 dB</td>
+                    <td>0.9396</td>
+                    <td>0.2106</td>
+                    <td>0.4881</td>
+                    <td>0.9430</td>
+                </tr>
+                <tr>
+                    <td>ESPCN <span class="badge">Best Lightweight</span></td>
+                    <td><strong>5.80</strong></td>
+                    <td>22.57 dB</td>
+                    <td>0.9358</td>
+                    <td>0.2073</td>
+                    <td>0.4657</td>
+                    <td>0.9391</td>
+                </tr>
+                <tr>
+                    <td>CARN</td>
+                    <td><strong>5.80</strong></td>
+                    <td>22.62 dB</td>
+                    <td>0.9365</td>
+                    <td>0.2091</td>
+                    <td>0.4870</td>
+                    <td>0.9397</td>
+                </tr>
+                <tr>
+                    <td>WDSR-RC</td>
+                    <td><strong>8.00</strong></td>
+                    <td>22.48 dB</td>
+                    <td>0.9344</td>
+                    <td>0.2078</td>
+                    <td>0.5106</td>
+                    <td>0.9376</td>
+                </tr>
+                <tr>
+                    <td>Bilinear Interpolation</td>
+                    <td><strong>9.00</strong></td>
+                    <td>21.59 dB</td>
+                    <td>0.9117</td>
+                    <td>0.1838</td>
+                    <td>0.6690</td>
+                    <td>0.9112</td>
+                </tr>
+                <tr>
+                    <td>ESPCN-RC</td>
+                    <td><strong>10.20</strong></td>
+                    <td>22.31 dB</td>
+                    <td>0.9316</td>
+                    <td>0.2126</td>
+                    <td>0.5186</td>
+                    <td>0.9347</td>
+                </tr>
+                <tr>
+                    <td>Nearest Neighbor</td>
+                    <td><strong>11.20</strong></td>
+                    <td>20.18 dB</td>
+                    <td>0.8821</td>
+                    <td>0.2100</td>
+                    <td>0.7351</td>
+                    <td>0.8827</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Architecture Comparison</h2>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Architecture</th>
+                    <th>Upsampling Method</th>
+                    <th>Feedback Loop?</th>
+                    <th>Core Mechanism</th>
+                    <th>Checkerboard Artifacts</th>
+                    <th>Computational Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>ESPCN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Attention-enhanced sub-pixel mapping</td>
+                    <td>High susceptibility</td>
+                    <td>Lightweight (~25ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>ESPCN-RC</strong></td>
+                    <td>Resize + Conv</td>
+                    <td>No</td>
+                    <td>Bilinear resize followed by convolutions</td>
+                    <td>Completely eliminated</td>
+                    <td>Lightweight (~20ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>WDSR</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Wide activation before ReLU (feature preserving)</td>
+                    <td>High susceptibility</td>
+                    <td>Medium (~35ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>WDSR-RC</strong></td>
+                    <td>Resize + Conv</td>
+                    <td>No</td>
+                    <td>Bilinear resize with wide activation blocks</td>
+                    <td>Completely eliminated</td>
+                    <td>Medium (~17ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>CARN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Cascading residual connections + 1x1 convs</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Lightweight (~19ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>RCAN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Residual channel attention + global residual groups</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Medium-Heavy (~48ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>LDBPN</strong></td>
+                    <td>Deconvolution + Back-projection</td>
+                    <td>Yes (Iterative)</td>
+                    <td>Iterative up/down projection error correction</td>
+                    <td>Completely eliminated</td>
+                    <td>Medium-Light (~35ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>REF-DBPN</strong></td>
+                    <td>Deconvolution + Back-projection</td>
+                    <td>Yes (Iterative)</td>
+                    <td>Deep iterative projection blocks (heavy)</td>
+                    <td>Completely eliminated</td>
+                    <td>Very Heavy (~200ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>SRFBN</strong></td>
+                    <td>Deconvolution</td>
+                    <td>Yes (Recurrent)</td>
+                    <td>Feedback block sharing weights recurrently</td>
+                    <td>Low susceptibility</td>
+                    <td>Medium (~40ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>SAN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Second-order local attention blocks (LSRAB)</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Medium-Heavy (~60ms inference)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>9-Class Simulation Comparison Grid</h2>
+        <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Hover over any cell image to magnify details (scale 2.5x).</p>
+        <div style="overflow-x: auto;">
+            <table class="grid-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                            <th>Brain Procedural</th>
+                        <th>Layered</th>
+                        <th>Sinewave</th>
+                        <th>Organic Blobs</th>
+                        <th>Vessel Tubes</th>
+                        <th>Cellular Voronoi</th>
+                        <th>Geometric Phantoms</th>
+                        <th>Grid Patterns</th>
+                        <th>Fractal Noise</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style='font-weight: bold; color: #10b981;'>Ground Truth</td>
+                        <td><img src='class_grid/class_brain_procedural_gt.png' alt='GT brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_gt.png' alt='GT layered'></td>
+                        <td><img src='class_grid/class_sinewave_gt.png' alt='GT sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_gt.png' alt='GT organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_gt.png' alt='GT vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_gt.png' alt='GT cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_gt.png' alt='GT geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_gt.png' alt='GT grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_gt.png' alt='GT fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #f59e0b;'>Bilinear</td>
+                        <td><img src='class_grid/class_brain_procedural_bilinear.png' alt='Bilinear brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_bilinear.png' alt='Bilinear layered'></td>
+                        <td><img src='class_grid/class_sinewave_bilinear.png' alt='Bilinear sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_bilinear.png' alt='Bilinear organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_bilinear.png' alt='Bilinear vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_bilinear.png' alt='Bilinear cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_bilinear.png' alt='Bilinear geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_bilinear.png' alt='Bilinear grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_bilinear.png' alt='Bilinear fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>ESPCN</td>
+                        <td><img src='class_grid/class_brain_procedural_espcn.png' alt='ESPCN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_espcn.png' alt='ESPCN layered'></td>
+                        <td><img src='class_grid/class_sinewave_espcn.png' alt='ESPCN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_espcn.png' alt='ESPCN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_espcn.png' alt='ESPCN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_espcn.png' alt='ESPCN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_espcn.png' alt='ESPCN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_espcn.png' alt='ESPCN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_espcn.png' alt='ESPCN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>WDSR</td>
+                        <td><img src='class_grid/class_brain_procedural_wdsr.png' alt='WDSR brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_wdsr.png' alt='WDSR layered'></td>
+                        <td><img src='class_grid/class_sinewave_wdsr.png' alt='WDSR sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_wdsr.png' alt='WDSR organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_wdsr.png' alt='WDSR vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_wdsr.png' alt='WDSR cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_wdsr.png' alt='WDSR geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_wdsr.png' alt='WDSR grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_wdsr.png' alt='WDSR fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>RCAN</td>
+                        <td><img src='class_grid/class_brain_procedural_rcan.png' alt='RCAN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_rcan.png' alt='RCAN layered'></td>
+                        <td><img src='class_grid/class_sinewave_rcan.png' alt='RCAN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_rcan.png' alt='RCAN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_rcan.png' alt='RCAN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_rcan.png' alt='RCAN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_rcan.png' alt='RCAN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_rcan.png' alt='RCAN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_rcan.png' alt='RCAN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>CARN</td>
+                        <td><img src='class_grid/class_brain_procedural_carn.png' alt='CARN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_carn.png' alt='CARN layered'></td>
+                        <td><img src='class_grid/class_sinewave_carn.png' alt='CARN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_carn.png' alt='CARN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_carn.png' alt='CARN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_carn.png' alt='CARN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_carn.png' alt='CARN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_carn.png' alt='CARN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_carn.png' alt='CARN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>LDBPN</td>
+                        <td><img src='class_grid/class_brain_procedural_ldbpn.png' alt='LDBPN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_ldbpn.png' alt='LDBPN layered'></td>
+                        <td><img src='class_grid/class_sinewave_ldbpn.png' alt='LDBPN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_ldbpn.png' alt='LDBPN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_ldbpn.png' alt='LDBPN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_ldbpn.png' alt='LDBPN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_ldbpn.png' alt='LDBPN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_ldbpn.png' alt='LDBPN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_ldbpn.png' alt='LDBPN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>REF-DBPN</td>
+                        <td><img src='class_grid/class_brain_procedural_ref-dbpn.png' alt='REF-DBPN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_ref-dbpn.png' alt='REF-DBPN layered'></td>
+                        <td><img src='class_grid/class_sinewave_ref-dbpn.png' alt='REF-DBPN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_ref-dbpn.png' alt='REF-DBPN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_ref-dbpn.png' alt='REF-DBPN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_ref-dbpn.png' alt='REF-DBPN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_ref-dbpn.png' alt='REF-DBPN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_ref-dbpn.png' alt='REF-DBPN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_ref-dbpn.png' alt='REF-DBPN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>ESPCN-RC</td>
+                        <td><img src='class_grid/class_brain_procedural_espcn-rc.png' alt='ESPCN-RC brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_espcn-rc.png' alt='ESPCN-RC layered'></td>
+                        <td><img src='class_grid/class_sinewave_espcn-rc.png' alt='ESPCN-RC sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_espcn-rc.png' alt='ESPCN-RC organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_espcn-rc.png' alt='ESPCN-RC vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_espcn-rc.png' alt='ESPCN-RC cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_espcn-rc.png' alt='ESPCN-RC geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_espcn-rc.png' alt='ESPCN-RC grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_espcn-rc.png' alt='ESPCN-RC fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>WDSR-RC</td>
+                        <td><img src='class_grid/class_brain_procedural_wdsr-rc.png' alt='WDSR-RC brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_wdsr-rc.png' alt='WDSR-RC layered'></td>
+                        <td><img src='class_grid/class_sinewave_wdsr-rc.png' alt='WDSR-RC sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_wdsr-rc.png' alt='WDSR-RC organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_wdsr-rc.png' alt='WDSR-RC vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_wdsr-rc.png' alt='WDSR-RC cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_wdsr-rc.png' alt='WDSR-RC geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_wdsr-rc.png' alt='WDSR-RC grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_wdsr-rc.png' alt='WDSR-RC fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>SRFBN</td>
+                        <td><img src='class_grid/class_brain_procedural_srfbn.png' alt='SRFBN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_srfbn.png' alt='SRFBN layered'></td>
+                        <td><img src='class_grid/class_sinewave_srfbn.png' alt='SRFBN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_srfbn.png' alt='SRFBN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_srfbn.png' alt='SRFBN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_srfbn.png' alt='SRFBN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_srfbn.png' alt='SRFBN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_srfbn.png' alt='SRFBN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_srfbn.png' alt='SRFBN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>SAN</td>
+                        <td><img src='class_grid/class_brain_procedural_san.png' alt='SAN brain_procedural'></td>
+                        <td><img src='class_grid/class_layered_san.png' alt='SAN layered'></td>
+                        <td><img src='class_grid/class_sinewave_san.png' alt='SAN sinewave'></td>
+                        <td><img src='class_grid/class_organic_blobs_san.png' alt='SAN organic_blobs'></td>
+                        <td><img src='class_grid/class_vessel_tubes_san.png' alt='SAN vessel_tubes'></td>
+                        <td><img src='class_grid/class_cellular_voronoi_san.png' alt='SAN cellular_voronoi'></td>
+                        <td><img src='class_grid/class_geometric_phantoms_san.png' alt='SAN geometric_phantoms'></td>
+                        <td><img src='class_grid/class_grid_patterns_san.png' alt='SAN grid_patterns'></td>
+                        <td><img src='class_grid/class_fractal_noise_san.png' alt='SAN fractal_noise'></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+<h2>9-Class Simulation Quantitative Performance</h2><h3 style="color: #3b82f6; margin-top: 30px;">Overall 9-Class Simulation Rank of Ranks</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Model</th>
+        <th>Rank Score (Avg Rank)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1</strong></td>
+        <td>REF-DBPN</td>
+        <td>2.97778</td>
+      </tr>
+      <tr>
+        <td><strong>2</strong></td>
+        <td>SAN</td>
+        <td>3.66667</td>
+      </tr>
+      <tr>
+        <td><strong>3</strong></td>
+        <td>LDBPN</td>
+        <td>4.22222</td>
+      </tr>
+      <tr>
+        <td><strong>4</strong></td>
+        <td>WDSR-RC</td>
+        <td>4.86667</td>
+      </tr>
+      <tr>
+        <td><strong>5</strong></td>
+        <td>RCAN</td>
+        <td>5.22222</td>
+      </tr>
+      <tr>
+        <td><strong>6</strong></td>
+        <td>SRFBN</td>
+        <td>6.13333</td>
+      </tr>
+      <tr>
+        <td><strong>7</strong></td>
+        <td>ESPCN-RC</td>
+        <td>6.55556</td>
+      </tr>
+      <tr>
+        <td><strong>8</strong></td>
+        <td>CARN</td>
+        <td>6.91111</td>
+      </tr>
+      <tr>
+        <td><strong>9</strong></td>
+        <td>WDSR</td>
+        <td>7.13333</td>
+      </tr>
+      <tr>
+        <td><strong>10</strong></td>
+        <td>ESPCN</td>
+        <td>7.73333</td>
+      </tr>
+      <tr>
+        <td><strong>11</strong></td>
+        <td>Bilinear</td>
+        <td>10.5778</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 style="color: #3b82f6; margin-top: 30px;">Average PSNR (dB) per Simulation Class</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>brain_procedural</th>
+        <th>cellular_voronoi</th>
+        <th>fractal_noise</th>
+        <th>geometric_phantoms</th>
+        <th>grid_patterns</th>
+        <th>layered</th>
+        <th>organic_blobs</th>
+        <th>sinewave</th>
+        <th>vessel_tubes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bilinear</strong></td>
+        <td>19.819</td>
+        <td>15.2358</td>
+        <td>22.4011</td>
+        <td>23.4722</td>
+        <td>14.0296</td>
+        <td>19.5745</td>
+        <td>16.4168</td>
+        <td>22.5122</td>
+        <td>23.2078</td>
+      </tr>
+      <tr>
+        <td><strong>CARN</strong></td>
+        <td>21.499</td>
+        <td>16.0222</td>
+        <td>28.2774</td>
+        <td>24.2931</td>
+        <td>14.3161</td>
+        <td>22.5695</td>
+        <td>17.526</td>
+        <td>31.9375</td>
+        <td>23.2792</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN</strong></td>
+        <td>21.4706</td>
+        <td>15.9692</td>
+        <td>28.1255</td>
+        <td>24.2867</td>
+        <td>14.3009</td>
+        <td>22.5607</td>
+        <td>17.5192</td>
+        <td>31.7894</td>
+        <td>23.2257</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN-RC</strong></td>
+        <td>21.7591</td>
+        <td>16.1335</td>
+        <td>27.8873</td>
+        <td>24.3531</td>
+        <td>14.313</td>
+        <td>22.8618</td>
+        <td>17.3779</td>
+        <td>31.6711</td>
+        <td>23.7066</td>
+      </tr>
+      <tr>
+        <td><strong>LDBPN</strong></td>
+        <td>22.2559</td>
+        <td>16.7337</td>
+        <td>28.975</td>
+        <td>24.6632</td>
+        <td>14.2966</td>
+        <td>22.918</td>
+        <td>17.5242</td>
+        <td>32.6624</td>
+        <td>24.1767</td>
+      </tr>
+      <tr>
+        <td><strong>RCAN</strong></td>
+        <td>21.9157</td>
+        <td>16.1983</td>
+        <td>28.649</td>
+        <td>24.5515</td>
+        <td>14.2269</td>
+        <td>22.7117</td>
+        <td>17.5341</td>
+        <td>32.4213</td>
+        <td>23.7237</td>
+      </tr>
+      <tr>
+        <td><strong>REF-DBPN</strong></td>
+        <td>22.2034</td>
+        <td>16.8339</td>
+        <td>29.173</td>
+        <td>24.735</td>
+        <td>14.4105</td>
+        <td>22.9521</td>
+        <td>17.6147</td>
+        <td>32.7014</td>
+        <td>24.0662</td>
+      </tr>
+      <tr>
+        <td><strong>SAN</strong></td>
+        <td>22.0668</td>
+        <td>16.4082</td>
+        <td>28.8839</td>
+        <td>24.6407</td>
+        <td>14.1209</td>
+        <td>22.8964</td>
+        <td>17.5964</td>
+        <td>32.7421</td>
+        <td>23.8867</td>
+      </tr>
+      <tr>
+        <td><strong>SRFBN</strong></td>
+        <td>21.5305</td>
+        <td>16.2952</td>
+        <td>28.3577</td>
+        <td>24.2298</td>
+        <td>14.3385</td>
+        <td>22.7961</td>
+        <td>17.5487</td>
+        <td>31.5894</td>
+        <td>23.3215</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR</strong></td>
+        <td>21.4404</td>
+        <td>16.0562</td>
+        <td>28.2329</td>
+        <td>24.2322</td>
+        <td>14.3288</td>
+        <td>22.524</td>
+        <td>17.5274</td>
+        <td>31.847</td>
+        <td>23.2811</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR-RC</strong></td>
+        <td>22.0323</td>
+        <td>16.4826</td>
+        <td>27.9252</td>
+        <td>24.6596</td>
+        <td>14.4255</td>
+        <td>22.8522</td>
+        <td>17.349</td>
+        <td>31.7563</td>
+        <td>24.1056</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 style="color: #3b82f6; margin-top: 30px;">Average SSIM per Simulation Class</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>brain_procedural</th>
+        <th>cellular_voronoi</th>
+        <th>fractal_noise</th>
+        <th>geometric_phantoms</th>
+        <th>grid_patterns</th>
+        <th>layered</th>
+        <th>organic_blobs</th>
+        <th>sinewave</th>
+        <th>vessel_tubes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bilinear</strong></td>
+        <td>0.947284</td>
+        <td>0.821307</td>
+        <td>0.944605</td>
+        <td>0.949652</td>
+        <td>0.616062</td>
+        <td>0.607547</td>
+        <td>0.458359</td>
+        <td>0.936562</td>
+        <td>0.972778</td>
+      </tr>
+      <tr>
+        <td><strong>CARN</strong></td>
+        <td>0.964458</td>
+        <td>0.850198</td>
+        <td>0.985823</td>
+        <td>0.959148</td>
+        <td>0.640788</td>
+        <td>0.698242</td>
+        <td>0.566147</td>
+        <td>0.994124</td>
+        <td>0.972066</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN</strong></td>
+        <td>0.964246</td>
+        <td>0.84744</td>
+        <td>0.985311</td>
+        <td>0.959083</td>
+        <td>0.640187</td>
+        <td>0.698113</td>
+        <td>0.566786</td>
+        <td>0.993862</td>
+        <td>0.971856</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN-RC</strong></td>
+        <td>0.966544</td>
+        <td>0.853501</td>
+        <td>0.984498</td>
+        <td>0.959681</td>
+        <td>0.638096</td>
+        <td>0.700475</td>
+        <td>0.555442</td>
+        <td>0.993684</td>
+        <td>0.974166</td>
+      </tr>
+      <tr>
+        <td><strong>LDBPN</strong></td>
+        <td>0.97024</td>
+        <td>0.872233</td>
+        <td>0.987885</td>
+        <td>0.962371</td>
+        <td>0.639101</td>
+        <td>0.698587</td>
+        <td>0.565923</td>
+        <td>0.994924</td>
+        <td>0.976781</td>
+      </tr>
+      <tr>
+        <td><strong>RCAN</strong></td>
+        <td>0.967857</td>
+        <td>0.855004</td>
+        <td>0.986943</td>
+        <td>0.961391</td>
+        <td>0.634751</td>
+        <td>0.699389</td>
+        <td>0.567184</td>
+        <td>0.99467</td>
+        <td>0.974241</td>
+      </tr>
+      <tr>
+        <td><strong>REF-DBPN</strong></td>
+        <td>0.97003</td>
+        <td>0.875954</td>
+        <td>0.988453</td>
+        <td>0.963171</td>
+        <td>0.646798</td>
+        <td>0.702924</td>
+        <td>0.572142</td>
+        <td>0.995017</td>
+        <td>0.976216</td>
+      </tr>
+      <tr>
+        <td><strong>SAN</strong></td>
+        <td>0.968945</td>
+        <td>0.863009</td>
+        <td>0.987661</td>
+        <td>0.961943</td>
+        <td>0.627355</td>
+        <td>0.703328</td>
+        <td>0.571225</td>
+        <td>0.995043</td>
+        <td>0.975254</td>
+      </tr>
+      <tr>
+        <td><strong>SRFBN</strong></td>
+        <td>0.964989</td>
+        <td>0.859205</td>
+        <td>0.986025</td>
+        <td>0.958529</td>
+        <td>0.64218</td>
+        <td>0.69951</td>
+        <td>0.567558</td>
+        <td>0.993556</td>
+        <td>0.972525</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR</strong></td>
+        <td>0.964054</td>
+        <td>0.851137</td>
+        <td>0.985619</td>
+        <td>0.958385</td>
+        <td>0.641823</td>
+        <td>0.696769</td>
+        <td>0.567294</td>
+        <td>0.993944</td>
+        <td>0.972029</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR-RC</strong></td>
+        <td>0.968493</td>
+        <td>0.864965</td>
+        <td>0.984623</td>
+        <td>0.962452</td>
+        <td>0.646041</td>
+        <td>0.69802</td>
+        <td>0.553815</td>
+        <td>0.993804</td>
+        <td>0.97644</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 style="color: #3b82f6; margin-top: 30px;">Average GMSD per Simulation Class</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>brain_procedural</th>
+        <th>cellular_voronoi</th>
+        <th>fractal_noise</th>
+        <th>geometric_phantoms</th>
+        <th>grid_patterns</th>
+        <th>layered</th>
+        <th>organic_blobs</th>
+        <th>sinewave</th>
+        <th>vessel_tubes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bilinear</strong></td>
+        <td>0.268427</td>
+        <td>0.286606</td>
+        <td>0.154154</td>
+        <td>0.237078</td>
+        <td>0.328907</td>
+        <td>0.192431</td>
+        <td>0.221783</td>
+        <td>0.164919</td>
+        <td>0.200153</td>
+      </tr>
+      <tr>
+        <td><strong>CARN</strong></td>
+        <td>0.25338</td>
+        <td>0.28668</td>
+        <td>0.112523</td>
+        <td>0.239614</td>
+        <td>0.324296</td>
+        <td>0.170304</td>
+        <td>0.203887</td>
+        <td>0.07761</td>
+        <td>0.22084</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN</strong></td>
+        <td>0.254949</td>
+        <td>0.284502</td>
+        <td>0.113905</td>
+        <td>0.239966</td>
+        <td>0.326864</td>
+        <td>0.170932</td>
+        <td>0.203255</td>
+        <td>0.0765066</td>
+        <td>0.202879</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN-RC</strong></td>
+        <td>0.248414</td>
+        <td>0.285849</td>
+        <td>0.117891</td>
+        <td>0.230067</td>
+        <td>0.328729</td>
+        <td>0.167918</td>
+        <td>0.205402</td>
+        <td>0.0754435</td>
+        <td>0.222768</td>
+      </tr>
+      <tr>
+        <td><strong>LDBPN</strong></td>
+        <td>0.247358</td>
+        <td>0.271993</td>
+        <td>0.113594</td>
+        <td>0.227467</td>
+        <td>0.316115</td>
+        <td>0.170733</td>
+        <td>0.205017</td>
+        <td>0.080879</td>
+        <td>0.223066</td>
+      </tr>
+      <tr>
+        <td><strong>RCAN</strong></td>
+        <td>0.246553</td>
+        <td>0.284083</td>
+        <td>0.110666</td>
+        <td>0.231543</td>
+        <td>0.322344</td>
+        <td>0.17351</td>
+        <td>0.203365</td>
+        <td>0.0771457</td>
+        <td>0.226513</td>
+      </tr>
+      <tr>
+        <td><strong>REF-DBPN</strong></td>
+        <td>0.245572</td>
+        <td>0.272054</td>
+        <td>0.110453</td>
+        <td>0.22912</td>
+        <td>0.317468</td>
+        <td>0.170957</td>
+        <td>0.205245</td>
+        <td>0.0825725</td>
+        <td>0.216346</td>
+      </tr>
+      <tr>
+        <td><strong>SAN</strong></td>
+        <td>0.247988</td>
+        <td>0.280361</td>
+        <td>0.108633</td>
+        <td>0.228611</td>
+        <td>0.317911</td>
+        <td>0.170897</td>
+        <td>0.201404</td>
+        <td>0.0768174</td>
+        <td>0.227066</td>
+      </tr>
+      <tr>
+        <td><strong>SRFBN</strong></td>
+        <td>0.244594</td>
+        <td>0.280621</td>
+        <td>0.108406</td>
+        <td>0.229732</td>
+        <td>0.322815</td>
+        <td>0.168927</td>
+        <td>0.203086</td>
+        <td>0.0913388</td>
+        <td>0.200409</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR</strong></td>
+        <td>0.251759</td>
+        <td>0.289397</td>
+        <td>0.11125</td>
+        <td>0.239963</td>
+        <td>0.326497</td>
+        <td>0.170381</td>
+        <td>0.202955</td>
+        <td>0.077032</td>
+        <td>0.226513</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR-RC</strong></td>
+        <td>0.246243</td>
+        <td>0.277975</td>
+        <td>0.116412</td>
+        <td>0.224466</td>
+        <td>0.326389</td>
+        <td>0.171136</td>
+        <td>0.203931</td>
+        <td>0.0746634</td>
+        <td>0.220196</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 style="color: #3b82f6; margin-top: 30px;">Average HFEN per Simulation Class</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>brain_procedural</th>
+        <th>cellular_voronoi</th>
+        <th>fractal_noise</th>
+        <th>geometric_phantoms</th>
+        <th>grid_patterns</th>
+        <th>layered</th>
+        <th>organic_blobs</th>
+        <th>sinewave</th>
+        <th>vessel_tubes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bilinear</strong></td>
+        <td>0.632273</td>
+        <td>0.667828</td>
+        <td>1.12294</td>
+        <td>0.663152</td>
+        <td>0.631824</td>
+        <td>1.90645</td>
+        <td>0.991612</td>
+        <td>4.57725</td>
+        <td>0.415671</td>
+      </tr>
+      <tr>
+        <td><strong>CARN</strong></td>
+        <td>0.356998</td>
+        <td>0.48463</td>
+        <td>0.33189</td>
+        <td>0.484325</td>
+        <td>0.523885</td>
+        <td>1.22616</td>
+        <td>0.734552</td>
+        <td>0.582649</td>
+        <td>0.312238</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN</strong></td>
+        <td>0.360271</td>
+        <td>0.494797</td>
+        <td>0.332751</td>
+        <td>0.484695</td>
+        <td>0.52955</td>
+        <td>1.23721</td>
+        <td>0.731799</td>
+        <td>0.57501</td>
+        <td>0.32659</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN-RC</strong></td>
+        <td>0.336443</td>
+        <td>0.469625</td>
+        <td>0.362506</td>
+        <td>0.467977</td>
+        <td>0.511142</td>
+        <td>1.15105</td>
+        <td>0.729286</td>
+        <td>0.565383</td>
+        <td>0.301776</td>
+      </tr>
+      <tr>
+        <td><strong>LDBPN</strong></td>
+        <td>0.331373</td>
+        <td>0.452327</td>
+        <td>0.364463</td>
+        <td>0.456613</td>
+        <td>0.499642</td>
+        <td>1.1551</td>
+        <td>0.748817</td>
+        <td>0.752485</td>
+        <td>0.308643</td>
+      </tr>
+      <tr>
+        <td><strong>RCAN</strong></td>
+        <td>0.321606</td>
+        <td>0.467585</td>
+        <td>0.337685</td>
+        <td>0.454717</td>
+        <td>0.506621</td>
+        <td>1.16444</td>
+        <td>0.738207</td>
+        <td>0.580746</td>
+        <td>0.301518</td>
+      </tr>
+      <tr>
+        <td><strong>REF-DBPN</strong></td>
+        <td>0.336265</td>
+        <td>0.454675</td>
+        <td>0.351097</td>
+        <td>0.462535</td>
+        <td>0.508604</td>
+        <td>1.14816</td>
+        <td>0.750767</td>
+        <td>0.704645</td>
+        <td>0.308128</td>
+      </tr>
+      <tr>
+        <td><strong>SAN</strong></td>
+        <td>0.32229</td>
+        <td>0.449143</td>
+        <td>0.3385</td>
+        <td>0.452296</td>
+        <td>0.489148</td>
+        <td>1.15729</td>
+        <td>0.739451</td>
+        <td>0.565357</td>
+        <td>0.290273</td>
+      </tr>
+      <tr>
+        <td><strong>SRFBN</strong></td>
+        <td>0.368634</td>
+        <td>0.479056</td>
+        <td>0.348014</td>
+        <td>0.501383</td>
+        <td>0.513433</td>
+        <td>1.18</td>
+        <td>0.752232</td>
+        <td>0.719055</td>
+        <td>0.334741</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR</strong></td>
+        <td>0.356663</td>
+        <td>0.4732</td>
+        <td>0.326876</td>
+        <td>0.486266</td>
+        <td>0.521766</td>
+        <td>1.23136</td>
+        <td>0.733562</td>
+        <td>0.563715</td>
+        <td>0.313522</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR-RC</strong></td>
+        <td>0.329</td>
+        <td>0.452166</td>
+        <td>0.3644</td>
+        <td>0.421207</td>
+        <td>0.491227</td>
+        <td>1.12621</td>
+        <td>0.738699</td>
+        <td>0.578841</td>
+        <td>0.293172</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h3 style="color: #3b82f6; margin-top: 30px;">Average Correlation per Simulation Class</h3>
+<div style="overflow-x: auto; margin-bottom: 30px;">
+  <table class="metrics-table" style="font-size: 0.9em;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>brain_procedural</th>
+        <th>cellular_voronoi</th>
+        <th>fractal_noise</th>
+        <th>geometric_phantoms</th>
+        <th>grid_patterns</th>
+        <th>layered</th>
+        <th>organic_blobs</th>
+        <th>sinewave</th>
+        <th>vessel_tubes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bilinear</strong></td>
+        <td>0.947343</td>
+        <td>0.823742</td>
+        <td>0.946037</td>
+        <td>0.949496</td>
+        <td>0.639848</td>
+        <td>0.593751</td>
+        <td>0.456873</td>
+        <td>0.937138</td>
+        <td>0.974519</td>
+      </tr>
+      <tr>
+        <td><strong>CARN</strong></td>
+        <td>0.964536</td>
+        <td>0.852807</td>
+        <td>0.987699</td>
+        <td>0.959082</td>
+        <td>0.666892</td>
+        <td>0.691315</td>
+        <td>0.569272</td>
+        <td>0.995198</td>
+        <td>0.975149</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN</strong></td>
+        <td>0.964324</td>
+        <td>0.850018</td>
+        <td>0.987189</td>
+        <td>0.959011</td>
+        <td>0.66621</td>
+        <td>0.690843</td>
+        <td>0.569718</td>
+        <td>0.994921</td>
+        <td>0.974852</td>
+      </tr>
+      <tr>
+        <td><strong>ESPCN-RC</strong></td>
+        <td>0.96665</td>
+        <td>0.856101</td>
+        <td>0.986342</td>
+        <td>0.959621</td>
+        <td>0.663845</td>
+        <td>0.692061</td>
+        <td>0.558193</td>
+        <td>0.99478</td>
+        <td>0.97722</td>
+      </tr>
+      <tr>
+        <td><strong>LDBPN</strong></td>
+        <td>0.970364</td>
+        <td>0.875001</td>
+        <td>0.989763</td>
+        <td>0.962324</td>
+        <td>0.665148</td>
+        <td>0.691916</td>
+        <td>0.569094</td>
+        <td>0.996013</td>
+        <td>0.979317</td>
+      </tr>
+      <tr>
+        <td><strong>RCAN</strong></td>
+        <td>0.967947</td>
+        <td>0.857615</td>
+        <td>0.98876</td>
+        <td>0.961344</td>
+        <td>0.660781</td>
+        <td>0.691965</td>
+        <td>0.570595</td>
+        <td>0.995751</td>
+        <td>0.977398</td>
+      </tr>
+      <tr>
+        <td><strong>REF-DBPN</strong></td>
+        <td>0.970144</td>
+        <td>0.878763</td>
+        <td>0.990386</td>
+        <td>0.963124</td>
+        <td>0.673513</td>
+        <td>0.69564</td>
+        <td>0.57596</td>
+        <td>0.996136</td>
+        <td>0.978895</td>
+      </tr>
+      <tr>
+        <td><strong>SAN</strong></td>
+        <td>0.969039</td>
+        <td>0.865734</td>
+        <td>0.989515</td>
+        <td>0.9619</td>
+        <td>0.653034</td>
+        <td>0.695755</td>
+        <td>0.574463</td>
+        <td>0.996119</td>
+        <td>0.978135</td>
+      </tr>
+      <tr>
+        <td><strong>SRFBN</strong></td>
+        <td>0.965065</td>
+        <td>0.86185</td>
+        <td>0.987891</td>
+        <td>0.958459</td>
+        <td>0.668292</td>
+        <td>0.691654</td>
+        <td>0.57082</td>
+        <td>0.994612</td>
+        <td>0.975262</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR</strong></td>
+        <td>0.964128</td>
+        <td>0.853735</td>
+        <td>0.987473</td>
+        <td>0.9583</td>
+        <td>0.667815</td>
+        <td>0.68964</td>
+        <td>0.570343</td>
+        <td>0.995016</td>
+        <td>0.975148</td>
+      </tr>
+      <tr>
+        <td><strong>WDSR-RC</strong></td>
+        <td>0.968604</td>
+        <td>0.867705</td>
+        <td>0.986455</td>
+        <td>0.962415</td>
+        <td>0.672354</td>
+        <td>0.689955</td>
+        <td>0.556555</td>
+        <td>0.994897</td>
+        <td>0.979209</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+        <h2>Simulation Performance Visualization</h2>
+        <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Overall model rankings and class-wise detail heatmaps across all metrics.</p>
+        <div style="display: flex; flex-direction: column; gap: 30px; margin-bottom: 50px;">
+            <img src="summary_overall_comparison.png" alt="Overall Metrics Comparison" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px;">
+                <img src="summary_psnr_heatmap.png" alt="PSNR Heatmap" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+                <img src="summary_ssim_heatmap.png" alt="SSIM Heatmap" style="width: 100%; border: 1px solid #30363d; border-radius: 12px; background-color: #0b0f19;">
+            </div>
+        </div>
+        
+        <h2>Visual Comparison Grid (r16)</h2>
+        <div class="grid">
+            <div class="card">
+                <img src="r16_ground_truth.png" alt="Ground Truth">
+                <div class="card-content">
+                    <div class="card-title" style="color: #10b981;">Ground Truth</div>
+                    <div class="card-metrics">Original HR crop</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_bilinear.png" alt="Bilinear">
+                <div class="card-content">
+                    <div class="card-title" style="color: #f59e0b;">Bilinear</div>
+                    <div class="card-metrics">PSNR: 21.59 dB | SSIM: 0.9117</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_nearest_neighbor.png" alt="Nearest Neighbor">
+                <div class="card-content">
+                    <div class="card-title" style="color: #ef4444;">Nearest Neighbor</div>
+                    <div class="card-metrics">PSNR: 20.18 dB | SSIM: 0.8821</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_espcn.png" alt="ESPCN">
+                <div class="card-content">
+                    <div class="card-title">ESPCN</div>
+                    <div class="card-metrics">PSNR: 22.57 dB | SSIM: 0.9358 | GMSD: 0.2073</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_wdsr.png" alt="WDSR">
+                <div class="card-content">
+                    <div class="card-title">WDSR</div>
+                    <div class="card-metrics">PSNR: 22.59 dB | SSIM: 0.9363 | GMSD: 0.2054</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_rcan.png" alt="RCAN">
+                <div class="card-content">
+                    <div class="card-title">RCAN</div>
+                    <div class="card-metrics">PSNR: 22.66 dB | SSIM: 0.9372 | GMSD: 0.2082</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_carn.png" alt="CARN">
+                <div class="card-content">
+                    <div class="card-title">CARN</div>
+                    <div class="card-metrics">PSNR: 22.62 dB | SSIM: 0.9365 | GMSD: 0.2091</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_ldbpn.png" alt="LDBPN">
+                <div class="card-content">
+                    <div class="card-title">LDBPN</div>
+                    <div class="card-metrics">PSNR: 22.97 dB | SSIM: 0.9415 | GMSD: 0.2102</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_ref-dbpn.png" alt="REF-DBPN">
+                <div class="card-content">
+                    <div class="card-title">REF-DBPN</div>
+                    <div class="card-metrics">PSNR: 22.92 dB | SSIM: 0.9409 | GMSD: 0.2128</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_espcn-rc.png" alt="ESPCN-RC">
+                <div class="card-content">
+                    <div class="card-title">ESPCN-RC</div>
+                    <div class="card-metrics">PSNR: 22.31 dB | SSIM: 0.9316 | GMSD: 0.2126</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_wdsr-rc.png" alt="WDSR-RC">
+                <div class="card-content">
+                    <div class="card-title">WDSR-RC</div>
+                    <div class="card-metrics">PSNR: 22.48 dB | SSIM: 0.9344 | GMSD: 0.2078</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_srfbn.png" alt="SRFBN">
+                <div class="card-content">
+                    <div class="card-title">SRFBN</div>
+                    <div class="card-metrics">PSNR: 22.82 dB | SSIM: 0.9396 | GMSD: 0.2106</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="r16_san.png" alt="SAN">
+                <div class="card-content">
+                    <div class="card-title">SAN</div>
+                    <div class="card-metrics">PSNR: 22.86 dB | SSIM: 0.9400 | GMSD: 0.2056</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

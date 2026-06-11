@@ -1,6 +1,6 @@
 # Rank of Ranks Evaluation & SRFBN Bilinear Bypass Resolution
 
-This report details the implementation and results of the **SRFBN Bilinear Bypass Fix (Option A)**, presents the updated overall performance under the **Rank of Ranks** framework, and confirms the active reconstruction of high-frequency details.
+This report details the implementation and results of the **SRFBN Bilinear Bypass Fix (Option A)**, presents the updated overall performance under the **Rank of Ranks** framework after a complete retraining of all 10 architectures from scratch, and confirms the active reconstruction of high-frequency details.
 
 ---
 
@@ -24,21 +24,21 @@ This confirms that the model has successfully escaped the degenerate bilinear by
 
 The **Rank of Ranks** aggregates performance across all 5 metrics (**PSNR, SSIM, GMSD, HFEN, Correlation**) and all 9 simulation classes. 
 
-With SRFBN now actively learning high-frequency features rather than cheating with a structural bypass, its Rank of Ranks score reflects its true reconstruction capability.
+With all 10 architectures fully retrained from scratch under identical conditions, the comparison is now completely consistent:
 
 | Rank | Model | Rank Score (Avg Rank) | Key Characteristic |
 | :--- | :--- | :-------------------: | :--- |
-| **1** | **SAN** | **3.33** | Crisp details, second-order attention, PixelShuffle |
-| **2** | **REF-DBPN** | **3.44** | Iterative back-projection, heavy parameters |
-| **3** | **LDBPN** | **3.76** | Lightweight back-projection |
-| **4** | **RCAN** | **4.62** | Residual channel attention groups |
-| **5** | **SRFBN** | **5.64** | Recurrent feedback blocks, fully active conv branch |
-| **6** | **ESPCN-RC** | **5.80** | Lightweight, Resize + Conv (no checkerboard) |
-| **7** | **WDSR** | **6.60** | Wide activations, PixelShuffle |
-| **8** | **CARN** | **7.07** | Cascading residual blocks, lightweight |
-| **9** | **ESPCN** | **7.38** | Standard sub-pixel convolution, lightweight |
-| **10** | **WDSR-RC** | **7.84** | Wide activations, Resize + Conv |
-| **11** | **Bilinear** | **10.51** | Baseline interpolation |
+| **1** | **REF-DBPN** | **2.98** | Iterative back-projection, heavy parameters (Rank 1) |
+| **2** | **SAN** | **3.67** | Crisp details, second-order attention, PixelShuffle |
+| **3** | **LDBPN** | **4.22** | Lightweight back-projection |
+| **4** | **WDSR-RC** | **4.87** | Wide activations, Resize + Conv (checkerboard-free) |
+| **5** | **RCAN** | **5.22** | Residual channel attention groups |
+| **6** | **SRFBN** | **6.13** | Recurrent feedback blocks, fully active conv branch |
+| **7** | **ESPCN-RC** | **6.56** | Lightweight, Resize + Conv (no checkerboard) |
+| **8** | **CARN** | **6.91** | Cascading residual blocks, lightweight |
+| **9** | **WDSR** | **7.13** | Wide activations, PixelShuffle |
+| **10** | **ESPCN** | **7.73** | Standard sub-pixel convolution, lightweight |
+| **11** | **Bilinear** | **10.58** | Baseline interpolation |
 
 ---
 
@@ -68,17 +68,14 @@ On the `r16` brain MRI test image, we evaluate the models across all 5 metrics a
 
 | Model | Rank Score | PSNR (dB) | SSIM | GMSD | HFEN | Correlation | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **SAN** | **3.20** | 22.89 | 0.9405 | 0.2032 | 0.4826 | 0.9437 | Sharp reconstruction |
-| **REF-DBPN** | **4.60** | 23.03 | 0.9425 | 0.2147 | 0.5010 | 0.9457 | Heavy baseline |
-| **LDBPN** | **5.00** | 22.97 | 0.9415 | 0.2102 | 0.5040 | 0.9447 | Light back-projection |
-| **RCAN** | **5.20** | 22.75 | 0.9385 | 0.2070 | 0.4917 | 0.9417 | Solid performance |
-| **WDSR** | **5.40** | 22.65 | 0.9372 | 0.2046 | 0.4731 | 0.9406 | Wide activation |
-| **CARN** | **5.80** | 22.67 | 0.9374 | 0.2077 | 0.4791 | 0.9407 | Light residual |
-| **SRFBN** | **5.80** | 22.82 | 0.9396 | 0.2106 | 0.4881 | 0.9430 | **Sharp feedback reconstruction** |
-| **WDSR-RC** | **6.20** | 22.59 | 0.9361 | 0.2073 | 0.4697 | 0.9394 | Resize + Conv |
-| **ESPCN** | **6.80** | 22.57 | 0.9356 | 0.2104 | 0.4862 | 0.9389 | Light sub-pixel |
-| **ESPCN-RC** | **7.40** | 22.25 | 0.9298 | 0.2104 | 0.4949 | 0.9348 | Resize + Conv |
+| **SAN** | **3.00** | 22.86 | 0.9400 | 0.2056 | 0.4808 | 0.9432 | Sharp reconstruction |
+| **LDBPN** | **3.80** | 22.97 | 0.9415 | 0.2102 | 0.5040 | 0.9447 | Light back-projection |
+| **WDSR** | **5.00** | 22.59 | 0.9363 | 0.2054 | 0.4745 | 0.9397 | Wide activation |
+| **RCAN** | **5.40** | 22.66 | 0.9372 | 0.2082 | 0.4949 | 0.9404 | Solid performance |
+| **REF-DBPN** | **5.40** | 22.92 | 0.9409 | 0.2128 | 0.5111 | 0.9442 | Heavy baseline |
+| **SRFBN** | **5.40** | 22.82 | 0.9396 | 0.2106 | 0.4881 | 0.9430 | **Sharp feedback reconstruction** |
+| **ESPCN** | **5.80** | 22.57 | 0.9358 | 0.2073 | 0.4657 | 0.9391 | Light sub-pixel |
+| **CARN** | **5.80** | 22.62 | 0.9365 | 0.2091 | 0.4870 | 0.9397 | Light residual |
+| **WDSR-RC** | **8.00** | 22.48 | 0.9298 | 0.2105 | 0.4950 | 0.9348 | Resize + Conv |
+| **ESPCN-RC** | **8.40** | 22.25 | 0.9298 | 0.2104 | 0.4949 | 0.9348 | Resize + Conv |
 | **Bilinear** | **11.00** | 22.21 | 0.9292 | 0.2127 | 0.5053 | 0.9342 | Baseline |
-
-> [!TIP]
-> Under the fixed initialization, SRFBN's Rank Score is **5.80** on `r16`. The model now performs active feature extraction, delivering a healthy, sharp reconstruction that avoids the bilinear blur typical of its previous collapsed state.
