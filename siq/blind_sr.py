@@ -60,14 +60,16 @@ def blind_sr_generator(
     simulation_classes=None,
     use_rician_noise=False,
     zoom_range=(0.7, 1.4),
-    cache_size=1024
+    cache_size=1024,
+    use_cache=True,
+    dimensionality=3
 ):
     """
     Advanced generator for Blind Super-Resolution.
     Features: multi-scale simulation, stochastic blur, downsampling, noise, and spatial augmentations.
     
     Args:
-        hr_base_cache: List of ants.images or a single 4D numpy array [N, D, H, W].
+        hr_base_cache: List of ants.images or a single 4D/3D numpy array.
                        If None, generates a fallback cache dynamically.
         batch_size: Number of samples per batch.
         lr_patch_size: Size of the low-resolution patch. High-res will be lr_patch_size * factor.
@@ -80,10 +82,17 @@ def blind_sr_generator(
         simulation_classes: Optional dict of {class_name: frequency} summing to 1.0.
         use_rician_noise: Whether to use Rician noise instead of additive Gaussian noise.
         zoom_range: Range of scales for stochastic scaling of coordinate grids.
+        cache_size: Size of fallback cache if hr_base_cache is None.
+        use_cache: If False, generates training volumes raw on the fly (no cache).
+        dimensionality: Dimensionality of generator (2 or 3).
     """
     hr_patch_size = lr_patch_size * factor
-    hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
-    lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
+    if dimensionality == 2:
+        hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
+        lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
+    else:
+        hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
+        lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
     
     if sim_params is None:
         sim_params = {}
@@ -94,16 +103,20 @@ def blind_sr_generator(
         total_freq = sum(simulation_classes.values())
         if not np.isclose(total_freq, 1.0):
             raise ValueError(f"Frequencies in simulation_classes must sum to 1.0, got {total_freq}")
+            
+    classes = list(simulation_classes.keys())
+    probs = list(simulation_classes.values())
     
-    # Pre-generate fallback cache if none provided
-    if hr_base_cache is None:
+    # Pre-generate fallback cache if none provided and cache is enabled
+    if use_cache and hr_base_cache is None:
         hr_base_cache = []
-        classes = list(simulation_classes.keys())
-        probs = list(simulation_classes.values())
         for _ in range(cache_size):
             sim_class = np.random.choice(classes, p=probs)
             if sim_class == "organic_blobs":
-                vol = simulate_image_multi_scale(hr_large_shape, scale_range=zoom_range, **sim_params)
+                s_params = sim_params.copy()
+                if "scale_range" not in s_params:
+                    s_params["scale_range"] = zoom_range
+                vol = simulate_image_multi_scale(hr_large_shape, **s_params)
             elif sim_class == "brain_procedural":
                 vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range)
             elif sim_class == "sinewave":
@@ -114,28 +127,52 @@ def blind_sr_generator(
                 raise ValueError(f"Unknown simulation class: {sim_class}")
             hr_base_cache.append(vol)
         
-    is_numpy_cache = hasattr(hr_base_cache, "shape") and len(hr_base_cache.shape) == 4
+    is_numpy_cache = hr_base_cache is not None and hasattr(hr_base_cache, "shape") and len(hr_base_cache.shape) == (dimensionality + 1)
     
     while True:
         x_batch = []
         y_batch = []
         for _ in range(batch_size):
-            # 1. Sample from cache
-            if is_numpy_cache:
-                idx = np.random.randint(0, hr_base_cache.shape[0])
-                vol = hr_base_cache[idx]
-                h_size = hr_large_shape[0]
-                if vol.shape[0] > h_size:
-                    x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
-                    y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
-                    z_s = np.random.randint(0, vol.shape[2] - h_size + 1)
-                    hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size, z_s:z_s+h_size].astype("float32")
+            if not use_cache or hr_base_cache is None:
+                # 1. Generate directly on the fly
+                sim_class = np.random.choice(classes, p=probs)
+                if sim_class == "organic_blobs":
+                    s_params = sim_params.copy()
+                    if "scale_range" not in s_params:
+                        s_params["scale_range"] = zoom_range
+                    vol = simulate_image_multi_scale(hr_large_shape, **s_params)
+                elif sim_class == "brain_procedural":
+                    vol = simulate_brain_procedural(hr_large_shape, zoom_range=zoom_range)
+                elif sim_class == "sinewave":
+                    vol = simulate_sinewave(hr_large_shape, zoom_range=zoom_range)
+                elif sim_class == "layered":
+                    vol = simulate_layered(hr_large_shape, zoom_range=zoom_range)
                 else:
-                    hr_large_np = vol.astype("float32")
-                hr_large = ants.from_numpy(hr_large_np)
-            else:
-                hr_large = random.choice(hr_base_cache)
+                    raise ValueError(f"Unknown simulation class: {sim_class}")
+                hr_large = vol
                 hr_large_np = hr_large.numpy().astype("float32")
+            else:
+                # 1. Sample from cache
+                if is_numpy_cache:
+                    idx = np.random.randint(0, hr_base_cache.shape[0])
+                    vol = hr_base_cache[idx]
+                    h_size = hr_large_shape[0]
+                    if vol.shape[0] > h_size:
+                        if dimensionality == 2:
+                            x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
+                            y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
+                            hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size].astype("float32")
+                        else:
+                            x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
+                            y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
+                            z_s = np.random.randint(0, vol.shape[2] - h_size + 1)
+                            hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size, z_s:z_s+h_size].astype("float32")
+                    else:
+                        hr_large_np = vol.astype("float32")
+                    hr_large = ants.from_numpy(hr_large_np)
+                else:
+                    hr_large = random.choice(hr_base_cache)
+                    hr_large_np = hr_large.numpy().astype("float32")
             
             # Normalize and Gamma
             hr_min, hr_max = hr_large_np.min(), hr_large_np.max()
@@ -161,32 +198,36 @@ def blind_sr_generator(
             hr_large_np = hr_large.numpy()
             
             # 3. Central Cropping
-            if lr_patch_size == 8: # Small warmup
-                hr_crop = hr_large_np[16:32, 16:32, 16:32]
-                lr_crop = lr_large_np[8:16, 8:16, 8:16]
+            hr_start = (hr_large_shape[0] - hr_patch_size) // 2
+            hr_end = hr_start + hr_patch_size
+            lr_start = (lr_large_shape[0] - lr_patch_size) // 2
+            lr_end = lr_start + lr_patch_size
+            
+            if dimensionality == 2:
+                hr_crop = hr_large_np[hr_start:hr_end, hr_start:hr_end]
+                lr_crop = lr_large_np[lr_start:lr_end, lr_start:lr_end]
             else:
-                hr_start = (hr_large_shape[0] - hr_patch_size) // 2
-                hr_end = hr_start + hr_patch_size
-                lr_start = (lr_large_shape[0] - lr_patch_size) // 2
-                lr_end = lr_start + lr_patch_size
-                
                 hr_crop = hr_large_np[hr_start:hr_end, hr_start:hr_end, hr_start:hr_end]
                 lr_crop = lr_large_np[lr_start:lr_end, lr_start:lr_end, lr_start:lr_end]
                 
             # 4. Augmentations
-            for axis in range(3):
+            for axis in range(dimensionality):
                 if np.random.choice([True, False]):
                     hr_crop = np.flip(hr_crop, axis=axis)
                     lr_crop = np.flip(lr_crop, axis=axis)
             
             rot_k = np.random.randint(0, 4)
             if rot_k > 0:
-                axes = np.random.choice([0, 1, 2], size=2, replace=False)
-                hr_crop = np.rot90(hr_crop, k=rot_k, axes=axes)
-                lr_crop = np.rot90(lr_crop, k=rot_k, axes=axes)
+                if dimensionality == 2:
+                    hr_crop = np.rot90(hr_crop, k=rot_k, axes=(0, 1))
+                    lr_crop = np.rot90(lr_crop, k=rot_k, axes=(0, 1))
+                else:
+                    axes = np.random.choice([0, 1, 2], size=2, replace=False)
+                    hr_crop = np.rot90(hr_crop, k=rot_k, axes=axes)
+                    lr_crop = np.rot90(lr_crop, k=rot_k, axes=axes)
                 
             if np.random.choice([True, False]):
-                perm = np.random.permutation(3)
+                perm = np.random.permutation(dimensionality)
                 hr_crop = np.transpose(hr_crop, perm)
                 lr_crop = np.transpose(lr_crop, perm)
                 

@@ -33,6 +33,11 @@ from .get_data import region_wise_super_resolution_blended
 from .auto import auto
 from .espcn import (create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D,
                     create_espcn_3d_attention, create_ldbpn_3d, LearnableScale,
-                    transfer_espcn_weights, transfer_dbpn_weights)
+                    transfer_espcn_weights, transfer_dbpn_weights,
+                    create_espcn_2d_attention, create_ldbpn_2d, PixelShuffle2D,
+                    create_wdsr_2d, create_wdsr_3d,
+                    create_rcan_2d, create_rcan_3d,
+                    create_carn_2d, create_carn_3d,
+                    create_espcn_2d_resize_conv, create_wdsr_2d_resize_conv)
 from .blind_sr import (blind_sr_generator_simple, blind_sr_generator, 
                        train_blind_espcn_perceptual, train_blind_sr_kitchen_sink)
