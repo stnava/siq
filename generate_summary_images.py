@@ -653,6 +653,8 @@ def main():
     # Try to extract quantitative results from class_performance_summary.md
     psnr_table_html = ""
     ssim_table_html = ""
+    gmsd_table_html = ""
+    hfen_table_html = ""
     class_perf_path = os.path.join(artifact_dir, "class_performance_summary.md")
     if os.path.exists(class_perf_path):
         try:
@@ -668,19 +670,35 @@ def main():
                 
             ssim_start = content.find("## Average SSIM per Class")
             if ssim_start != -1:
-                ssim_end = content.find("## Key Findings", ssim_start)
+                ssim_end = content.find("## Average GMSD per Class", ssim_start)
                 ssim_section = content[ssim_start:ssim_end] if ssim_end != -1 else content[ssim_start:]
                 ssim_table_md = "\n".join([line for line in ssim_section.split("\n") if line.strip().startswith("|")])
                 ssim_table_html = parse_markdown_table_to_html(ssim_table_md, "Average SSIM per Simulation Class")
+
+            gmsd_start = content.find("## Average GMSD per Class")
+            if gmsd_start != -1:
+                gmsd_end = content.find("## Average HFEN per Class", gmsd_start)
+                gmsd_section = content[gmsd_start:gmsd_end] if gmsd_end != -1 else content[gmsd_start:]
+                gmsd_table_md = "\n".join([line for line in gmsd_section.split("\n") if line.strip().startswith("|")])
+                gmsd_table_html = parse_markdown_table_to_html(gmsd_table_md, "Average GMSD per Simulation Class")
+
+            hfen_start = content.find("## Average HFEN per Class")
+            if hfen_start != -1:
+                hfen_end = content.find("## Key Findings", hfen_start)
+                hfen_section = content[hfen_start:hfen_end] if hfen_end != -1 else content[hfen_start:]
+                hfen_table_md = "\n".join([line for line in hfen_section.split("\n") if line.strip().startswith("|")])
+                hfen_table_html = parse_markdown_table_to_html(hfen_table_md, "Average HFEN per Simulation Class")
         except Exception as e:
             print(f"Error parsing class_performance_summary.md: {e}")
 
     html_content += html_grid_table
     
-    if psnr_table_html or ssim_table_html:
+    if psnr_table_html or ssim_table_html or gmsd_table_html or hfen_table_html:
         html_content += "<h2>9-Class Simulation Quantitative Performance</h2>"
         html_content += psnr_table_html
         html_content += ssim_table_html
+        html_content += gmsd_table_html
+        html_content += hfen_table_html
     
     html_content += """
         <h2>Visual Comparison Grid (r16)</h2>
