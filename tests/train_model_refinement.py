@@ -10,6 +10,7 @@ from keras import ops
 import ants
 import antspynet
 import siq
+from siq.get_data import compute_gmsd, compute_hfen
 
 def set_core_trainable(model, trainable=True):
     count = 0
@@ -902,8 +903,10 @@ def main():
                 corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
+                gmsd = compute_gmsd(gt_np, sr_np)
+                hfen = compute_hfen(gt_np, sr_np)
                 
-                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -975,8 +978,10 @@ def main():
                 corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
+                gmsd = compute_gmsd(gt_np, sr_np)
+                hfen = compute_hfen(gt_np, sr_np)
                 
-                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -1062,8 +1067,10 @@ def main():
             corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
             psnr = float(antspynet.psnr(hr_patch, sr_img))
             ssim = float(antspynet.ssim(hr_patch, sr_img))
+            gmsd = compute_gmsd(gt_np, sr_np)
+            hfen = compute_hfen(gt_np, sr_np)
             
-            print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+            print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
             
             if loss < best_val_loss:
                 best_val_loss = loss

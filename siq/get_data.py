@@ -14,6 +14,7 @@ import functools
 from operator import mul
 from scipy.sparse.linalg import svds
 from scipy.stats import pearsonr
+from scipy.ndimage import prewitt, gaussian_laplace
 import re
 
 import ants
@@ -51,6 +52,50 @@ def ops_psnr(y_true, y_pred, max_val=255.0):
     mse = ops.maximum(mse, 1e-10)
     log_10 = ops.cast(2.302585092994046, dtype="float32")
     return 20 * (ops.log(ops.cast(max_val, dtype="float32")) / log_10) - 10 * (ops.log(mse) / log_10)
+
+def _extract_spatial_and_channels(y):
+    ndim = y.ndim
+    if ndim == 2:
+        return [y], 2
+    elif ndim == 3:
+        if y.shape[-1] <= 4:
+            C = y.shape[-1]
+            return [y[..., c] for c in range(C)], 2
+        else:
+            return [y], 3
+    elif ndim == 4:
+        C = y.shape[-1]
+        return [y[..., c] for c in range(C)], 3
+    else:
+        raise ValueError(f"Unsupported array shape: {y.shape}")
+
+def compute_gmsd(y_true, y_pred, c=0.0026):
+    y_true_channels, spatial_dim = _extract_spatial_and_channels(y_true)
+    y_pred_channels, _ = _extract_spatial_and_channels(y_pred)
+    gmsd_list = []
+    for yt, yp in zip(y_true_channels, y_pred_channels):
+        grads_true = [prewitt(yt, axis=i) for i in range(spatial_dim)]
+        grads_pred = [prewitt(yp, axis=i) for i in range(spatial_dim)]
+        m_true = np.sqrt(sum(g**2 for g in grads_true))
+        m_pred = np.sqrt(sum(g**2 for g in grads_pred))
+        gms = (2.0 * m_true * m_pred + c) / (m_true**2 + m_pred**2 + c)
+        gmsd_list.append(float(np.std(gms)))
+    return float(np.mean(gmsd_list))
+
+def compute_hfen(y_true, y_pred, sigma=1.5):
+    y_true_channels, spatial_dim = _extract_spatial_and_channels(y_true)
+    y_pred_channels, _ = _extract_spatial_and_channels(y_pred)
+    hfen_list = []
+    for yt, yp in zip(y_true_channels, y_pred_channels):
+        log_true = gaussian_laplace(yt, sigma=sigma)
+        log_pred = gaussian_laplace(yp, sigma=sigma)
+        norm_diff = np.linalg.norm(log_true - log_pred)
+        norm_true = np.linalg.norm(log_true)
+        if norm_true > 1e-8:
+            hfen_list.append(float(norm_diff / norm_true))
+        else:
+            hfen_list.append(0.0)
+    return float(np.mean(hfen_list))
 
 def dbpn(input_image_size,
                                                  number_of_outputs=1,
