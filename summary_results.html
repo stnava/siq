@@ -1432,6 +1432,57 @@
   </table>
 </div>
 
+        <h2>Predictor Importance & Complexity Mapping</h2>
+        <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Analyzing how model parameters, inference latency, attention gates, and iterative feedback project onto overall model performance (Rank of Ranks score) using standardized multi-variable linear regression.</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-bottom: 40px;">
+            <div class="card" style="padding: 25px; box-sizing: border-box;">
+                <div class="card-title" style="color: #8b5cf6; margin-top: 0; margin-bottom: 10px;">Standardized Regression Coefficients</div>
+                <p style="font-size: 0.9em; color: #9ca3af; margin-bottom: 20px; line-height: 1.4;">Target variable: <strong>Rank of Ranks Score</strong> (lower is better). Negative coefficients indicate that the predictor improves (lowers) the rank score.</p>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9em; color: #f3f4f6;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #30363d; color: #3b82f6; text-align: left;">
+                            <th style="padding: 10px 8px; font-weight: 600;">Predictor Variable</th>
+                            <th style="padding: 10px 8px; text-align: right; font-weight: 600;">Coefficient</th>
+                            <th style="padding: 10px 8px; text-align: right; font-weight: 600;">Impact Strength</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #30363d;">
+                            <td style="padding: 10px 8px;"><strong>Inference Latency</strong> (MPS)</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #10b981; font-weight: bold;">-0.4663</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #10b981;">Strongest</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #30363d;">
+                            <td style="padding: 10px 8px;"><strong>Iterative Feedback / Recurrence</strong></td>
+                            <td style="padding: 10px 8px; text-align: right; color: #10b981; font-weight: bold;">-0.3490</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #10b981;">Strong</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #30363d;">
+                            <td style="padding: 10px 8px;"><strong>Attention Gates</strong></td>
+                            <td style="padding: 10px 8px; text-align: right; color: #10b981; font-weight: bold;">-0.2452</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #3b82f6;">Moderate</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #30363d;">
+                            <td style="padding: 10px 8px;"><strong>Parameter Count</strong> (Raw size)</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #ef4444; font-weight: bold;">+0.0294</td>
+                            <td style="padding: 10px 8px; text-align: right; color: #9ca3af;">Negligible</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card" style="padding: 25px; box-sizing: border-box;">
+                <div class="card-title" style="color: #ec4899; margin-top: 0; margin-bottom: 15px;">Key Analytical Insights</div>
+                <ul style="font-size: 0.9em; line-height: 1.6; padding-left: 20px; color: #e5e7eb; margin: 0;">
+                    <li style="margin-bottom: 12px;"><strong>Architectural Structure Over Raw Scale</strong>: The standardized regression coefficient for raw parameter count is essentially zero (<code style="color: #ec4899; background: #21262d; padding: 2px 6px; border-radius: 4px;">+0.0294</code>). This mathematically indicates that simply scaling up parameters does not improve performance if architectural sophistication is absent.</li>
+                    <li style="margin-bottom: 12px;"><strong>Sophistication Pays Off</strong>: Recurrent feedback loops (<code style="color: #10b981; background: #21262d; padding: 2px 6px; border-radius: 4px;">-0.3490</code>) and attention gates (<code style="color: #10b981; background: #21262d; padding: 2px 6px; border-radius: 4px;">-0.2452</code>) are highly significant predictors of better (lower) rank scores.</li>
+                    <li style="margin-bottom: 12px;"><strong>Inference Latency Correlation</strong>: Latency has the largest negative coefficient (<code style="color: #10b981; background: #21262d; padding: 2px 6px; border-radius: 4px;">-0.4663</code>), indicating that computational time on the GPU correlates strongly with superior visual reconstruction quality (e.g. back-projection iterations in REF-DBPN).</li>
+                    <li><strong>Case Study (SRFBN vs ESPCN)</strong>: SRFBN achieves an overall Rank Score of <strong>6.13</strong> with only <strong>60,556 parameters</strong> due to weight-sharing feedback. ESPCN has <strong>2,541,762 parameters</strong> (42x larger) but lacks feedback/attention structures and ranks lower at <strong>7.73</strong>.</li>
+                </ul>
+            </div>
+        </div>
+
         <h2>Simulation Performance Visualization</h2>
         <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Overall model rankings and class-wise detail heatmaps across all metrics.</p>
         <div style="display: flex; flex-direction: column; gap: 30px; margin-bottom: 50px;">
