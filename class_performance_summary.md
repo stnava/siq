@@ -6,19 +6,19 @@ This report evaluates the performance of the trained 2D super-resolution models 
 
 The **Rank of Ranks** is a robust metric that aggregates performance across all 9 simulation classes and all 5 evaluation metrics (PSNR, SSIM, GMSD, HFEN, Correlation). For each class and each metric, models are ranked 1 to 11 (lower is better). The final score is the average rank across all classes and metrics.
 
-|    | Model    |   Rank Score (Avg Rank) |
-|---:|:---------|------------------------:|
-|  1 | REF-DBPN |                 2.97778 |
-|  2 | SAN      |                 3.66667 |
-|  3 | LDBPN    |                 4.22222 |
-|  4 | WDSR-RC  |                 4.86667 |
-|  5 | RCAN     |                 5.22222 |
-|  6 | SRFBN    |                 6.13333 |
-|  7 | ESPCN-RC |                 6.55556 |
-|  8 | CARN     |                 6.91111 |
-|  9 | WDSR     |                 7.13333 |
-| 10 | ESPCN    |                 7.73333 |
-| 11 | Bilinear |                10.5778  |
+|    | Model    |   Rank Score (Avg Rank) | Parameters   | Latency (MPS)   |
+|---:|:---------|------------------------:|:-------------|:----------------|
+|  1 | REF-DBPN |                 2.97778 | 4,356,993    | 648.40 ms       |
+|  2 | SAN      |                 3.66667 | 1,189,874    | 22.30 ms        |
+|  3 | LDBPN    |                 4.22222 | 1,580,929    | 20.27 ms        |
+|  4 | WDSR-RC  |                 4.86667 | 2,404,226    | 18.63 ms        |
+|  5 | RCAN     |                 5.22222 | 1,074,130    | 23.30 ms        |
+|  6 | SRFBN    |                 6.13333 | 60,556       | 14.45 ms        |
+|  7 | ESPCN-RC |                 6.55556 | 637,858      | 17.39 ms        |
+|  8 | CARN     |                 6.91111 | 328,802      | 10.37 ms        |
+|  9 | WDSR     |                 7.13333 | 2,431,970    | 17.89 ms        |
+| 10 | ESPCN    |                 7.73333 | 2,541,762    | 20.88 ms        |
+| 11 | Bilinear |                10.5778  | -            | -               |
 
 ## Average PSNR (dB) per Class
 
