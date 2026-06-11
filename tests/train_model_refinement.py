@@ -265,10 +265,15 @@ def main():
 
     # 3. Define Simulation Classes mixture
     simulation_classes = {
-        "brain_procedural": 0.35,
-        "layered": 0.25,
-        "sinewave": 0.25,
-        "organic_blobs": 0.15
+        "brain_procedural": 1.0 / 9.0,
+        "layered": 1.0 / 9.0,
+        "sinewave": 1.0 / 9.0,
+        "organic_blobs": 1.0 / 9.0,
+        "vessel_tubes": 1.0 / 9.0,
+        "cellular_voronoi": 1.0 / 9.0,
+        "geometric_phantoms": 1.0 / 9.0,
+        "grid_patterns": 1.0 / 9.0,
+        "fractal_noise": 1.0 / 9.0
     }
     
     # 4. Instantiate Model
@@ -1015,10 +1020,15 @@ def main():
                 set_core_trainable(model, trainable=True)
 
     refinement_classes = {
-        "brain_procedural": 0.60,
-        "layered": 0.20,
-        "sinewave": 0.10,
-        "organic_blobs": 0.10
+        "brain_procedural": 1.0 / 9.0,
+        "layered": 1.0 / 9.0,
+        "sinewave": 1.0 / 9.0,
+        "organic_blobs": 1.0 / 9.0,
+        "vessel_tubes": 1.0 / 9.0,
+        "cellular_voronoi": 1.0 / 9.0,
+        "geometric_phantoms": 1.0 / 9.0,
+        "grid_patterns": 1.0 / 9.0,
+        "fractal_noise": 1.0 / 9.0
     }
 
     train_gen_refine = siq.blind_sr_generator(
