@@ -1,4 +1,118 @@
-<!DOCTYPE html>
+import os
+import sys
+# Ensure the local workspace is prioritized in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Configure Keras PyTorch backend
+os.environ["KERAS_BACKEND"] = "torch"
+
+import numpy as np
+import ants
+import siq
+
+
+
+def apply_layer2_vol_effects(img_np):
+    # Contrast inversion
+    if np.random.choice([True, False]):
+        img_np = 1.0 - img_np
+    # Quadratic bias field
+    grid_bias = [np.linspace(-1, 1, s) for s in img_np.shape]
+    mesh_bias = np.meshgrid(*grid_bias, indexing="ij")
+    cx = np.random.uniform(-0.4, 0.4)
+    cy = np.random.uniform(-0.4, 0.4)
+    strength = np.random.uniform(0.12, 0.22)
+    dist_sq = (mesh_bias[0] - cx)**2 + (mesh_bias[1] - cy)**2
+    bias_field = 1.0 - strength * dist_sq
+    return np.clip(img_np * bias_field, 0.0, 1.0)
+
+def main():
+    print("Setting up directories...")
+    docs_dir = "/Users/stnava/Library/Mobile Documents/com~apple~CloudDocs/code/siq/docs"
+    gallery_dir = os.path.join(docs_dir, "images", "simulation_gallery")
+    os.makedirs(gallery_dir, exist_ok=True)
+
+    hr_shape = (128, 128)
+    lr_shape = (64, 64)
+
+    classes = [
+        ("brain_procedural", "Standard (Layer 1)", False, "brain_procedural_ex1"),
+        ("brain_procedural", "Enhanced (Layer 2)", True, "brain_procedural_ex2"),
+        ("layered", "Standard (Layer 1)", False, "layered_ex1"),
+        ("layered", "Enhanced (Layer 2)", True, "layered_ex2"),
+        ("sinewave", "Standard (Layer 1)", False, "sinewave_ex1"),
+        ("sinewave", "Enhanced (Layer 2)", True, "sinewave_ex2"),
+        ("organic_blobs", "Standard (Layer 1)", False, "organic_blobs_ex1"),
+        ("organic_blobs", "Enhanced (Layer 2)", True, "organic_blobs_ex2")
+    ]
+
+    print("Generating simulation examples...")
+    for sim_type, name, use_layer2, prefix in classes:
+        print(f"Generating {sim_type} - {name}...")
+        
+        # 1. Generate High-Res base
+        if sim_type == "brain_procedural":
+            y_img = siq.simulate_brain_procedural(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "layered":
+            y_img = siq.simulate_layered(hr_shape, use_layer2=use_layer2)
+        elif sim_type == "sinewave":
+            y_img = siq.simulate_sinewave(hr_shape, use_layer2=use_layer2)
+        else: # organic_blobs
+            y_img = siq.simulate_image_multi_scale(hr_shape, scale_range=(0.8, 1.2), n_levels_range=(4, 8))
+            if use_layer2:
+                o2_np = y_img.numpy().astype("float32")
+                o2_np = (o2_np - o2_np.min()) / (o2_np.max() - o2_np.min() + 1e-8)
+                o2_np = apply_layer2_vol_effects(o2_np)
+                y_img = ants.from_numpy(o2_np)
+
+        # Ensure range [0, 1]
+        y_np = y_img.numpy().astype("float32")
+        y_min, y_max = y_np.min(), y_np.max()
+        if y_max > y_min:
+            y_np = (y_np - y_min) / (y_max - y_min + 1e-8)
+        else:
+            y_np = y_np - y_min
+        y_img = ants.from_numpy(y_np)
+
+        # 2. Blur
+        sigma = np.random.uniform(0.6, 1.2) if not use_layer2 else np.random.uniform(1.2, 2.0)
+        lr_large = ants.smooth_image(y_img, sigma)
+
+        # 3. Downsample to LR Shape
+        x_img = ants.resample_image(lr_large, lr_shape, use_voxels=True, interp_type=0)
+
+        # 4. Normalize LR and Add Rician Noise
+        lr_np = x_img.numpy().astype("float32")
+        lr_min, lr_max = lr_np.min(), lr_np.max()
+        if lr_max > lr_min:
+            lr_np = (lr_np - lr_min) / (lr_max - lr_min + 1e-8)
+        else:
+            lr_np = lr_np - lr_min
+        
+        noise_std = np.random.uniform(0.005, 0.015) if not use_layer2 else np.random.uniform(0.02, 0.04)
+        lr_np = siq.add_rician_noise(lr_np, noise_std)
+        x_img = ants.from_numpy(lr_np)
+
+        # Set physical spacing to prevent boundary artifacting
+        ants.set_spacing(x_img, (2.0, 2.0))
+        ants.set_spacing(y_img, (1.0, 1.0))
+
+        # 5. Upsample LR back to HR shape for visual comparison plotting
+        lr_upsampled = ants.resample_image_to_target(x_img, y_img, interp_type="linear")
+
+        # Save plot files
+        hr_path = os.path.join(gallery_dir, f"{prefix}_hr.png")
+        lr_path = os.path.join(gallery_dir, f"{prefix}_lr.png")
+        
+        ants.plot(y_img, filename=hr_path)
+        ants.plot(lr_upsampled, filename=lr_path)
+        print(f"  Saved {prefix}_hr.png & {prefix}_lr.png")
+
+    # Now generate the HTML Report
+    html_path = os.path.join(docs_dir, "simulated_examples.html")
+    print(f"Generating HTML report at {html_path}...")
+
+    html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -464,3 +578,11 @@
 
 </body>
 </html>
+"""
+
+    with open(html_path, "w") as f:
+        f.write(html_content)
+    print(f"Successfully generated HTML gallery report at {html_path}")
+
+if __name__ == "__main__":
+    main()
