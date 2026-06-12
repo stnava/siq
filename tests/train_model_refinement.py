@@ -583,7 +583,7 @@ def main():
                     input_shape=(None, None, 1),
                     factor=2,
                     n_filters=128,
-                    n_steps=8,
+                    n_steps=4,
                     use_global_skip=True,
                     projection_kernel_size=6
                 )
@@ -593,7 +593,7 @@ def main():
                     input_shape=(None, None, None, 1),
                     factor=2,
                     n_filters=64,
-                    n_steps=8,
+                    n_steps=4,
                     use_global_skip=True
                 )
     elif model_type == "san":

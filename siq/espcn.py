@@ -983,6 +983,31 @@ def soca_block_3d(input_tensor, reduction_ratio=16, name_prefix=""):
     return layers.Multiply(name=f"{name_prefix}_soca_scale")([input_tensor, excitation])
 
 
+def ca_block_2d(input_tensor, reduction_ratio=16, name_prefix=""):
+    """
+    Residual Channel Attention (RCAN-style) block for 2D.
+    Uses first-order global average pooling.
+    """
+    channels = input_tensor.shape[-1]
+    squeeze = layers.GlobalAveragePooling2D(keepdims=True, name=f"{name_prefix}_ca_squeeze")(input_tensor)
+    excitation = layers.Conv2D(max(1, channels // reduction_ratio), kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
+    excitation = layers.Conv2D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_ca_conv2")(excitation)
+    return layers.Multiply(name=f"{name_prefix}_ca_scale")([input_tensor, excitation])
+
+
+def ca_block_3d(input_tensor, reduction_ratio=16, name_prefix=""):
+    """
+    Residual Channel Attention (RCAN-style) block for 3D.
+    Uses first-order global average pooling.
+    """
+    channels = input_tensor.shape[-1]
+    squeeze = layers.GlobalAveragePooling3D(keepdims=True, name=f"{name_prefix}_ca_squeeze")(input_tensor)
+    excitation = layers.Conv3D(max(1, channels // reduction_ratio), kernel_size=1, activation='relu', name=f"{name_prefix}_ca_conv1")(squeeze)
+    excitation = layers.Conv3D(channels, kernel_size=1, activation='sigmoid', name=f"{name_prefix}_ca_conv2")(excitation)
+    return layers.Multiply(name=f"{name_prefix}_ca_scale")([input_tensor, excitation])
+
+
+
 def lsrab_2d(x, n_filters, reduction=16, name_prefix=""):
     """
     Local Second-order Residual Attention Block (LSRAB) for 2D.
@@ -1097,6 +1122,10 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     up_layer = layers.Conv2DTranspose(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_up")
     down_layer = layers.Conv2D(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_down")
     
+    # Shared Layer Normalization layers to stabilize recurrent loop scale
+    ln_hr = layers.LayerNormalization(axis=-1, name="fb_ln_hr")
+    ln_lr = layers.LayerNormalization(axis=-1, name="fb_ln_lr")
+    
     # Recurrent feedback loop
     L_t = F_in
     H_t = None
@@ -1113,13 +1142,14 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
         
         # Up-projection (Deconvolution)
         H_t = up_layer(x)
-        # Apply SOCA Attention
-        H_t = soca_block_2d(H_t, name_prefix=f"fb_{t}_hr")
+        H_t = ln_hr(H_t)
         
         # Down-projection (Stride Conv)
         L_t = down_layer(layers.ReLU(name=f"fb_{t}_relu2")(H_t))
-        # Apply SOCA Attention
-        L_t = soca_block_2d(L_t, name_prefix=f"fb_{t}_lr")
+        L_t = ln_lr(L_t)
+        
+    # Apply a single SOCA attention block on the final HR representation H_t
+    H_t = soca_block_2d(H_t, name_prefix="recon_soca")
         
     # Reconstruction block using final HR representation H_t
     outputs = layers.Conv2D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)
@@ -1150,6 +1180,10 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_up")
     down_layer = layers.Conv3D(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_down")
     
+    # Shared Layer Normalization layers to stabilize recurrent loop scale
+    ln_hr = layers.LayerNormalization(axis=-1, name="fb_ln_hr")
+    ln_lr = layers.LayerNormalization(axis=-1, name="fb_ln_lr")
+    
     # Recurrent feedback loop
     L_t = F_in
     H_t = None
@@ -1166,13 +1200,14 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
         
         # Up-projection (Deconvolution)
         H_t = up_layer(x)
-        # Apply SOCA Attention
-        H_t = soca_block_3d(H_t, name_prefix=f"fb_{t}_hr")
+        H_t = ln_hr(H_t)
         
         # Down-projection (Stride Conv)
         L_t = down_layer(layers.ReLU(name=f"fb_{t}_relu2")(H_t))
-        # Apply SOCA Attention
-        L_t = soca_block_3d(L_t, name_prefix=f"fb_{t}_lr")
+        L_t = ln_lr(L_t)
+        
+    # Apply a single SOCA attention block on the final HR representation H_t
+    H_t = soca_block_3d(H_t, name_prefix="recon_soca")
         
     # Reconstruction block using final HR representation H_t
     outputs = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu", name="recon_conv1")(H_t)

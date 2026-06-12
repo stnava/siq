@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>r16 Super-Resolution Diagnostic Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: hsl(222, 47%, 6%);
+            --bg-secondary: hsl(223, 47%, 11%);
+            --accent-glow: hsl(210, 100%, 50%);
+            --accent-success: hsl(145, 80%, 45%);
+            --accent-warning: hsl(35, 90%, 50%);
+            --text-primary: hsl(210, 40%, 98%);
+            --text-secondary: hsl(215, 20%, 70%);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --card-glass: rgba(15, 22, 42, 0.65);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(210, 100%, 40%, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(280, 100%, 50%, 0.08) 0px, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 2rem 1rem;
+        }
+
+        /* Ambient subtle grid pattern */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        header {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-glow) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+        }
+
+        .badge {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--accent-success);
+            color: var(--accent-success);
+            padding: 0.35rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+
+        .badge::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-success);
+            border-radius: 50%;
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 300;
+        }
+
+        /* Main Grid Layout */
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 968px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Base */
+        .glass-card {
+            background: var(--card-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Visualizer Panel */
+        .visualizer-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .image-viewport {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            background: #090d16;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viewport-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.4s ease;
+            pointer-events: none;
+            transform: scale(0.98);
+        }
+
+        .viewport-image.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        /* Selector Tabs */
+        .selector-tabs {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.4rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        @media (max-width: 600px) {
+            .selector-tabs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .selector-tabs button:last-child {
+                grid-column: span 2;
+            }
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.75rem 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.25s ease;
+            text-align: center;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            background: var(--accent-glow);
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.35);
+        }
+
+        /* Metric Dashboard Panel */
+        .metrics-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel-section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Focus Model Card */
+        .focus-model-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .focus-model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .focus-model-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .focus-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+        }
+
+        @media (max-width: 480px) {
+            .focus-metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .metric-tile {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 0.6rem 0.3rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .metric-tile-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .metric-tile-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        /* Dynamic Progress Bars */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .progress-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .progress-row-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar-bg {
+            background: rgba(0, 0, 0, 0.3);
+            height: 6px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-glow) 0%, #a855f7 100%);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Models Table */
+        .models-table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 0.4rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-glass);
+        }
+
+        td {
+            padding: 0.75rem 0.4rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+        }
+
+        tr.highlight td {
+            color: var(--text-primary);
+            font-weight: 600;
+            background: rgba(0, 102, 255, 0.05);
+        }
+
+        tr.active-row td {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        /* complexity labels */
+        .complexity-info {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            border: 1px dashed var(--border-glass);
+        }
+
+        .complexity-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .complexity-icon {
+            color: var(--accent-glow);
+        }
+
+        /* Zoom and Controls */
+        .viewer-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .shortcut-key {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            margin-right: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title-row">
+            <h1>r16 Diagnostic Viewport</h1>
+            <span class="badge" id="status-badge">Stage 3 Iteration 4224</span>
+        </div>
+        <div class="subtitle">Scaled AS-DBPN Evaluation vs Baselines on Validation Brain Slice</div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- Visualizer Panel -->
+        <div class="glass-card visualizer-panel">
+            <div class="viewer-controls">
+                <span>Viewport: 100% Zoom</span>
+                <span>💡 Tip: Click buttons or press numbers <span class="shortcut-key">1</span> to <span class="shortcut-key">5</span> to swap models</span>
+            </div>
+
+            <div class="image-viewport">
+                <!-- Stacked images for super-smooth CSS cross-fade -->
+                <img id="img-asdbpn" src="./current_r16_asdbpn.png" alt="New AS-DBPN" class="viewport-image active">
+                <img id="img-gt" src="./r16_ground_truth.png" alt="Ground Truth" class="viewport-image">
+                <img id="img-bilinear" src="./r16_bilinear.png" alt="Bilinear" class="viewport-image">
+                <img id="img-san" src="./r16_san.png" alt="SAN Baseline" class="viewport-image">
+                <img id="img-asdbpn-legacy" src="./r16_as-dbpn.png" alt="Old AS-DBPN Baseline" class="viewport-image">
+            </div>
+
+            <div class="selector-tabs">
+                <button class="tab-btn active" onclick="selectModel('asdbpn')">1. New AS-DBPN</button>
+                <button class="tab-btn" onclick="selectModel('gt')">2. Ground Truth</button>
+                <button class="tab-btn" onclick="selectModel('bilinear')">3. Bilinear</button>
+                <button class="tab-btn" onclick="selectModel('san')">4. SAN</button>
+                <button class="tab-btn" onclick="selectModel('asdbpn-legacy')">5. Old AS-DBPN</button>
+            </div>
+        </div>
+
+        <!-- Metric Dashboard Panel -->
+        <div class="glass-card metrics-panel">
+            <div class="panel-section-title">Selected Model Diagnostic</div>
+            
+            <div class="focus-model-card">
+                <div class="focus-model-header">
+                    <span class="focus-model-name" id="model-display-name">New Scaled AS-DBPN</span>
+                    <span id="model-status-text" style="color: var(--accent-success); font-size: 0.85rem; font-weight: 600;">Active Pipeline</span>
+                </div>
+                
+                <div class="focus-metrics-grid">
+                    <div class="metric-tile">
+                        <span class="metric-tile-label">PSNR</span>
+                        <span class="metric-tile-value" id="val-psnr" style="color: var(--accent-success);">23.70 dB</span>
+                    </div>
+                    <div class="metric-tile">
+                        <span class="metric-tile-label">SSIM</span>
+                        <span class="metric-tile-value" id="val-ssim" style="color: #a855f7;">0.9509</span>
+                    </div>
+                    <div class="metric-tile">
+                        <span class="metric-tile-label">GMSD</span>
+                        <span class="metric-tile-value" id="val-gmsd" style="color: #fb923c;">0.2046</span>
+                    </div>
+                    <div class="metric-tile">
+                        <span class="metric-tile-label">HFEN</span>
+                        <span class="metric-tile-value" id="val-hfen" style="color: #f43f5e;">0.4590</span>
+                    </div>
+                    <div class="metric-tile">
+                        <span class="metric-tile-label">Corr</span>
+                        <span class="metric-tile-value" id="val-corr" style="color: var(--accent-glow);">0.9541</span>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span>PSNR Margin (Relative)</span>
+                            <span id="psnr-pct-lbl">84%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="psnr-bar" style="width: 84%;"></div>
+                        </div>
+                    </div>
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span>SSIM Score</span>
+                            <span id="ssim-pct-lbl">95%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="ssim-bar" style="width: 95%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="complexity-info">
+                    <div class="complexity-item">
+                        <span class="complexity-icon">⚡</span>
+                        <span>Params: <strong id="lbl-params">1,291,156</strong></span>
+                    </div>
+                    <div class="complexity-item">
+                        <span class="complexity-icon">⏱️</span>
+                        <span>MPS Latency: <strong id="lbl-latency">59.05 ms</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section-title">All Models Leaderboard</div>
+            <div class="models-table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>PSNR</th>
+                            <th>SSIM</th>
+                            <th>GMSD</th>
+                            <th>HFEN</th>
+                            <th>Corr</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="row-gt">
+                            <td>Ground Truth</td>
+                            <td>&infin;</td>
+                            <td>1.0000</td>
+                            <td>0.0000</td>
+                            <td>0.0000</td>
+                            <td>1.0000</td>
+                        </tr>
+                        <tr class="highlight" id="row-asdbpn">
+                            <td>New AS-DBPN (Ours)</td>
+                            <td>23.70 dB</td>
+                            <td>0.9509</td>
+                            <td>0.2046</td>
+                            <td>0.4590</td>
+                            <td>0.9541</td>
+                        </tr>
+                        <tr id="row-san">
+                            <td>SAN</td>
+                            <td>22.86 dB</td>
+                            <td>0.9400</td>
+                            <td>0.2056</td>
+                            <td>0.4808</td>
+                            <td>0.9432</td>
+                        </tr>
+                        <tr id="row-asdbpn-legacy">
+                            <td>Old AS-DBPN</td>
+                            <td>22.79 dB</td>
+                            <td>0.9393</td>
+                            <td>0.2052</td>
+                            <td>0.4770</td>
+                            <td>0.9427</td>
+                        </tr>
+                        <tr id="row-bilinear">
+                            <td>Bilinear</td>
+                            <td>21.59 dB</td>
+                            <td>0.9117</td>
+                            <td>0.1838</td>
+                            <td>0.6690</td>
+                            <td>0.9112</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const models = {
+            'asdbpn': {
+                name: 'New Scaled AS-DBPN',
+                status: 'Active Pipeline (Ours)',
+                statusColor: 'var(--accent-success)',
+                psnr: '23.70 dB',
+                ssim: '0.9509',
+                gmsd: '0.2046',
+                hfen: '0.4590',
+                corr: '0.9541',
+                psnrVal: 23.70, // for progress calculation
+                ssimVal: 0.9509,
+                params: '1,291,156',
+                latency: '59.05 ms',
+                imageElementId: 'img-asdbpn',
+                rowId: 'row-asdbpn'
+            },
+            'gt': {
+                name: 'Ground Truth',
+                status: 'Reference Standard',
+                statusColor: '#ffffff',
+                psnr: '∞',
+                ssim: '1.0000',
+                gmsd: '0.0000',
+                hfen: '0.0000',
+                corr: '1.0000',
+                psnrVal: 25.00, // max clamp
+                ssimVal: 1.0000,
+                params: 'N/A',
+                latency: '0.00 ms',
+                imageElementId: 'img-gt',
+                rowId: 'row-gt'
+            },
+            'bilinear': {
+                name: 'Bilinear Interpolation',
+                status: 'Bilinear Baseline',
+                statusColor: 'var(--accent-warning)',
+                psnr: '21.59 dB',
+                ssim: '0.9117',
+                gmsd: '0.1838',
+                hfen: '0.6690',
+                corr: '0.9112',
+                psnrVal: 21.59,
+                ssimVal: 0.9117,
+                params: '0',
+                latency: '< 0.50 ms',
+                imageElementId: 'img-bilinear',
+                rowId: 'row-bilinear'
+            },
+            'san': {
+                name: 'SAN Baseline',
+                status: 'Attention-based Baseline',
+                statusColor: 'var(--text-secondary)',
+                psnr: '22.86 dB',
+                ssim: '0.9400',
+                gmsd: '0.2056',
+                hfen: '0.4808',
+                corr: '0.9432',
+                psnrVal: 22.86,
+                ssimVal: 0.9400,
+                params: '1,189,874',
+                latency: '22.30 ms',
+                imageElementId: 'img-san',
+                rowId: 'row-san'
+            },
+            'asdbpn-legacy': {
+                name: 'Old AS-DBPN Baseline',
+                status: 'Legacy Pipeline (Recurrent)',
+                statusColor: 'var(--text-secondary)',
+                psnr: '22.79 dB',
+                ssim: '0.9393',
+                gmsd: '0.2052',
+                hfen: '0.4770',
+                corr: '0.9427',
+                psnrVal: 22.79,
+                ssimVal: 0.9393,
+                params: '1,290,644',
+                latency: '261.40 ms',
+                imageElementId: 'img-asdbpn-legacy',
+                rowId: 'row-asdbpn-legacy'
+            }
+        };
+
+        function selectModel(key) {
+            const model = models[key];
+            if (!model) return;
+
+            // 1. Swap active image
+            document.querySelectorAll('.viewport-image').forEach(img => {
+                img.classList.remove('active');
+            });
+            document.getElementById(model.imageElementId).classList.add('active');
+
+            // 2. Swap active tab class
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Find active tab button by text or onclick signature
+            const btns = document.querySelectorAll('.tab-btn');
+            for (let btn of btns) {
+                if (btn.getAttribute('onclick').includes(key)) {
+                    btn.classList.add('active');
+                    break;
+                }
+            }
+
+            // 3. Update active table row highlight
+            document.querySelectorAll('tbody tr').forEach(row => {
+                row.classList.remove('active-row');
+            });
+            document.getElementById(model.rowId).classList.add('active-row');
+
+            // 4. Update details card
+            document.getElementById('model-display-name').textContent = model.name;
+            const statusEl = document.getElementById('model-status-text');
+            statusEl.textContent = model.status;
+            statusEl.style.color = model.statusColor;
+
+            document.getElementById('val-psnr').textContent = model.psnr;
+            document.getElementById('val-ssim').textContent = model.ssim;
+            document.getElementById('val-gmsd').textContent = model.gmsd;
+            document.getElementById('val-hfen').textContent = model.hfen;
+            document.getElementById('val-corr').textContent = model.corr;
+            
+            document.getElementById('lbl-params').textContent = model.params;
+            document.getElementById('lbl-latency').textContent = model.latency;
+
+            // 5. Update progress bars
+            // Clamp mapping: PSNR min 20.0, max 25.0 -> 0 to 100%
+            let psnrPercent = Math.round(((model.psnrVal - 20) / 5) * 100);
+            psnrPercent = Math.max(0, Math.min(100, psnrPercent));
+            document.getElementById('psnr-bar').style.width = psnrPercent + '%';
+            document.getElementById('psnr-pct-lbl').textContent = model.psnr === '∞' ? '100%' : `${psnrPercent}%`;
+
+            // SSIM clamp: min 0.85, max 1.0 -> 0 to 100%
+            let ssimPercent = Math.round(((model.ssimVal - 0.85) / 0.15) * 100);
+            ssimPercent = Math.max(0, Math.min(100, ssimPercent));
+            document.getElementById('ssim-bar').style.width = ssimPercent + '%';
+            document.getElementById('ssim-pct-lbl').textContent = `${Math.round(model.ssimVal * 100)}%`;
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            const keys = ['1', '2', '3', '4', '5'];
+            if (keys.includes(e.key)) {
+                const modelKeys = ['asdbpn', 'gt', 'bilinear', 'san', 'asdbpn-legacy'];
+                selectModel(modelKeys[parseInt(e.key) - 1]);
+            }
+        });
+
+        // Initialize progress bar displays
+        selectModel('asdbpn');
+    </script>
+</body>
+</html>

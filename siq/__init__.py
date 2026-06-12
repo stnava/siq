@@ -45,6 +45,7 @@ from .espcn import (create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D,
                     create_espcn_2d_resize_conv, create_wdsr_2d_resize_conv,
                     create_srfbn_2d, create_srfbn_3d,
                     create_san_2d, create_san_3d,
+                    create_asdbpn_2d, create_asdbpn_3d,
                     LearnableSharpening, LearnableSharpening3D)
 from .blind_sr import (blind_sr_generator_simple, blind_sr_generator, 
                        train_blind_espcn_perceptual, train_blind_sr_kitchen_sink)

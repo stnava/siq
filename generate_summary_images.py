@@ -567,7 +567,7 @@ def main():
         "REF-DBPN": {"params": "4,356,993", "latency": "648.40 ms"},
         "SRFBN": {"params": "60,556", "latency": "14.45 ms"},
         "SAN": {"params": "1,189,874", "latency": "22.30 ms"},
-        "AS-DBPN": {"params": "1,321,220", "latency": "261.13 ms"}
+        "AS-DBPN": {"params": "1,291,156", "latency": "59.05 ms"}
     }
     
     for row in all_rows:

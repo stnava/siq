@@ -86,6 +86,7 @@ def test_2d_3d_compatibility():
     carn_2d = siq.create_carn_2d(input_shape=(None, None, 1), factor=2)
     srfbn_2d = siq.create_srfbn_2d(input_shape=(None, None, 1), factor=2)
     san_2d = siq.create_san_2d(input_shape=(None, None, 1), factor=2)
+    asdbpn_2d = siq.create_asdbpn_2d(input_shape=(None, None, 1), factor=2)
     print("    2D alternative architectures created successfully.")
     
     print("1f. Verifying forward passes on alternative 2D models...")
@@ -94,6 +95,7 @@ def test_2d_3d_compatibility():
     _ = carn_2d(x_init_t_2d)
     _ = srfbn_2d(x_init_t_2d)
     _ = san_2d(x_init_t_2d)
+    _ = asdbpn_2d(x_init_t_2d)
     print("    2D forward passes validated.")
 
     # ==========================================
@@ -151,6 +153,7 @@ def test_2d_3d_compatibility():
     carn_3d = siq.create_carn_3d(input_shape=(None, None, None, 1), factor=2)
     srfbn_3d = siq.create_srfbn_3d(input_shape=(None, None, None, 1), factor=2)
     san_3d = siq.create_san_3d(input_shape=(None, None, None, 1), factor=2)
+    asdbpn_3d = siq.create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2)
     print("    3D alternative architectures created successfully.")
     
     print("2f. Verifying forward passes on alternative 3D models...")
@@ -159,6 +162,7 @@ def test_2d_3d_compatibility():
     _ = carn_3d(x_init_t_3d)
     _ = srfbn_3d(x_init_t_3d)
     _ = san_3d(x_init_t_3d)
+    _ = asdbpn_3d(x_init_t_3d)
     print("    3D forward passes validated.")
     
     print("\n====================================================")
