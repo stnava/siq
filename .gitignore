@@ -1,5 +1,6 @@
 # hellow
-siq/__pycache__/
+__pycache__/
+*.pyc
 build/
 siq.egg-info/
 dist/
@@ -10,4 +11,4 @@ test_out*
 dummy_*.nii.gz
 siq_example_output/
 siq_multi_task_example_output/
-
+class_grid/
