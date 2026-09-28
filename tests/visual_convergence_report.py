@@ -108,9 +108,10 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
     plt.close(fig)
 
 
-def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseline_label=None, color="#3b82f6", height=220, width=540):
+def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseline_label=None, color="#3b82f6", height=220, width=540, stage_markers=None, x_label="Step"):
     """
     Generates a standalone, dependency-free SVG chart for training metric trajectories.
+    Supports stage demarcation lines and non-overlapping cumulative progressions.
     """
     if not x_vals or not y_vals or len(x_vals) == 0:
         return f'<div style="color: #64748b; padding: 20px;">No data recorded yet for {title}.</div>'
@@ -168,6 +169,14 @@ def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseli
         svg += f'  <line x1="{pad_left}" y1="{b_y:.1f}" x2="{w - pad_right}" y2="{b_y:.1f}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />\n'
         svg += f'  <text x="{w - pad_right}" y="{b_y - 5:.1f}" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">{baseline_label or "Baseline"}: {baseline_val:.2f}</text>\n'
         
+    # Stage boundary vertical dividers
+    if stage_markers:
+        for bx, b_name in stage_markers:
+            if min_x < bx < max_x:
+                mx = map_x(bx)
+                svg += f'  <line x1="{mx:.1f}" y1="{pad_top}" x2="{mx:.1f}" y2="{pad_top + plot_h}" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />\n'
+                svg += f'  <text x="{mx + 4:.1f}" y="{pad_top + 14}" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">{b_name}</text>\n'
+
     # Points and line
     pts = [f"{map_x(x):.1f},{map_y(y):.1f}" for x, y in zip(x_vals, y_vals)]
     svg += f'  <polyline points="{" ".join(pts)}" fill="none" stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />\n'
@@ -185,8 +194,8 @@ def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseli
     svg += f'  <text x="{pad_left + plot_w}" y="22" fill="{color}" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: {y_vals[-1]:.2f}</text>\n'
     
     # X axis labels
-    svg += f'  <text x="{pad_left}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10">Iter {min_x}</text>\n'
-    svg += f'  <text x="{pad_left + plot_w}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Iter {max_x}</text>\n'
+    svg += f'  <text x="{pad_left}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10">{x_label} {min_x}</text>\n'
+    svg += f'  <text x="{pad_left + plot_w}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">{x_label} {max_x}</text>\n'
     
     svg += '</svg>\n'
     return svg
@@ -440,19 +449,37 @@ class VisualConvergenceReporter:
         gain_sign = "+" if psnr_gain >= 0 else ""
         gain_color = "#10b981" if psnr_gain >= 0 else "#f59e0b"
         
-        # SVG Charts data
-        iters = [int(r["iteration"]) for r in self.history]
+        # Compute monotonic cumulative global steps and extract stage transition markers
+        global_steps = []
+        stage_markers = []
+        curr_offset = 0
+        prev_stage = None
+        prev_iter = 0
+        
+        for r in self.history:
+            stage = r.get("stage", "Unknown")
+            it = int(r.get("iteration", 0))
+            if prev_stage is not None and stage != prev_stage:
+                curr_offset += max(prev_iter, 0)
+                short_stage = stage.replace("Phase", "").replace("Joint Fine-Tuning", "Stage 2").strip()
+                stage_markers.append((curr_offset, short_stage))
+            global_steps.append(curr_offset + it)
+            prev_stage = stage
+            prev_iter = it
+            
         psnrs = [float(r["val_psnr"]) for r in self.history]
         ssims = [float(r["val_ssim"]) for r in self.history]
         losses = [float(r["train_loss"]) for r in self.history]
         
-        svg_psnr = generate_svg_chart(iters, psnrs, "Validation PSNR Trajectory (dB)", "PSNR (dB)", baseline_val=lin_psnr, baseline_label="Bilinear", color="#10b981")
-        svg_ssim = generate_svg_chart(iters, ssims, "Validation SSIM Progression", "SSIM", baseline_val=lin_ssim, baseline_label="Bilinear", color="#8b5cf6")
-        svg_loss = generate_svg_chart(iters, losses, "Hybrid Training Loss", "Loss", color="#38bdf8")
+        svg_psnr = generate_svg_chart(global_steps, psnrs, "Validation PSNR Trajectory (dB)", "PSNR (dB)", baseline_val=lin_psnr, baseline_label="Bilinear", color="#10b981", stage_markers=stage_markers, x_label="Global Step")
+        svg_ssim = generate_svg_chart(global_steps, ssims, "Validation SSIM Progression", "SSIM", baseline_val=lin_ssim, baseline_label="Bilinear", color="#8b5cf6", stage_markers=stage_markers, x_label="Global Step")
+        svg_loss = generate_svg_chart(global_steps, losses, "Hybrid Training Loss", "Loss", color="#38bdf8", stage_markers=stage_markers, x_label="Global Step")
         
         # Build checkpoint rows (newest first)
         checkpoint_rows = ""
-        for r in reversed(self.history):
+        for idx, r in enumerate(reversed(self.history)):
+            orig_idx = len(self.history) - 1 - idx
+            g_step = global_steps[orig_idx]
             best_tag = ' <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span>' if r.get("is_best", 0) else ""
             p_val = float(r["val_psnr"])
             p_diff = p_val - lin_psnr
@@ -465,7 +492,7 @@ class VisualConvergenceReporter:
             
             checkpoint_rows += f"""
             <tr>
-                <td><strong>{r['iteration']}</strong>{best_tag}</td>
+                <td><strong>Step {g_step}</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter {r['iteration']})</span>{best_tag}</td>
                 <td><span class="stage-badge">{r['stage']}</span></td>
                 <td style="color: {p_color}; font-weight: bold;">{p_val:.2f} dB <span style="font-size: 0.8em; opacity: 0.8;">({p_sign}{p_diff:.2f})</span></td>
                 <td>{float(r['val_ssim']):.4f}</td>
@@ -871,6 +898,37 @@ class VisualConvergenceReporter:
         </div>
     </div>
 
+    <!-- Curriculum Stages Architecture & Rationale Guide -->
+    <div style="width: 100%; max-width: 1300px; margin-bottom: 2rem;">
+        <div style="background: var(--card-glass); border: 1px solid var(--border-glass); border-radius: 14px; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); font-weight: 700; margin-bottom: 0.85rem;">
+                📚 Progressive 4-Phase Curriculum Training Architecture & Rationale
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+                <div style="background: rgba(2, 6, 23, 0.6); border-left: 3px solid #38bdf8; border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: #38bdf8; font-weight: 700;">Phase 0 &bull; Warmup</div>
+                    <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 2px 0;">MSE Initial Bootstrapping</div>
+                    <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.4;">Rapid pixel-wise MSE on procedural geometric shapes to establish feature alignment and boost PSNR from random initialization (15 dB) to ~21.3 dB.</div>
+                </div>
+                <div style="background: rgba(2, 6, 23, 0.6); border-left: 3px solid #10b981; border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: #10b981; font-weight: 700;">Phase 1 &bull; Stage 1 Adaptation</div>
+                    <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 2px 0;">Hybrid Perceptual Loss Switch</div>
+                    <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.4;">Switches from MSE to multi-component Hybrid Loss (MSE + Perceptual VGG + HFEN edge + Gradient loss) with dynamic task balancing on clean shapes to learn edge structure.</div>
+                </div>
+                <div style="background: rgba(2, 6, 23, 0.6); border-left: 3px solid #f59e0b; border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: #f59e0b; font-weight: 700;">Phase 2 &bull; Stage 2 Robustness</div>
+                    <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 2px 0;">Blind Rician Noise Training</div>
+                    <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.4;">Injects realistic MRI Rician noise and multi-scale degradations so the network learns simultaneous denoising, deblurring, and super-resolution.</div>
+                </div>
+                <div style="background: rgba(2, 6, 23, 0.6); border-left: 3px solid #8b5cf6; border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: #8b5cf6; font-weight: 700;">Phase 3 &bull; Stage 3 Refinement</div>
+                    <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 2px 0;">Dedicated Anatomical Tuning</div>
+                    <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.4;">Final curriculum fine-tuning on high-frequency brain textures with fine learning rates for maximum clinical visual fidelity and high-contrast vessel/tissue definition.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Visualizer and Diagnostic Panel -->
     <div class="dashboard-container">
         <!-- Visualizer Panel -->
@@ -949,7 +1007,7 @@ class VisualConvergenceReporter:
             <table class="metrics-table">
                 <thead>
                     <tr>
-                        <th>Iteration</th>
+                        <th>Global Step (Iter)</th>
                         <th>Stage</th>
                         <th>Validation PSNR</th>
                         <th>SSIM</th>
