@@ -1,4 +1,16 @@
-# SIQ
+# SIQ: Super-Resolution Image Quantification
+
+[![PyPI version](https://badge.fury.io/py/siq.svg)](https://badge.fury.io/py/siq)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](httpss://github.com/your-repo/siq)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**SIQ** is a powerful and flexible Python library for deep learning-based image super-resolution, with a focus on medical imaging applications. It provides a comprehensive toolkit for every stage of the super-resolution workflow, from data generation and model training to robust inference and evaluation.
+
+The library is built on `TensorFlow/Keras` and `ANTSpy` and is designed to handle complex, real-world challenges such as **anisotropic super-resolution** (where different upsampling factors are needed for each axis) and **multi-task learning** (e.g., simultaneously upsampling an image and its segmentation mask).
+
+---
+
+Function-specific documentation is [here](https://stnava.github.io/siq/siq/get_data.html).
 
 ## New in Keras 3 Integration
 
@@ -16,19 +28,23 @@ The **Attention-Guided Shared Deep Back-Projection Network (AS-DBPN)** is a stat
 2. **Simplified Hybrid Attention**: Replaces computationally heavy inner-loop attention blocks with a single **Socrat/Channel Attention (SOCA/RCAN)** block at the final reconstruction layer. This eliminates redundant operations, resulting in a **4.4x speedup / 77% latency reduction** (MPS latency reduced from **261.13 ms to 59.05 ms**).
 3. **Shared Layer Normalization**: Introduces shared `LayerNormalization` inside the recurrent loop to stabilize scaling dynamics and prevent gradient collapse during iterative feedback steps.
 4. **Generalization Under Blind Conditions**: Trained via a curriculum of mixed geometries, Rician noise, and out-of-focus blur, the model is resilient to blind, ill-posed degradations, achieving **23.70 dB PSNR** on the `r16` brain validation patch (+0.84 dB over SAN) and ranking **#3 overall** on the Mixed Simulation Class benchmark.
-: Super-Resolution Image Quantification
 
-[![PyPI version](https://badge.fury.io/py/siq.svg)](https://badge.fury.io/py/siq)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](httpss://github.com/your-repo/siq)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Evaluations & Visual Reports
 
-**SIQ** is a powerful and flexible Python library for deep learning-based image super-resolution, with a focus on medical imaging applications. It provides a comprehensive toolkit for every stage of the super-resolution workflow, from data generation and model training to robust inference and evaluation.
+GitHub does not render standalone `.html` files inline, so the interactive reports below are linked through [htmlpreview.github.io](https://htmlpreview.github.io), which renders them straight from this repo:
 
-The library is built on `TensorFlow/Keras` and `ANTSpy` and is designed to handle complex, real-world challenges such as **anisotropic super-resolution** (where different upsampling factors are needed for each axis) and **multi-task learning** (e.g., simultaneously upsampling an image and its segmentation mask).
+*   **[9-Class Simulation Benchmark: Overall Model Comparison](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/summary_results.html)** — interactive PSNR/SSIM/GMSD/HFEN/Correlation comparison across all 12 models (11 architectures + bilinear baseline) and 9 synthetic simulation classes (brain, vessels, fractal noise, sinewave, etc.).
+*   **[`r16` Brain MRI Qualitative Comparison](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/r16_comparison.html)** — side-by-side visual comparison of ground truth, bilinear, SAN, and AS-DBPN reconstructions on the classic `r16` test image.
+*   **[Simulated Example Gallery](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/docs/simulated_examples.html)** — low-res/high-res pairs across all 9 simulation classes used for blind training and evaluation.
 
----
+Static summaries of the same benchmark are also available as Markdown tables: **[Class Performance Summary](class_performance_summary.md)** and **[Rank-of-Ranks & SRFBN Analysis](rank_of_ranks_and_srfbn_analysis.md)**.
 
-Function-specific documentation is [here](https://stnava.github.io/siq/siq/get_data.html).
+### What the current results show
+
+*   **Rank of Ranks (9-class benchmark, full retrain):** **REF-DBPN** ranks #1 overall (score 2.98), followed by **SAN** (#2, 3.67) and **LDBPN** (#3, 4.22). All 11 trained architectures beat the **Bilinear** baseline (10.58) by a wide margin.
+*   **AS-DBPN (the new low-latency model)** trades a small amount of rank-score for a **4.4x speedup**: MPS latency drops from 261.13 ms to **59.05 ms**, while still beating SAN by **+0.84 dB PSNR** on the `r16` validation patch and landing **#3 overall** on the mixed-class benchmark — the best quality-per-millisecond tradeoff in the collection.
+*   **Heavier back-projection models (REF-DBPN, LDBPN) consistently top the accuracy leaderboard** but cost far more latency (REF-DBPN: 648 ms vs. ~15–23 ms for the lightweight models), which motivated the AS-DBPN design.
+*   **SRFBN bilinear-bypass fix**: SRFBN previously collapsed to an MSE-minimizing bilinear shortcut. Zero-initializing its `LearnableScale` skip parameter forced the recurrent conv branch to train from a genuine 15.53 dB start; the retrained model now shows fully active convolutional weights and **8–13% HFEN improvement** (sharper high-frequency detail) on structured classes like `sinewave`, `layered`, and `fractal_noise`.
 
 ## Key Features
 
