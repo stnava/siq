@@ -1,5 +1,8 @@
 import os
 import sys
+import queue
+import threading
+import math
 
 # Ensure repo root and tests dir are on sys.path
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -20,6 +23,145 @@ import ants
 import antspynet
 import siq
 from siq.get_data import compute_gmsd, compute_hfen
+
+
+def prefetch_generator(gen, maxsize=4):
+    """Wrap a generator with a background prefetch thread.
+
+    While the GPU is executing a training step, the CPU thread is already
+    generating the NEXT batch. This eliminates the ~1.7 s/step stall where
+    the GPU sits idle waiting for new data.
+
+    Parameters
+    ----------
+    gen : generator
+        The source generator (e.g. siq.blind_sr_generator).
+    maxsize : int
+        Maximum number of batches to prefetch into the queue (default 4).
+        Set to 0 to disable prefetching (returns gen unchanged).
+
+    Yields
+    ------
+    tuple
+        (x_batch, y_batch) from the underlying generator.
+    """
+    if maxsize <= 0:
+        yield from gen
+        return
+
+    q = queue.Queue(maxsize=maxsize)
+    _sentinel = object()
+
+    def _worker():
+        try:
+            for item in gen:
+                q.put(item)
+        except Exception as e:
+            print(f"[PrefetchGenerator] Worker exception: {e}")
+        finally:
+            q.put(_sentinel)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
+    while True:
+        item = q.get()
+        if item is _sentinel:
+            break
+        yield item
+
+
+class OneCycleLR(keras.optimizers.schedules.LearningRateSchedule):
+    """OneCycle learning-rate schedule for fast convergence.
+
+    Linearly warms the LR from base_lr to max_lr over the first
+    ``pct_start`` fraction of steps, then applies cosine annealing
+    from max_lr down to final_lr for the remaining steps.
+
+    Parameters
+    ----------
+    max_lr : float
+        Peak learning rate (e.g. 2e-4).
+    total_steps : int
+        Total number of training steps this schedule covers.
+    pct_start : float
+        Fraction of steps used for the warmup phase (default 0.3).
+    div_factor : float
+        base_lr = max_lr / div_factor (default 25.0).
+    final_div : float
+        final_lr = max_lr / final_div (default 1e4).
+    """
+
+    def __init__(self, max_lr, total_steps, pct_start=0.3,
+                 div_factor=25.0, final_div=1e4):
+        super().__init__()
+        self.max_lr = float(max_lr)
+        self.total_steps = int(total_steps)
+        self.pct_start = float(pct_start)
+        self.base_lr = self.max_lr / div_factor
+        self.final_lr = self.max_lr / final_div
+
+    def __call__(self, step):
+        step = keras.ops.cast(step, "float32")
+        warmup_steps = float(self.total_steps) * self.pct_start
+
+        # Linear warmup phase
+        warmup_lr = self.base_lr + (self.max_lr - self.base_lr) * (
+            step / max(1.0, warmup_steps)
+        )
+        # Cosine annealing phase
+        progress = (step - warmup_steps) / max(
+            1.0, float(self.total_steps) - warmup_steps
+        )
+        cosine_lr = self.final_lr + 0.5 * (self.max_lr - self.final_lr) * (
+            1.0 + keras.ops.cos(math.pi * keras.ops.clip(progress, 0.0, 1.0))
+        )
+        return keras.ops.where(step < warmup_steps, warmup_lr, cosine_lr)
+
+    def get_config(self):
+        return {
+            "max_lr": self.max_lr,
+            "total_steps": self.total_steps,
+            "pct_start": self.pct_start,
+            "div_factor": self.max_lr / self.base_lr,
+            "final_div": self.max_lr / self.final_lr,
+        }
+
+def rank_normalize_batch(x_tensor):
+    """Apply per-sample rank normalization to match antspyt1w resnet_grader preprocessing.
+
+    The ResNet grader was trained with ``ants.rank_intensity`` applied to each
+    volume before inference. That transform maps every voxel's intensity to its
+    fractional rank within the volume (output in [0, 1], uniform distribution).
+    Without this, we feed linear [0,1] data to a network that learned rank-uniform
+    features, causing a significant distribution mismatch.
+
+    This function replicates that transform on a batched Keras/torch tensor:
+      1. Convert to numpy (CPU, float32).
+      2. For each sample: flatten → double argsort → divide by (N-1) → reshape.
+      3. Convert back to a Keras tensor on the original device.
+
+    Parameters
+    ----------
+    x_tensor : Keras tensor, shape (B, D, H, W, C)
+        Input batch in [0, 1] linear intensity range.
+
+    Returns
+    -------
+    Keras tensor, same shape and device as input, values in [0, 1] (rank-uniform).
+    """
+    x_np = ops.convert_to_numpy(x_tensor).astype("float32")
+    out = np.empty_like(x_np)
+    B = x_np.shape[0]
+    for b in range(B):
+        vol = x_np[b, ..., 0].ravel()
+        # double argsort = rank transform
+        ranks = np.argsort(np.argsort(vol)).astype("float32")
+        n = len(ranks)
+        ranks /= max(n - 1, 1)
+        out[b, ..., 0] = ranks.reshape(x_np.shape[1:-1])
+    return ops.convert_to_tensor(out, dtype="float32")
+
 
 def set_core_trainable(model, trainable=True):
     count = 0
@@ -235,6 +377,46 @@ def main():
     parser.add_argument("--skip-warmup", action="store_true", default=False, help="Skip MSE warmup phase (useful when resuming/fine-tuning from an existing trained model)")
     parser.add_argument("--load-model", type=str, default=None, help="Explicit path to pretrained/checkpoint model to load weights from")
     parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
+    # ---------------------------------------------------------------
+    # Speed optimisation flags (see faster_training_plan.md)
+    # ---------------------------------------------------------------
+    parser.add_argument(
+        "--perceptual-backend", choices=["vgg", "resnet"], default="vgg",
+        help="Perceptual feature extractor backend for 3D. "
+             "'vgg'  = pseudo-3D VGG19 layers [3,6,9] (original, accurate). "
+             "'resnet' = native 3D ResNet grader layer 6 (60x faster, "
+             "validated as equal-or-better in Avants et al. 2023). (default: vgg)")
+    parser.add_argument(
+        "--balancer-freq", type=int, default=1,
+        help="How many steps between full loss-component diagnostic forward passes "
+             "used by the dynamic balancer. 1 = every step (original behaviour). "
+             "25 = ~60%% step-time reduction by amortising the extra model+VGG "
+             "forward passes. (default: 1)")
+    parser.add_argument(
+        "--prefetch-size", type=int, default=0,
+        help="Number of batches to prefetch in a background thread while the GPU "
+             "trains. Hides the ~1.7 s/step CPU data-generation stall. "
+             "0 = disabled (original behaviour). 4 = recommended. (default: 0)")
+    parser.add_argument(
+        "--use-onecycle", action="store_true", default=False,
+        help="Use a OneCycleLR schedule instead of flat learning-rate blocks. "
+             "Warms up over 30%% of steps then cosine-anneals to near-zero; "
+             "typically reaches equivalent quality in ~40%% fewer iterations.")
+    parser.add_argument(
+        "--onecycle-max-lr", type=float, default=2e-4,
+        help="Peak learning rate for the OneCycleLR schedule (default: 2e-4).")
+    parser.add_argument(
+        "--init-l1-weight", type=float, default=None,
+        help="Pre-calibrated MAE (L1) loss weight. When provided along with "
+             "--init-feat-weight and --init-tv-weight, skips the auto-calibration "
+             "forward pass and starts training immediately at the target 65/30/5 ratio. "
+             "Compute via: w = (target_pct * target_total_loss) / median_raw_loss.")
+    parser.add_argument(
+        "--init-feat-weight", type=float, default=None,
+        help="Pre-calibrated perceptual (feature) loss weight (see --init-l1-weight).")
+    parser.add_argument(
+        "--init-tv-weight", type=float, default=None,
+        help="Pre-calibrated total-variation loss weight (see --init-l1-weight).")
     args = parser.parse_args()
     
     try:
@@ -740,18 +922,23 @@ def main():
             return keras.Model(inputs=inputs, outputs=feature_model(x))
         feature_extractor = build_vgg_2d(inshape=[hr_patch_size, hr_patch_size], layers=[3, 6, 9])
     else:
-        fe_inshape = [hr_patch_size, hr_patch_size, hr_patch_size]
-        print(f"Loading pseudo-3D VGG feature extractors (Layers [3, 6, 9], inshape={fe_inshape})...")
-        fe_3 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=3)
-        fe_6 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
-        fe_9 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=9)
-        
-        inputs = keras.layers.Input(shape=(hr_patch_size, hr_patch_size, hr_patch_size, 1))
-        o3 = fe_3(inputs)
-        o6 = fe_6(inputs)
-        o9 = fe_9(inputs)
-        feature_extractor = keras.Model(inputs=inputs, outputs=[o3, o6, o9])
-        
+        if args.perceptual_backend == "resnet":
+            print("Loading native 3D ResNet grader feature extractor (Layer 6) — 60x faster than VGG, "
+                  "validated as equal-or-better (Avants et al. 2023 medRxiv)...")
+            feature_extractor = siq.get_grader_feature_network(layer=6)
+            print(f"  ResNet grader output shape: {feature_extractor.output.shape}")
+        else:
+            fe_inshape = [hr_patch_size, hr_patch_size, hr_patch_size]
+            print(f"Loading pseudo-3D VGG feature extractors (Layers [3, 6, 9], inshape={fe_inshape})...")
+            fe_3 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=3)
+            fe_6 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
+            fe_9 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=9)
+            inputs = keras.layers.Input(shape=(hr_patch_size, hr_patch_size, hr_patch_size, 1))
+            o3 = fe_3(inputs)
+            o6 = fe_6(inputs)
+            o9 = fe_9(inputs)
+            feature_extractor = keras.Model(inputs=inputs, outputs=[o3, o6, o9])
+
     feature_extractor.trainable = False
     
     # 6. Hybrid loss function variables (using auto_weight_loss mimicking successful training)
@@ -775,7 +962,25 @@ def main():
             print(f"Could not read weights from CSV: {e}")
             wts_loaded = False
             
+    # ── Pre-calibrated weights override ───────────────────────────────────────
+    # When --init-l1-weight / --init-feat-weight / --init-tv-weight are all
+    # provided, skip the expensive auto-calibration forward pass and use the
+    # caller-supplied values directly.  These should be computed offline via:
+    #   w = (target_pct * target_total_loss) / median_raw_loss_over_N_batches
+    # which guarantees the 65/30/5 ratio from iteration 1.
+    if (args.init_l1_weight is not None
+            and args.init_feat_weight is not None
+            and args.init_tv_weight is not None):
+        w_mae_init   = args.init_l1_weight
+        w_percep_init = args.init_feat_weight
+        w_tv_init    = args.init_tv_weight
+        wts_loaded   = True
+        print(f"[Pre-calibrated weights] L1={w_mae_init:.6f}  "
+              f"Feat={w_percep_init:.6f}  TV={w_tv_init:.6f}  "
+              f"(bypassing auto-calibration)")
+
     if not wts_loaded:
+
         print("Computing automatic systematic loss weights using a sample clean training batch...")
         # Temporary generator to obtain clean patches for calibration
         temp_gen = siq.blind_sr_generator(
@@ -798,8 +1003,11 @@ def main():
         
         init_mae = float(ops.mean(ops.abs(y_init_t - y_pred_init)))
         
-        f_true_init = feature_extractor(y_init_t)
-        f_pred_init = feature_extractor(y_pred_init)
+        # Apply same preprocessing as during training
+        y_init_rn = rank_normalize_batch(y_init_t) if (args.perceptual_backend == "resnet" and dim == 3) else y_init_t
+        y_pred_rn = rank_normalize_batch(y_pred_init) if (args.perceptual_backend == "resnet" and dim == 3) else y_pred_init
+        f_true_init = feature_extractor(y_init_rn)
+        f_pred_init = feature_extractor(y_pred_rn)
         if not isinstance(f_true_init, list):
             f_true_init = [f_true_init]
             f_pred_init = [f_pred_init]
@@ -843,8 +1051,24 @@ def main():
     l1_weight_var.assign(w_mae_init)
     feat_weight_var.assign(w_percep_init)
     tv_weight_var.assign(w_tv_init)
-    
+
     print(f"Systematic dynamic weight starting values: MSE={float(ops.convert_to_numpy(msq_weight_var)):.4f}, MAE (L1)={float(ops.convert_to_numpy(l1_weight_var)):.6f}, Feat={float(ops.convert_to_numpy(feat_weight_var)):.8e}, TV={float(ops.convert_to_numpy(tv_weight_var)):.6f}")
+
+    # ---------------------------------------------------------------
+    # Preprocessing wrapper for the perceptual feature extractor.
+    # VGG has Rescaling(255, -127.5) baked in; ResNet was trained on
+    # rank-intensity-normalised [0,1] inputs (ants.rank_intensity).
+    # fe_preprocess applies that transform before every feature call
+    # so the ResNet sees the correct input distribution.
+    # ---------------------------------------------------------------
+    if args.perceptual_backend == "resnet" and dim == 3:
+        print("[ResNet] Rank-normalization preprocessing enabled "
+              "(matching antspyt1w resnet_grader training distribution).")
+        def _call_fe(tensor):
+            return feature_extractor(rank_normalize_batch(tensor), training=False)
+    else:
+        def _call_fe(tensor):
+            return feature_extractor(tensor)
 
     def hybrid_loss(y_true, y_pred):
         # L2 Loss (MSE)
@@ -855,9 +1079,9 @@ def main():
         abs_diff = ops.abs(y_true - y_pred)
         l1_term = ops.mean(abs_diff, axis=list(range(1, len(y_true.shape))))
         
-        # Perceptual Loss (multi-layer)
-        f_true_list = feature_extractor(y_true)
-        f_pred_list = feature_extractor(y_pred)
+        # Perceptual Loss (multi-layer) — fe_preprocess applied internally by _call_fe
+        f_true_list = _call_fe(y_true)
+        f_pred_list = _call_fe(y_pred)
         if not isinstance(f_true_list, list):
             f_true_list = [f_true_list]
             f_pred_list = [f_pred_list]
@@ -890,8 +1114,8 @@ def main():
         l2_val = float(ops.mean(ops.square(y_true_tensor - y_pred_batch)))
         l1_val = float(ops.mean(ops.abs(y_true_tensor - y_pred_batch)))
         
-        f_true_batch = feature_extractor(y_true_tensor)
-        f_pred_batch = feature_extractor(y_pred_batch)
+        f_true_batch = _call_fe(y_true_tensor)
+        f_pred_batch = _call_fe(y_pred_batch)
         if not isinstance(f_true_batch, list):
             f_true_batch = [f_true_batch]
             f_pred_batch = [f_pred_batch]
@@ -973,31 +1197,40 @@ def main():
                 print(f"Failed to pre-populate tracker from CSV: {e}")
 
     def step_dynamic_balancer(iteration, x_batch, y_batch):
-        # Calculate raw loss values for this batch to add to tracker
-        y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
-        y_pred_batch = ops.stop_gradient(model(x_batch, training=False))
-        raw_l1 = float(ops.mean(ops.abs(y_true_tensor - y_pred_batch)))
-        
-        f_true_batch = feature_extractor(y_true_tensor)
-        f_pred_batch = feature_extractor(y_pred_batch)
-        if isinstance(f_true_batch, list):
-            raw_feat = sum(float(ops.mean(ops.square(ft - fp))) for ft, fp in zip(f_true_batch, f_pred_batch))
-        else:
-            raw_feat = float(ops.mean(ops.square(f_true_batch - f_pred_batch)))
-            
-        if dim == 2:
-            diff_h = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
-            diff_w = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
-            raw_tv = float(diff_h + diff_w)
-        else:
-            diff_d = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
-            diff_h = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
-            diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
-            raw_tv = float(diff_d + diff_h + diff_w)
-            
-        tracker.add(iteration, raw_l1, raw_feat, raw_tv)
-        
-        # Update weights every update_freq iterations
+        """Update dynamic loss weights, with lazy raw-loss computation.
+
+        When ``--balancer-freq N`` is set (N > 1), the expensive extra model
+        forward pass and feature-extractor forward passes are only run every
+        N steps. The LOWESS-smoothed weight update still runs every
+        ``--update-freq`` steps, using the last known raw component values.
+        This amortises ~3.6 s of per-step overhead by a factor of N.
+        """
+        # ── Expensive diagnostic path (model + feature forward) ──────────
+        if iteration % args.balancer_freq == 0:
+            y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
+            y_pred_batch = ops.stop_gradient(model(x_batch, training=False))
+            raw_l1 = float(ops.mean(ops.abs(y_true_tensor - y_pred_batch)))
+
+            f_true_batch = _call_fe(y_true_tensor)
+            f_pred_batch = _call_fe(y_pred_batch)
+            if isinstance(f_true_batch, list):
+                raw_feat = sum(float(ops.mean(ops.square(ft - fp))) for ft, fp in zip(f_true_batch, f_pred_batch))
+            else:
+                raw_feat = float(ops.mean(ops.square(f_true_batch - f_pred_batch)))
+
+            if dim == 2:
+                diff_h = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
+                diff_w = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
+                raw_tv = float(diff_h + diff_w)
+            else:
+                diff_d = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
+                diff_h = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
+                diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
+                raw_tv = float(diff_d + diff_h + diff_w)
+
+            tracker.add(iteration, raw_l1, raw_feat, raw_tv)
+
+        # ── Weight-update path (cheap, every update_freq steps) ──────────
         if iteration % args.update_freq == 0:
             current_w = {
                 'mae': float(ops.convert_to_numpy(l1_weight_var)),
@@ -1020,6 +1253,7 @@ def main():
             l1_weight_var.assign(new_w['mae'])
             feat_weight_var.assign(new_w['percep'])
             tv_weight_var.assign(new_w['tv'])
+
 
     if last_iteration == 0 and not args.skip_warmup:
         import time
@@ -1127,21 +1361,29 @@ def main():
         if model_type in ["espcn", "espcn-rc"]:
             set_core_trainable(model, trainable=False)
         
-        train_gen_clean = siq.blind_sr_generator(
-            hr_base_cache=None,
-            batch_size=batch_size,
-            lr_patch_size=lr_patch_size,
-            factor=2,
-            blur_sigma_range=(0.0, 0.0),
-            noise_std_range=(0.0, 0.0),
-            simulation_classes=simulation_classes,
-            zoom_range=(0.75, 1.3),
-            use_cache=False,
-            dimensionality=dim,
-            use_layer2=args.use_layer2
+        train_gen_clean = prefetch_generator(
+            siq.blind_sr_generator(
+                hr_base_cache=None,
+                batch_size=batch_size,
+                lr_patch_size=lr_patch_size,
+                factor=2,
+                blur_sigma_range=(0.0, 0.0),
+                noise_std_range=(0.0, 0.0),
+                simulation_classes=simulation_classes,
+                zoom_range=(0.75, 1.3),
+                use_cache=False,
+                dimensionality=dim,
+                use_layer2=args.use_layer2
+            ),
+            maxsize=args.prefetch_size,
         )
-        
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_lr), loss=hybrid_loss)
+
+        if args.use_onecycle:
+            stage1_schedule = OneCycleLR(max_lr=args.onecycle_max_lr, total_steps=stage1_max)
+            print(f"[OneCycleLR] Stage 1: max_lr={args.onecycle_max_lr:.2e}, total_steps={stage1_max}")
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_schedule), loss=hybrid_loss)
+        else:
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_lr), loss=hybrid_loss)
         
         for iteration in range(max(1, last_iteration + 1), stage1_max + 1):
             x_batch, y_batch = next(train_gen_clean)
@@ -1188,27 +1430,36 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Loading best Stage 1 checkpoint from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-        
+
         if model_type in ["espcn", "espcn-rc"]:
             set_core_trainable(model, trainable=True)
-        
-        train_gen_robust = siq.blind_sr_generator(
-            hr_base_cache=None,
-            batch_size=batch_size,
-            lr_patch_size=lr_patch_size,
-            factor=2,
-            blur_sigma_range=(0.0, 0.0),
-            noise_std_range=(0.0, 0.02),
-            use_rician_noise=True,
-            simulation_classes=simulation_classes,
-            zoom_range=(0.75, 1.3),
-            use_cache=False,
-            dimensionality=dim,
-            use_layer2=args.use_layer2
+
+        train_gen_robust = prefetch_generator(
+            siq.blind_sr_generator(
+                hr_base_cache=None,
+                batch_size=batch_size,
+                lr_patch_size=lr_patch_size,
+                factor=2,
+                blur_sigma_range=(0.0, 0.0),
+                noise_std_range=(0.0, 0.02),
+                use_rician_noise=True,
+                simulation_classes=simulation_classes,
+                zoom_range=(0.75, 1.3),
+                use_cache=False,
+                dimensionality=dim,
+                use_layer2=args.use_layer2
+            ),
+            maxsize=args.prefetch_size,
         )
-        
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_lr), loss=hybrid_loss)
-        
+
+        stage2_steps = stage2_max - stage1_max
+        if args.use_onecycle:
+            stage2_schedule = OneCycleLR(max_lr=args.onecycle_max_lr, total_steps=stage2_steps)
+            print(f"[OneCycleLR] Stage 2: max_lr={args.onecycle_max_lr:.2e}, total_steps={stage2_steps}")
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_schedule), loss=hybrid_loss)
+        else:
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_lr), loss=hybrid_loss)
+
         start_iter = max(stage1_max + 1, last_iteration + 1)
         for iteration in range(start_iter, stage2_max + 1):
             x_batch, y_batch = next(train_gen_robust)
@@ -1277,23 +1528,33 @@ def main():
         "fractal_noise": 1.0 / 9.0
     }
 
-    train_gen_refine = siq.blind_sr_generator(
-        hr_base_cache=None,
-        batch_size=batch_size,
-        lr_patch_size=lr_patch_size,
-        factor=2,
-        blur_sigma_range=(0.0, 0.0),
-        noise_std_range=(0.0, 0.01),
-        use_rician_noise=True,
-        simulation_classes=refinement_classes,
-        zoom_range=(0.75, 1.3),
-        use_cache=False,
-        dimensionality=dim,
-        use_layer2=args.use_layer2
+    train_gen_refine = prefetch_generator(
+        siq.blind_sr_generator(
+            hr_base_cache=None,
+            batch_size=batch_size,
+            lr_patch_size=lr_patch_size,
+            factor=2,
+            blur_sigma_range=(0.0, 0.0),
+            noise_std_range=(0.0, 0.01),
+            use_rician_noise=True,
+            simulation_classes=refinement_classes,
+            zoom_range=(0.75, 1.3),
+            use_cache=False,
+            dimensionality=dim,
+            use_layer2=args.use_layer2
+        ),
+        maxsize=args.prefetch_size,
     )
-    
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_lr), loss=hybrid_loss)
+
+    stage3_steps = stage3_max - stage2_max
+    if args.use_onecycle:
+        stage3_schedule = OneCycleLR(max_lr=args.onecycle_max_lr * 0.5, total_steps=stage3_steps)
+        print(f"[OneCycleLR] Stage 3: max_lr={args.onecycle_max_lr * 0.5:.2e}, total_steps={stage3_steps}")
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_schedule), loss=hybrid_loss)
+    else:
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_lr), loss=hybrid_loss)
     best_val_loss = float("inf")
+
 
     start_iter = max(stage2_max + 1, last_iteration + 1)
     for iteration in range(start_iter, stage3_max + 1):
