@@ -436,6 +436,18 @@ class VisualConvergenceReporter:
         """
         Compiles the visual HTML dashboard with interactive viewports, SVG charts, and convergence history.
         """
+        try:
+            from tests.render_convergence_dashboard import render_html_dashboard_from_csv
+            if render_html_dashboard_from_csv(
+                csv_path=self.csv_path,
+                html_path=self.html_path,
+                bilinear_metrics=self.bilinear_metrics,
+                ldbpn_metrics=self.ldbpn_metrics
+            ):
+                return True
+        except Exception:
+            pass
+
         if latest_entry is None and len(self.history) > 0:
             latest_entry = self.history[-1]
             
@@ -475,6 +487,8 @@ class VisualConvergenceReporter:
                 g_step = it
             else:
                 g_step = warmup_max_iter + it
+            if global_steps and g_step <= global_steps[-1]:
+                g_step = global_steps[-1] + 1
             global_steps.append(g_step)
             if prev_stage is not None and st != prev_stage:
                 short_stage = st.replace("Phase", "").replace("Joint Fine-Tuning", "Stage 3").strip()

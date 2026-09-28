@@ -146,6 +146,8 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             g_step = it
         else:
             g_step = warmup_max_iter + it
+        if global_steps and g_step <= global_steps[-1]:
+            g_step = global_steps[-1] + 1
         global_steps.append(g_step)
         if prev_stage is not None and st != prev_stage:
             short_stage = st.replace("Phase", "").replace("Joint Fine-Tuning", "Stage 3").strip()
@@ -531,7 +533,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             <h1>3D AS-DBPN Super-Resolution Convergence</h1>
             <div class="badge-live">
                 <span class="pulse-dot"></span>
-                <span>TRAINING ACTIVE &bull; STAGE 2</span>
+                <span>TRAINING ACTIVE &bull; {cur_stage.upper()}</span>
             </div>
         </div>
         <p style="color: var(--text-secondary); font-size: 0.95rem;">

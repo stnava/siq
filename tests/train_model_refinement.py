@@ -116,7 +116,17 @@ class LossHistoryTracker:
             self.raw_percep.pop(0)
             self.raw_tv.pop(0)
 
-def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, original_weight_sum, current_weights, beta_damp=0.98):
+def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, arg4=1.0, arg5=None, beta_damp=0.98, target_total_loss=1.0):
+    # Support both new signature (tracker, target_pcts, current_iteration, current_weights, target_total_loss, beta_damp)
+    # and legacy signature (tracker, target_pcts, current_iteration, original_weight_sum, current_weights, beta_damp)
+    if isinstance(arg4, dict):
+        current_weights = arg4
+        if isinstance(arg5, (int, float)):
+            target_total_loss = float(arg5)
+    else:
+        target_total_loss = float(arg4)
+        current_weights = arg5 if arg5 is not None else {'mae': 1.0, 'percep': 1.0, 'tv': 1.0}
+
     if len(tracker.iterations) < 5:
         return current_weights, {
             'mae': tracker.raw_mae[-1] if tracker.raw_mae else 1.0,
@@ -135,24 +145,14 @@ def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, ori
     t_tv = target_pcts.get('tv', 5.0)
     
     total_t = t_mae + t_percep + t_tv
-    t_mae /= total_t
-    t_percep /= total_t
-    t_tv /= total_t
+    p_mae = t_mae / total_t
+    p_percep = t_percep / total_t
+    p_tv = t_tv / total_t
     
-    w_mae_raw = t_mae / smooth_mae
-    w_percep_raw = t_percep / smooth_percep
-    w_tv_raw = t_tv / smooth_tv
+    w_mae_tgt = (p_mae * target_total_loss) / smooth_mae
+    w_percep_tgt = (p_percep * target_total_loss) / smooth_percep
+    w_tv_tgt = (p_tv * target_total_loss) / smooth_tv
     
-    sum_raw = w_mae_raw + w_percep_raw + w_tv_raw
-    if sum_raw > 1e-8:
-        w_mae_tgt = original_weight_sum * (w_mae_raw / sum_raw)
-        w_percep_tgt = original_weight_sum * (w_percep_raw / sum_raw)
-        w_tv_tgt = original_weight_sum * (w_tv_raw / sum_raw)
-    else:
-        w_mae_tgt = current_weights['mae']
-        w_percep_tgt = current_weights['percep']
-        w_tv_tgt = current_weights['tv']
-        
     # Introduce a linear fall-off of dynamic balancing over 3000 iterations to guarantee stationary convergence
     decay_factor = max(0.0, 1.0 - current_iteration / 3000.0)
     effective_step = (1.0 - beta_damp) * decay_factor
@@ -215,7 +215,8 @@ def main():
     parser.add_argument("--stage3-iter", type=int, default=5000, help="Max iterations for Stage 3 (default: 5000)")
     parser.add_argument("--target-percep", type=float, default=65.0, help="Target perceptual loss percentage contribution (default: 65.0)")
     parser.add_argument("--target-mae", type=float, default=30.0, help="Target MAE loss percentage contribution (default: 30.0)")
-    parser.add_argument("--target-tv", type=float, default=0.5, help="Target TV loss percentage contribution (default: 0.5)")
+    parser.add_argument("--target-tv", type=float, default=5.0, help="Target TV loss percentage contribution (default: 5.0)")
+    parser.add_argument("--target-total-loss", type=float, default=1.0, help="Target total loss scale for auto-balancing (default: 1.0)")
     parser.add_argument("--dampening", type=float, default=0.98, help="Dampening factor beta for weight transition (default: 0.98)")
     parser.add_argument("--smooth-window", type=int, default=100, help="LOWESS smoothing window size (default: 100)")
     parser.add_argument("--update-freq", type=int, default=10, help="Weight update frequency in iterations (default: 10)")
@@ -760,17 +761,21 @@ def main():
     
     wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv")
     wts_loaded = False
-    if os.path.exists(wts_csv):
+    if os.path.exists(wts_csv) and not args.reset_history:
         print(f"Loading preset weights from {wts_csv}...")
         try:
             wtsdf = pd.read_csv(wts_csv)
-            wts = [float(wtsdf['msq'].iloc[0]), float(wtsdf['feat'].iloc[0]), float(wtsdf['tv'].iloc[0])]
-            wts_loaded = True
+            if 'l1' in wtsdf.columns and float(wtsdf['l1'].iloc[0]) > 1e-4:
+                w_mae_init = float(wtsdf['l1'].iloc[0])
+                w_percep_init = float(wtsdf['feat'].iloc[0])
+                w_tv_init = float(wtsdf['tv'].iloc[0])
+                wts_loaded = True
         except Exception as e:
             print(f"Could not read weights from CSV: {e}")
+            wts_loaded = False
             
     if not wts_loaded:
-        print("Computing automatic loss weights using a sample clean training batch...")
+        print("Computing automatic systematic loss weights using a sample clean training batch...")
         # Temporary generator to obtain clean patches for calibration
         temp_gen = siq.blind_sr_generator(
             hr_base_cache=None,
@@ -788,78 +793,51 @@ def main():
         x_init, y_init = next(temp_gen)
         x_init_t = ops.convert_to_tensor(x_init, dtype="float32")
         y_init_t = ops.convert_to_tensor(y_init, dtype="float32")
+        y_pred_init = ops.stop_gradient(model(x_init_t, training=False))
         
-        wts = auto_weight_loss_multi(
-            model,
-            feature_extractor,
-            x_init_t,
-            y_init_t,
-            feature=2.0,
-            tv=0.1,
-            verbose=True
-        )
-        print(f"Automatic weights computed: MSE={wts[0]}, Feat={wts[1]}, TV={wts[2]}")
-        pd.DataFrame([[wts[0], wts[1], wts[2]]], columns=["msq", "feat", "tv"]).to_csv(wts_csv, index=False)
-        print(f"Saved weights to {wts_csv}")
+        init_mae = float(ops.mean(ops.abs(y_init_t - y_pred_init)))
         
-    # Generate a sample batch to compute initial raw loss values for calibration / weight scaling
-    temp_gen = siq.blind_sr_generator(
-        hr_base_cache=None,
-        batch_size=batch_size,
-        lr_patch_size=lr_patch_size,
-        factor=2,
-        blur_sigma_range=(0.0, 0.0),
-        noise_std_range=(0.0, 0.0),
-        simulation_classes=simulation_classes,
-        zoom_range=(1.0, 1.0),
-        use_cache=False,
-        dimensionality=dim,
-        use_layer2=args.use_layer2
-    )
-    x_init, y_init = next(temp_gen)
-    x_init_t = ops.convert_to_tensor(x_init, dtype="float32")
-    y_init_t = ops.convert_to_tensor(y_init, dtype="float32")
-    y_pred_init = ops.stop_gradient(model(x_init_t, training=False))
-    
-    init_mae = float(ops.mean(ops.abs(y_init_t - y_pred_init)))
-    
-    f_true_init = feature_extractor(y_init_t)
-    f_pred_init = feature_extractor(y_pred_init)
-    if not isinstance(f_true_init, list):
-        f_true_init = [f_true_init]
-        f_pred_init = [f_pred_init]
-    init_percep = sum(float(ops.mean(ops.square(ft - fp))) for ft, fp in zip(f_true_init, f_pred_init))
-    
-    if dim == 2:
-        diff_h = ops.mean(ops.abs(y_pred_init[:, 1:, :, :] - y_pred_init[:, :-1, :, :]))
-        diff_w = ops.mean(ops.abs(y_pred_init[:, :, 1:, :] - y_pred_init[:, :, :-1, :]))
-        init_tv = float(diff_h + diff_w)
-    else:
-        diff_d = ops.mean(ops.abs(y_pred_init[:, 1:, :, :, :] - y_pred_init[:, :-1, :, :, :]))
-        diff_h = ops.mean(ops.abs(y_pred_init[:, :, 1:, :, :] - y_pred_init[:, :, :-1, :, :]))
-        diff_w = ops.mean(ops.abs(y_pred_init[:, :, :, 1:, :] - y_pred_init[:, :, :, :-1, :]))
-        init_tv = float(diff_d + diff_h + diff_w)
+        f_true_init = feature_extractor(y_init_t)
+        f_pred_init = feature_extractor(y_pred_init)
+        if not isinstance(f_true_init, list):
+            f_true_init = [f_true_init]
+            f_pred_init = [f_pred_init]
+        init_percep = sum(float(ops.mean(ops.square(ft - fp))) for ft, fp in zip(f_true_init, f_pred_init))
         
-    print(f"Initial raw loss components: MAE={init_mae:.6f}, Perceptual={init_percep:.6f}, TV={init_tv:.6f}")
-    
-    original_weight_sum = (0.5 * wts[1]) + wts[1] + (0.1 * wts[2])
-    
-    # Starting weights scaled to target percentages
-    w_mae_init_raw = (target_pcts['mae'] / 100.0) / max(1e-8, init_mae)
-    w_percep_init_raw = (target_pcts['percep'] / 100.0) / max(1e-8, init_percep)
-    w_tv_init_raw = (target_pcts['tv'] / 100.0) / max(1e-8, init_tv)
-    
-    init_sum = w_mae_init_raw + w_percep_init_raw + w_tv_init_raw
-    w_mae_init = original_weight_sum * (w_mae_init_raw / init_sum)
-    w_percep_init = original_weight_sum * (w_percep_init_raw / init_sum)
-    w_tv_init = original_weight_sum * (w_tv_init_raw / init_sum)
+        if dim == 2:
+            diff_h = ops.mean(ops.abs(y_pred_init[:, 1:, :, :] - y_pred_init[:, :-1, :, :]))
+            diff_w = ops.mean(ops.abs(y_pred_init[:, :, 1:, :] - y_pred_init[:, :, :-1, :]))
+            init_tv = float(diff_h + diff_w)
+        else:
+            diff_d = ops.mean(ops.abs(y_pred_init[:, 1:, :, :, :] - y_pred_init[:, :-1, :, :, :]))
+            diff_h = ops.mean(ops.abs(y_pred_init[:, :, 1:, :, :] - y_pred_init[:, :, :-1, :, :]))
+            diff_w = ops.mean(ops.abs(y_pred_init[:, :, :, 1:, :] - y_pred_init[:, :, :, :-1, :]))
+            init_tv = float(diff_d + diff_h + diff_w)
+            
+        print(f"Initial raw loss components: MAE={init_mae:.6f}, Perceptual={init_percep:.6f}, TV={init_tv:.6f}")
+        
+        t_mae = target_pcts.get('mae', 30.0)
+        t_percep = target_pcts.get('percep', 65.0)
+        t_tv = target_pcts.get('tv', 5.0)
+        total_t = t_mae + t_percep + t_tv
+        p_mae = t_mae / total_t
+        p_percep = t_percep / total_t
+        p_tv = t_tv / total_t
+        
+        target_total_loss = args.target_total_loss
+        w_mae_init = (p_mae * target_total_loss) / max(1e-8, init_mae)
+        w_percep_init = (p_percep * target_total_loss) / max(1e-8, init_percep)
+        w_tv_init = (p_tv * target_total_loss) / max(1e-8, init_tv)
+        
+        pd.DataFrame([[0.0, w_percep_init, w_tv_init, w_mae_init]], columns=["msq", "feat", "tv", "l1"]).to_csv(wts_csv, index=False)
+        print(f"Saved initial systematic weights to {wts_csv}")
     
     msq_weight_var.assign(0.0)
     l1_weight_var.assign(w_mae_init)
     feat_weight_var.assign(w_percep_init)
     tv_weight_var.assign(w_tv_init)
     
-    print(f"Custom dynamic weight starting values: MSE={msq_weight_var.value}, MAE (L1)={l1_weight_var.value}, Feat={feat_weight_var.value}, TV={tv_weight_var.value}")
+    print(f"Systematic dynamic weight starting values: MSE={float(ops.convert_to_numpy(msq_weight_var)):.4f}, MAE (L1)={float(ops.convert_to_numpy(l1_weight_var)):.6f}, Feat={float(ops.convert_to_numpy(feat_weight_var)):.8e}, TV={float(ops.convert_to_numpy(tv_weight_var)):.6f}")
 
     def hybrid_loss(y_true, y_pred):
         # L2 Loss (MSE)
@@ -1020,7 +998,7 @@ def main():
                 'tv': float(ops.convert_to_numpy(tv_weight_var))
             }
             new_w, smoothed_losses = get_smoothed_losses_and_weights(
-                tracker, target_pcts, iteration, original_weight_sum, current_w, beta_damp=args.dampening
+                tracker, target_pcts, iteration, current_w, target_total_loss=args.target_total_loss, beta_damp=args.dampening
             )
             l1_weight_var.assign(new_w['mae'])
             feat_weight_var.assign(new_w['percep'])
