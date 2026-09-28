@@ -220,16 +220,14 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
         """
         
     tabs_html = """
-        <button class="tab-btn active" onclick="selectView('current')">1. Latest AS-DBPN</button>
-        <button class="tab-btn" onclick="selectView('best')">2. Peak Best AS-DBPN</button>
-        <button class="tab-btn" onclick="selectView('diff')">3. Error Map |SR - GT|</button>
-        <button class="tab-btn" onclick="selectView('gt')">4. Ground Truth (HR)</button>
-        <button class="tab-btn" onclick="selectView('bilinear')">5. Bilinear Baseline</button>
+        <button class="tab-btn active" onclick="selectView('comparison4way')">★ 4-Way Comparison (Stacked)</button>
+        <button class="tab-btn" onclick="selectView('original')">1. Original Image</button>
+        <button class="tab-btn" onclick="selectView('downsampled')">2. Downsampled Image</button>
+        <button class="tab-btn" onclick="selectView('linear')">3. Linear Upsampled</button>
+        <button class="tab-btn" onclick="selectView('sr')">4. SR Upsampled</button>
+        <button class="tab-btn" onclick="selectView('diff')">5. Error Map |SR - Original|</button>
+        <button class="tab-btn" onclick="selectView('best')">6. Peak Best Model</button>
     """
-    if ldbpn_metrics:
-        tabs_html += """
-        <button class="tab-btn" onclick="selectView('ldbpn')">6. LDBPN 3D Baseline</button>
-        """
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -445,6 +443,60 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             display: block;
         }}
 
+        .grid-4way {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }}
+
+        @media (max-width: 900px) {{
+            .grid-4way {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        .card-4way {{
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }}
+
+        .card-4way-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+
+        .card-4way-title {{
+            font-size: 1rem;
+            font-weight: 700;
+        }}
+
+        .card-4way-badge {{
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-glass);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }}
+
+        .viewport-image-4way {{
+            width: 100%;
+            aspect-ratio: 12 / 4.2;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            background: #000;
+            display: block;
+        }}
+
         .view-pane {{
             display: none;
             position: relative;
@@ -575,13 +627,57 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             </div>
         </section>
 
-        <!-- Visual Orthogonal Slices Interactive Viewer -->
+        <!-- Synchronized 4-Way Visual Comparison Section (Identical Size & FOV) -->
+        <section class="glass-card viewer-card">
+            <div>
+                <h2 style="font-size: 1.3rem; font-weight: 600;">Synchronized 4-Way Visual Comparison (Identical Size &amp; FOV)</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
+                    Direct side-by-side evaluation across all 4 processing stages, normalized to identical canvas dimensions (1538&times;550 px) and voxel coordinates.
+                </p>
+            </div>
+            
+            <div class="grid-4way">
+                <div class="card-4way">
+                    <div class="card-4way-header">
+                        <span class="card-4way-title" style="color: #38bdf8;">1. Original Image</span>
+                        <span class="card-4way-badge">Ground Truth HR (1.0mm)</span>
+                    </div>
+                    <img src="reports/asdbpn_3d/val3d_original.png" alt="Original Image" class="viewport-image-4way">
+                </div>
+
+                <div class="card-4way">
+                    <div class="card-4way-header">
+                        <span class="card-4way-title" style="color: #f59e0b;">2. Downsampled Image</span>
+                        <span class="card-4way-badge">LR Input (2.0mm, Same FOV)</span>
+                    </div>
+                    <img src="reports/asdbpn_3d/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image-4way">
+                </div>
+
+                <div class="card-4way">
+                    <div class="card-4way-header">
+                        <span class="card-4way-title" style="color: #a855f7;">3. Linear Upsampled Image</span>
+                        <span class="card-4way-badge">Bilinear (PSNR: {lin_psnr:.2f} dB)</span>
+                    </div>
+                    <img src="reports/asdbpn_3d/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image-4way">
+                </div>
+
+                <div class="card-4way">
+                    <div class="card-4way-header">
+                        <span class="card-4way-title" style="color: #10b981;">4. SR Upsampled Image</span>
+                        <span class="card-4way-badge">3D AS-DBPN (PSNR: {cur_psnr:.2f} dB)</span>
+                    </div>
+                    <img src="reports/asdbpn_3d/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image-4way">
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Orthogonal Viewer & Error Analysis -->
         <section class="glass-card viewer-card">
             <div class="viewer-controls">
                 <div>
-                    <h2 style="font-size: 1.3rem; font-weight: 600;">Orthogonal Volume Cross-Sections (Z, Y, X)</h2>
+                    <h2 style="font-size: 1.3rem; font-weight: 600;">Interactive Orthogonal Viewer &amp; Error Analysis</h2>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
-                        Interactive visual evaluation: compare reconstructed internal anatomy vs Ground Truth and baselines.
+                        Examine full-width stacked comparisons, individual stages, and thermal residual error maps.
                     </p>
                 </div>
                 <div class="tab-group">
@@ -590,45 +686,52 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             </div>
 
             <div class="viewer-display">
-                <div id="view-current" class="view-pane active">
-                    <img src="reports/asdbpn_3d/{latest_entry.get('ortho_image', '')}" alt="Latest Reconstructed Volume" class="viewport-image">
+                <div id="view-comparison4way" class="view-pane active">
+                    <img src="reports/asdbpn_3d/val3d_4way_comparison.png" alt="4-Way Stacked Comparison" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Latest Model (Step {cur_step})</strong> &bull; PSNR: {cur_psnr:.2f} dB &bull; SSIM: {cur_ssim:.4f}
+                        <strong>Unified 4-Way Comparative Montage</strong> &bull; Original vs Downsampled vs Linear vs 3D AS-DBPN (Identical Scale &amp; Contrast)
                     </div>
                 </div>
 
-                <div id="view-best" class="view-pane">
-                    <img src="reports/asdbpn_3d/{best_entry.get('ortho_image', '')}" alt="Peak Best Model Volume" class="viewport-image">
+                <div id="view-original" class="view-pane">
+                    <img src="reports/asdbpn_3d/val3d_original.png" alt="Original Image" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Peak Checkpoint (Step {best_step})</strong> &bull; PSNR: {best_psnr:.2f} dB
+                        <strong>1. Original Image (Ground Truth HR)</strong> &bull; 96&times;96&times;96 Brain MRI Volume
+                    </div>
+                </div>
+
+                <div id="view-downsampled" class="view-pane">
+                    <img src="reports/asdbpn_3d/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>2. Downsampled Image (LR Input)</strong> &bull; Low-Resolution Input displayed at identical scale
+                    </div>
+                </div>
+
+                <div id="view-linear" class="view-pane">
+                    <img src="reports/asdbpn_3d/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>3. Linear Upsampled Image (Bilinear Baseline)</strong> &bull; PSNR: {lin_psnr:.2f} dB &bull; SSIM: {lin_ssim:.4f}
+                    </div>
+                </div>
+
+                <div id="view-sr" class="view-pane">
+                    <img src="reports/asdbpn_3d/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>4. SR Upsampled Image (3D AS-DBPN Latest)</strong> &bull; Step {cur_step} &bull; PSNR: {cur_psnr:.2f} dB &bull; SSIM: {cur_ssim:.4f}
                     </div>
                 </div>
 
                 <div id="view-diff" class="view-pane">
-                    <img src="reports/asdbpn_3d/{latest_entry.get('diff_image', '')}" alt="Residual Error Map" class="viewport-image">
+                    <img src="reports/asdbpn_3d/{latest_entry.get('diff_image', 'diff3d_asdbpn_current.png')}" alt="Residual Error Map" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Absolute Difference |SR - GT| (Magma Colormap)</strong> &bull; High-frequency residual distribution
+                        <strong>5. Residual Error Map |SR - Original| (Magma Colormap)</strong> &bull; High-frequency residual distribution
                     </div>
                 </div>
 
-                <div id="view-gt" class="view-pane">
-                    <img src="reports/asdbpn_3d/baseline_gt_ortho.png" alt="Ground Truth High Resolution" class="viewport-image">
+                <div id="view-best" class="view-pane">
+                    <img src="reports/asdbpn_3d/val3d_asdbpn_best.png" alt="Peak Best Model Volume" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Ground Truth (High Resolution 1.0mm Reference)</strong>
-                    </div>
-                </div>
-
-                <div id="view-bilinear" class="view-pane">
-                    <img src="reports/asdbpn_3d/baseline_bilinear_ortho.png" alt="Bilinear Interpolation Baseline" class="viewport-image">
-                    <div class="view-overlay">
-                        <strong>Bilinear Baseline</strong> &bull; PSNR: {lin_psnr:.2f} dB &bull; SSIM: {lin_ssim:.4f} &bull; HFEN: {lin_hfen:.4f}
-                    </div>
-                </div>
-
-                <div id="view-ldbpn" class="view-pane">
-                    <img src="reports/asdbpn_3d/baseline_ldbpn_ortho.png" alt="LDBPN 3D Baseline" class="viewport-image">
-                    <div class="view-overlay">
-                        <strong>LDBPN 3D Prior Benchmark</strong> &bull; PSNR: 26.50 dB &bull; SSIM: 0.9150
+                        <strong>6. Peak All-Time Model (Step {best_step})</strong> &bull; PSNR: {best_psnr:.2f} dB
                     </div>
                 </div>
             </div>
@@ -680,12 +783,13 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
 
     <script>
         const views = {{
-            'current': 'view-current',
-            'best': 'view-best',
+            'comparison4way': 'view-comparison4way',
+            'original': 'view-original',
+            'downsampled': 'view-downsampled',
+            'linear': 'view-linear',
+            'sr': 'view-sr',
             'diff': 'view-diff',
-            'gt': 'view-gt',
-            'bilinear': 'view-bilinear',
-            'ldbpn': 'view-ldbpn'
+            'best': 'view-best'
         }};
 
         function selectView(key) {{
@@ -698,18 +802,21 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
 
             const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (window.event && window.event.target && window.event.target.classList.contains('tab-btn')) {{
+                window.event.target.classList.add('active');
+            }}
         }}
 
-        // Keyboard shortcuts 1-6
+        // Keyboard shortcuts 1-6 and 0
         document.addEventListener('keydown', (e) => {{
             const keyMap = {{
-                '1': 'current',
-                '2': 'best',
-                '3': 'diff',
-                '4': 'gt',
-                '5': 'bilinear',
-                '6': 'ldbpn'
+                '0': 'comparison4way',
+                '1': 'original',
+                '2': 'downsampled',
+                '3': 'linear',
+                '4': 'sr',
+                '5': 'diff',
+                '6': 'best'
             }};
             if (keyMap[e.key]) {{
                 const key = keyMap[e.key];
@@ -722,7 +829,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 
                 const buttons = document.querySelectorAll('.tab-btn');
                 buttons.forEach(btn => {{
-                    if (btn.innerText.startsWith(e.key)) {{
+                    if (btn.innerText.startsWith(e.key) || (e.key === '0' && btn.innerText.includes('★'))) {{
                         buttons.forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                     }}

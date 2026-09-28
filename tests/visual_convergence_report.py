@@ -108,6 +108,71 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
     plt.close(fig)
 
 
+def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path, title="Identical-Scale 4-Way Comparison: Original vs Downsampled vs Linear vs SR"):
+    """
+    Renders an identical-scale 4-row comparative montage:
+    Row 1: Original Image (Ground Truth HR)
+    Row 2: Downsampled Image (Low-Resolution Input)
+    Row 3: Linear Upsampled Image (Bilinear)
+    Row 4: SR Upsampled Image (3D AS-DBPN Reconstructed)
+    Across Axial, Coronal, and Sagittal orthogonal cross-sections.
+    """
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    if isinstance(orig_arr, ants.ANTsImage): orig_arr = orig_arr.numpy()
+    if isinstance(down_arr, ants.ANTsImage): down_arr = down_arr.numpy()
+    if isinstance(bilin_arr, ants.ANTsImage): bilin_arr = bilin_arr.numpy()
+    if isinstance(sr_arr, ants.ANTsImage): sr_arr = sr_arr.numpy()
+
+    orig_arr = np.squeeze(orig_arr)
+    down_arr = np.squeeze(down_arr)
+    bilin_arr = np.squeeze(bilin_arr)
+    sr_arr = np.squeeze(sr_arr)
+
+    vmin = float(np.percentile(orig_arr, 1))
+    vmax = float(np.percentile(orig_arr, 99))
+    if vmax <= vmin:
+        vmax = vmin + 1.0
+
+    d, h, w = orig_arr.shape
+    def _slices(a):
+        return np.rot90(a[:, :, w // 2]), np.rot90(a[:, h // 2, :]), np.rot90(a[d // 2, :, :])
+
+    fig, axes = plt.subplots(4, 3, figsize=(12, 15.5), facecolor="#0b0f19")
+    rows_data = [
+        ("1. Original Image (Ground Truth HR)", orig_arr, "#38bdf8"),
+        ("2. Downsampled Image (LR Input - Same FOV)", down_arr, "#f59e0b"),
+        ("3. Linear Upsampled Image (Bilinear)", bilin_arr, "#a855f7"),
+        ("4. SR Upsampled Image (3D AS-DBPN)", sr_arr, "#10b981")
+    ]
+
+    for row_idx, (row_label, arr, col) in enumerate(rows_data):
+        sz, sy, sx = _slices(arr)
+        axes[row_idx, 0].imshow(sz, cmap="gray", vmin=vmin, vmax=vmax)
+        axes[row_idx, 0].set_ylabel(row_label, color=col, fontsize=11, fontweight="bold", labelpad=10)
+        axes[row_idx, 0].set_xticks([])
+        axes[row_idx, 0].set_yticks([])
+        for spine in axes[row_idx, 0].spines.values():
+            spine.set_color("#334155")
+            spine.set_linewidth(1.5)
+            
+        axes[row_idx, 1].imshow(sy, cmap="gray", vmin=vmin, vmax=vmax)
+        axes[row_idx, 1].axis("off")
+        
+        axes[row_idx, 2].imshow(sx, cmap="gray", vmin=vmin, vmax=vmax)
+        axes[row_idx, 2].axis("off")
+        
+        if row_idx == 0:
+            axes[0, 0].set_title("Axial (Z-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+            axes[0, 1].set_title("Coronal (Y-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+            axes[0, 2].set_title("Sagittal (X-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+
+    if title:
+        fig.suptitle(title, color="#f8fafc", fontsize=14, fontweight="bold", y=0.99)
+    plt.subplots_adjust(wspace=0.04, hspace=0.06, left=0.18, right=0.99, bottom=0.01, top=0.96)
+    plt.savefig(out_path, dpi=130, facecolor=fig.get_facecolor(), bbox_inches="tight")
+    plt.close(fig)
+
+
 def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseline_label=None, color="#3b82f6", height=220, width=540, stage_markers=None, x_label="Step"):
     """
     Generates a standalone, dependency-free SVG chart for training metric trajectories.
@@ -258,16 +323,24 @@ class VisualConvergenceReporter:
         self.hr_patch = hr_patch
         self.gt_np = hr_patch.numpy()
         
-        # 1. Ground Truth Orthogonal Montage
+        # 1. Ground Truth (Original Image) Orthogonal Montage
         gt_path = os.path.join(self.report_dir, "val3d_ground_truth.png")
-        save_orthogonal_slice_montage(self.hr_patch, gt_path, title="Ground Truth (HR Brain MRI Volume - 96x96x96)")
+        orig_path = os.path.join(self.report_dir, "val3d_original.png")
+        save_orthogonal_slice_montage(self.hr_patch, gt_path, title="1. Original Image (Ground Truth High Resolution - 96x96x96)")
+        save_orthogonal_slice_montage(self.hr_patch, orig_path, title="1. Original Image (Ground Truth High Resolution - 96x96x96)")
         
-        # 2. Bilinear Baseline
+        # 2. Downsampled Image (LR Input displayed at identical scale via nearest-neighbor)
         lr_temp = ants.image_clone(lr_patch)
         hr_temp = ants.image_clone(hr_patch)
         lr_temp.set_spacing([2.0, 2.0, 2.0])
         hr_temp.set_spacing([1.0, 1.0, 1.0])
+        self.downsampled_img = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=1)
+        down_path = os.path.join(self.report_dir, "val3d_downsampled.png")
+        save_orthogonal_slice_montage(self.downsampled_img, down_path, title="2. Downsampled Image (LR Input - 2x Downsampled, Identical Scale)")
+
+        # 3. Bilinear Baseline (Linear Upsampled Image)
         bilinear_sr = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=0)
+        self.bilinear_sr = bilinear_sr
         bilinear_np = bilinear_sr.numpy()
         
         lin_psnr = float(antspynet.psnr(hr_temp, bilinear_sr))
@@ -285,7 +358,9 @@ class VisualConvergenceReporter:
         }
         
         bilinear_path = os.path.join(self.report_dir, "val3d_bilinear.png")
-        save_orthogonal_slice_montage(bilinear_sr, bilinear_path, title=f"Bilinear Baseline (PSNR: {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
+        lin_path = os.path.join(self.report_dir, "val3d_linear_upsampled.png")
+        save_orthogonal_slice_montage(bilinear_sr, bilinear_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
+        save_orthogonal_slice_montage(bilinear_sr, lin_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
         
         diff_bilinear_path = os.path.join(self.report_dir, "diff3d_bilinear.png")
         save_difference_montage(bilinear_np, self.gt_np, diff_bilinear_path, title="Bilinear Residual Error |Bilinear - Ground Truth|")
@@ -390,6 +465,15 @@ class VisualConvergenceReporter:
         current_diff_path = os.path.join(self.report_dir, "diff3d_asdbpn_current.png")
         save_difference_montage(sr_np, self.gt_np, current_diff_path, title=f"Latest Residual Error (Iter {iteration})")
         
+        # Maintain SR Upsampled image pointer (identical scale)
+        sr_upsampled_path = os.path.join(self.report_dir, "val3d_sr_upsampled.png")
+        save_orthogonal_slice_montage(sr_img, sr_upsampled_path, title=f"4. SR Upsampled Image (3D AS-DBPN Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
+        
+        # Maintain 4-Way Unified Comparative Montage
+        if hasattr(self, "downsampled_img") and hasattr(self, "bilinear_sr") and self.downsampled_img is not None and self.bilinear_sr is not None:
+            comp_path = os.path.join(self.report_dir, "val3d_4way_comparison.png")
+            save_4way_comparison_montage(self.hr_patch, self.downsampled_img, self.bilinear_sr, sr_img, comp_path, title=f"Identical-Scale 4-Way Comparison (Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
+            
         if is_new_best:
             best_img_path = os.path.join(self.report_dir, "val3d_asdbpn_best.png")
             save_orthogonal_slice_montage(sr_img, best_img_path, title=f"Best AS-DBPN Output (Iter {iteration}, PSNR: {val_psnr:.2f} dB)")
