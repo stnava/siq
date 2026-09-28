@@ -313,32 +313,32 @@
         <section class="grid-stats">
             <div class="glass-card">
                 <div class="stat-label">Global Step / Progress</div>
-                <div class="stat-value">40 <span style="font-size: 1rem; color: #64748b;">(Iter 40)</span></div>
+                <div class="stat-value">25 <span style="font-size: 1rem; color: #64748b;">(Iter 25)</span></div>
                 <div class="stat-diff" style="color: #38bdf8;">Warmup</div>
             </div>
             
             <div class="glass-card">
                 <div class="stat-label">Validation PSNR</div>
-                <div class="stat-value" style="color: #f59e0b;">23.57 <span style="font-size: 1rem;">dB</span></div>
-                <div class="stat-diff" style="color: #f59e0b;">-3.53 dB vs Bilinear (27.10)</div>
+                <div class="stat-value" style="color: #f59e0b;">24.69 <span style="font-size: 1rem;">dB</span></div>
+                <div class="stat-diff" style="color: #f59e0b;">-2.41 dB vs Bilinear (27.10)</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">Validation SSIM</div>
-                <div class="stat-value" style="color: #8b5cf6;">0.8412</div>
+                <div class="stat-value" style="color: #8b5cf6;">0.8784</div>
                 <div class="stat-diff" style="color: #64748b;">Bilinear Ref: 0.9285</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">High-Freq Error (HFEN)</div>
-                <div class="stat-value" style="color: #38bdf8;">0.7499</div>
+                <div class="stat-value" style="color: #38bdf8;">0.6435</div>
                 <div class="stat-diff" style="color: #64748b;">Lower is sharper (Target &lt; 0.50)</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">Peak All-Time PSNR</div>
-                <div class="stat-value" style="color: #10b981;">23.84 <span style="font-size: 1rem;">dB</span></div>
-                <div class="stat-diff" style="color: #10b981;">Achieved at Step 0</div>
+                <div class="stat-value" style="color: #10b981;">24.69 <span style="font-size: 1rem;">dB</span></div>
+                <div class="stat-diff" style="color: #10b981;">Achieved at Step 25</div>
             </div>
         </section>
 
@@ -364,21 +364,21 @@
 
             <div class="viewer-display">
                 <div id="view-current" class="view-pane active">
-                    <img src="reports/asdbpn_3d/step_0040_ortho.png" alt="Latest Reconstructed Volume" class="viewport-image">
+                    <img src="reports/asdbpn_3d/step_0025_ortho.png" alt="Latest Reconstructed Volume" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Latest Model (Step 40)</strong> &bull; PSNR: 23.57 dB &bull; SSIM: 0.8412
+                        <strong>Latest Model (Step 25)</strong> &bull; PSNR: 24.69 dB &bull; SSIM: 0.8784
                     </div>
                 </div>
 
                 <div id="view-best" class="view-pane">
-                    <img src="reports/asdbpn_3d/step_0000_ortho.png" alt="Peak Best Model Volume" class="viewport-image">
+                    <img src="reports/asdbpn_3d/step_0025_ortho.png" alt="Peak Best Model Volume" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>Peak Checkpoint (Step 0)</strong> &bull; PSNR: 23.84 dB
+                        <strong>Peak Checkpoint (Step 25)</strong> &bull; PSNR: 24.69 dB
                     </div>
                 </div>
 
                 <div id="view-diff" class="view-pane">
-                    <img src="reports/asdbpn_3d/step_0040_diff.png" alt="Residual Error Map" class="viewport-image">
+                    <img src="reports/asdbpn_3d/step_0025_diff.png" alt="Residual Error Map" class="viewport-image">
                     <div class="view-overlay">
                         <strong>Absolute Difference |SR - GT| (Magma Colormap)</strong> &bull; High-frequency residual distribution
                     </div>
@@ -414,29 +414,28 @@
   <rect width="540" height="220" fill="#0f172a" rx="8" />
   <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Validation PSNR Trajectory (dB)</text>
   <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">19.23</text>
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">16.69</text>
   <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">21.38</text>
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">19.53</text>
   <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">23.52</text>
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">22.37</text>
   <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">25.67</text>
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">25.21</text>
   <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">27.82</text>
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">28.05</text>
   <line x1="65" y1="47.1" x2="510" y2="47.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
   <text x="510" y="42.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 27.10</text>
-  <line x1="76.1" y1="35" x2="76.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="80.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
-  <polyline points="65.0,102.1 76.1,167.9 287.5,120.7 343.1,107.6 510.0,106.7" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="65.0" cy="102.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="76.1" cy="167.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="287.5" cy="120.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="343.1" cy="107.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="510.0" cy="106.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="510.0" cy="106.7" r="5.5" fill="#10b981" />
-  <text x="510" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 23.57</text>
+  <line x1="82.8" y1="35" x2="82.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="86.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <polyline points="65.0,167.9 82.8,122.9 421.0,83.2 510.0,77.8" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="82.8" cy="122.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="421.0" cy="83.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="77.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="77.8" r="5.5" fill="#10b981" />
+  <text x="510" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 24.69</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 40</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 25</text>
 </svg>
 
             </div>
@@ -445,29 +444,28 @@
   <rect width="540" height="220" fill="#0f172a" rx="8" />
   <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Validation SSIM Progression</text>
   <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.61</text>
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.31</text>
   <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.70</text>
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.48</text>
   <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.79</text>
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.65</text>
   <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.87</text>
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.82</text>
   <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.96</text>
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.98</text>
   <line x1="65" y1="47.1" x2="510" y2="47.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
   <text x="510" y="42.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 0.93</text>
-  <line x1="76.1" y1="35" x2="76.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="80.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
-  <polyline points="65.0,79.6 76.1,167.9 287.5,98.1 343.1,84.8 510.0,83.9" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="65.0" cy="79.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="76.1" cy="167.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="287.5" cy="98.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="343.1" cy="84.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="510.0" cy="83.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="510.0" cy="83.9" r="5.5" fill="#8b5cf6" />
-  <text x="510" y="22" fill="#8b5cf6" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.84</text>
+  <line x1="82.8" y1="35" x2="82.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="86.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <polyline points="65.0,167.9 82.8,91.8 421.0,60.7 510.0,57.9" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="82.8" cy="91.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="421.0" cy="60.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="57.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="57.9" r="5.5" fill="#8b5cf6" />
+  <text x="510" y="22" fill="#8b5cf6" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.88</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 40</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 25</text>
 </svg>
 
             </div>
@@ -476,27 +474,26 @@
   <rect width="540" height="220" fill="#0f172a" rx="8" />
   <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Hybrid Training Loss</text>
   <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">-0.06</text>
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">-0.07</text>
   <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.23</text>
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.22</text>
   <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.52</text>
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.51</text>
   <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.81</text>
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.80</text>
   <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
   <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">1.10</text>
-  <line x1="76.1" y1="35" x2="76.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="80.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
-  <polyline points="65.0,47.1 76.1,165.6 287.5,165.9 343.1,166.8 510.0,167.9" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="82.8" y1="35" x2="82.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="86.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <polyline points="65.0,47.1 82.8,162.7 421.0,167.6 510.0,167.9" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
   <circle cx="65.0" cy="47.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="76.1" cy="165.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="287.5" cy="165.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="343.1" cy="166.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="82.8" cy="162.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="421.0" cy="167.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
   <circle cx="510.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
   <circle cx="510.0" cy="167.9" r="5.5" fill="#38bdf8" />
-  <text x="510" y="22" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.04</text>
+  <text x="510" y="22" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.02</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 40</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 25</text>
 </svg>
 
             </div>
@@ -525,30 +522,14 @@
                 <tbody>
                     
         <tr>
-            <td><strong>Step 40</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 40)</span></td>
+            <td><strong>Step 25</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 25)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
             <td><span class="stage-badge">Warmup</span></td>
-            <td style="color: #e2e8f0; font-weight: bold;">23.57 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.53)</span></td>
-            <td>0.8412</td>
-            <td>0.7499</td>
-            <td>0.2302</td>
-            <td>0.8362</td>
-            <td style="font-family: monospace;">0.03768</td>
-            <td>
-                <a href="reports/asdbpn_3d/step_0040_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
-                <a href="reports/asdbpn_3d/step_0040_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
-                <a href="checkpoints/asdbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
-            </td>
-        </tr>
-        
-        <tr>
-            <td><strong>Step 25</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 25)</span></td>
-            <td><span class="stage-badge">Warmup</span></td>
-            <td style="color: #e2e8f0; font-weight: bold;">23.52 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.58)</span></td>
-            <td>0.8390</td>
-            <td>0.7519</td>
-            <td>0.2310</td>
-            <td>0.8340</td>
-            <td style="font-family: monospace;">0.04652</td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.69 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.41)</span></td>
+            <td>0.8784</td>
+            <td>0.6435</td>
+            <td>0.2103</td>
+            <td>0.8747</td>
+            <td style="font-family: monospace;">0.02347</td>
             <td>
                 <a href="reports/asdbpn_3d/step_0025_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
                 <a href="reports/asdbpn_3d/step_0025_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
@@ -557,14 +538,14 @@
         </tr>
         
         <tr>
-            <td><strong>Step 20</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 20)</span></td>
+            <td><strong>Step 20</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 20)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
             <td><span class="stage-badge">Warmup</span></td>
-            <td style="color: #e2e8f0; font-weight: bold;">22.74 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.36)</span></td>
-            <td>0.8073</td>
-            <td>0.7791</td>
-            <td>0.2225</td>
-            <td>0.8011</td>
-            <td style="font-family: monospace;">0.05347</td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.27 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.83)</span></td>
+            <td>0.8655</td>
+            <td>0.6473</td>
+            <td>0.2127</td>
+            <td>0.8613</td>
+            <td style="font-family: monospace;">0.02613</td>
             <td>
                 <a href="reports/asdbpn_3d/step_0020_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
                 <a href="reports/asdbpn_3d/step_0020_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
@@ -573,14 +554,14 @@
         </tr>
         
         <tr>
-            <td><strong>Step 1</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1)</span></td>
+            <td><strong>Step 1</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
             <td><span class="stage-badge">Warmup</span></td>
-            <td style="color: #e2e8f0; font-weight: bold;">19.95 dB <span style="font-size: 0.8em; opacity: 0.8;">(-7.15)</span></td>
-            <td>0.6415</td>
-            <td>0.9399</td>
-            <td>0.2394</td>
-            <td>0.6300</td>
-            <td style="font-family: monospace;">0.05594</td>
+            <td style="color: #e2e8f0; font-weight: bold;">21.16 dB <span style="font-size: 0.8em; opacity: 0.8;">(-5.94)</span></td>
+            <td>0.7222</td>
+            <td>0.7059</td>
+            <td>0.2130</td>
+            <td>0.7131</td>
+            <td style="font-family: monospace;">0.06544</td>
             <td>
                 <a href="reports/asdbpn_3d/step_0001_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
                 <a href="reports/asdbpn_3d/step_0001_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
@@ -591,11 +572,11 @@
         <tr>
             <td><strong>Step 0</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 0)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
             <td><span class="stage-badge">Initial (Pre-Warmup)</span></td>
-            <td style="color: #e2e8f0; font-weight: bold;">23.84 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.26)</span></td>
-            <td>0.8512</td>
-            <td>0.7233</td>
-            <td>0.2264</td>
-            <td>0.8466</td>
+            <td style="color: #e2e8f0; font-weight: bold;">17.64 dB <span style="font-size: 0.8em; opacity: 0.8;">(-9.46)</span></td>
+            <td>0.3705</td>
+            <td>0.7485</td>
+            <td>0.2432</td>
+            <td>0.3492</td>
             <td style="font-family: monospace;">1.00000</td>
             <td>
                 <a href="reports/asdbpn_3d/step_0000_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
@@ -610,7 +591,7 @@
     </main>
 
     <footer>
-        <p>siq 3D Deep Back-Projection Network (AS-DBPN) Super-Resolution Suite &bull; 2026-09-28 11:10:54</p>
+        <p>siq 3D Deep Back-Projection Network (AS-DBPN) Super-Resolution Suite &bull; 2026-09-28 11:29:52</p>
     </footer>
 
     <script>

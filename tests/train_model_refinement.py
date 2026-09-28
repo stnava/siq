@@ -217,6 +217,7 @@ def main():
     parser.add_argument("--target-mae", type=float, default=30.0, help="Target MAE loss percentage contribution (default: 30.0)")
     parser.add_argument("--target-tv", type=float, default=5.0, help="Target TV loss percentage contribution (default: 5.0)")
     parser.add_argument("--target-total-loss", type=float, default=1.0, help="Target total loss scale for auto-balancing (default: 1.0)")
+    parser.add_argument("--anneal-iter", type=int, default=100, help="Number of iterations in Stage 1 to linearly anneal perceptual and TV loss weights (default: 100, 0 to disable)")
     parser.add_argument("--dampening", type=float, default=0.98, help="Dampening factor beta for weight transition (default: 0.98)")
     parser.add_argument("--smooth-window", type=int, default=100, help="LOWESS smoothing window size (default: 100)")
     parser.add_argument("--update-freq", type=int, default=10, help="Weight update frequency in iterations (default: 10)")
@@ -825,9 +826,15 @@ def main():
         p_tv = t_tv / total_t
         
         target_total_loss = args.target_total_loss
-        w_mae_init = (p_mae * target_total_loss) / max(1e-8, init_mae)
-        w_percep_init = (p_percep * target_total_loss) / max(1e-8, init_percep)
-        w_tv_init = (p_tv * target_total_loss) / max(1e-8, init_tv)
+        if args.anneal_iter > 0:
+            # Start with 100% MAE and 0% perceptual / TV, smoothly ramping up over anneal_iter iterations
+            w_mae_init = (1.0 * target_total_loss) / max(1e-8, init_mae)
+            w_percep_init = 0.0
+            w_tv_init = 0.0
+        else:
+            w_mae_init = (p_mae * target_total_loss) / max(1e-8, init_mae)
+            w_percep_init = (p_percep * target_total_loss) / max(1e-8, init_percep)
+            w_tv_init = (p_tv * target_total_loss) / max(1e-8, init_tv)
         
         pd.DataFrame([[0.0, w_percep_init, w_tv_init, w_mae_init]], columns=["msq", "feat", "tv", "l1"]).to_csv(wts_csv, index=False)
         print(f"Saved initial systematic weights to {wts_csv}")
@@ -997,8 +1004,18 @@ def main():
                 'percep': float(ops.convert_to_numpy(feat_weight_var)),
                 'tv': float(ops.convert_to_numpy(tv_weight_var))
             }
+            # Linearly anneal in perceptual and TV terms over anneal_iter iterations
+            if args.anneal_iter > 0 and iteration <= args.anneal_iter:
+                alpha = min(1.0, max(0.0, float(iteration) / float(args.anneal_iter)))
+                eff_percep = alpha * target_pcts['percep']
+                eff_tv = alpha * target_pcts['tv']
+                eff_mae = 100.0 - eff_percep - eff_tv
+                cur_target_pcts = {'mae': eff_mae, 'percep': eff_percep, 'tv': eff_tv}
+            else:
+                cur_target_pcts = target_pcts
+
             new_w, smoothed_losses = get_smoothed_losses_and_weights(
-                tracker, target_pcts, iteration, current_w, target_total_loss=args.target_total_loss, beta_damp=args.dampening
+                tracker, cur_target_pcts, iteration, current_w, target_total_loss=args.target_total_loss, beta_damp=args.dampening
             )
             l1_weight_var.assign(new_w['mae'])
             feat_weight_var.assign(new_w['percep'])
@@ -1054,6 +1071,8 @@ def main():
             except Exception as e:
                 print(f"[Warning] Failed to record initial state checkpoint: {e}")
         
+        best_warmup_psnr = -1.0
+        iters_since_best = 0
         for warmup_iter in range(1, warmup_max_iter + 1):
             x_batch, y_batch = next(train_gen_warmup)
             mse_loss = model.train_on_batch(x_batch, y_batch)
@@ -1067,7 +1086,7 @@ def main():
                 val_ssim = entry.get("val_ssim", 0.0)
                 print(f"[Warmup] Iter {warmup_iter:04d}/{warmup_max_iter} - MSE Loss: {mse_loss:.6f} - Val PSNR: {val_psnr:.2f} dB (Target: {target_psnr:.2f} dB) - Val SSIM: {val_ssim:.4f}")
                 
-                # Check stopping condition
+                # Check stopping condition: surpassed Bilinear parity
                 if val_psnr >= target_psnr:
                     elapsed_warmup = time.time() - start_time_warmup
                     print(f"\n[Warmup Gate] Parity with Bilinear reached! Val PSNR ({val_psnr:.2f} dB) >= Target ({target_psnr:.2f} dB)")
@@ -1075,6 +1094,18 @@ def main():
                     model.save(output_model_path)
                     warmup_completed = True
                     break
+                    
+                # Track plateau (patience of 100 iterations after reaching at least 250 iterations)
+                if val_psnr > best_warmup_psnr + 0.02:
+                    best_warmup_psnr = val_psnr
+                    iters_since_best = 0
+                else:
+                    iters_since_best += args.eval_freq
+                    if warmup_iter >= 250 and iters_since_best >= 100:
+                        print(f"\n[Warmup Gate] PSNR plateaued near {val_psnr:.2f} dB (peak: {best_warmup_psnr:.2f} dB, no >0.02 dB gain in {iters_since_best} iters). Exiting warmup to begin refinement.")
+                        model.save(output_model_path)
+                        warmup_completed = True
+                        break
                     
         if not warmup_completed:
             print(f"\n[Warmup Gate] Finished max warmup iterations ({warmup_max_iter}) without reaching target PSNR. Proceeding to normal stages.")
