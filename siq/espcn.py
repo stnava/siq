@@ -1108,19 +1108,29 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     """
     Creates a 2D Attention-Guided Shared Back-Projection Network (AS-DBPN) model.
     It combines recurrent feedback loops with channel attention to guide refinement.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2)).
     """
+    if isinstance(factor, (int, float)):
+        factor_tuple = (int(factor), int(factor))
+    elif isinstance(factor, (list, tuple)):
+        if len(factor) != 2:
+            raise ValueError(f"For 2D, factor must have length 2, got {factor}")
+        factor_tuple = tuple(int(f) for f in factor)
+    else:
+        raise ValueError(f"Unsupported factor type: {type(factor)}")
+
     inputs = layers.Input(shape=input_shape)
     
     # Feature extraction block
     F_in = layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
     
-    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor
+    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor_tuple
 
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:
         project_layer = layers.Conv2D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
-    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_up")
-    down_layer = layers.Conv2D(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_down")
+    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=proj_kernel, strides=factor_tuple, padding="same", name="fb_up")
+    down_layer = layers.Conv2D(n_filters, kernel_size=proj_kernel, strides=factor_tuple, padding="same", name="fb_down")
     
     # Shared Layer Normalization layers to stabilize recurrent loop scale
     ln_hr = layers.LayerNormalization(axis=-1, name="fb_ln_hr")
@@ -1156,7 +1166,7 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1168,6 +1178,7 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     """
     Creates a 3D Attention-Guided Shared Back-Projection Network (AS-DBPN) model.
     It combines recurrent feedback loops with channel attention to guide refinement.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
 
     Note: the global skip connection upsamples with nearest-neighbor
     interpolation (`layers.UpSampling3D`), since Keras 3 has no built-in
@@ -1176,18 +1187,27 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     a real, currently unavoidable quality asymmetry between the 2D and 3D
     models' global skip paths.
     """
+    if isinstance(factor, (int, float)):
+        factor_tuple = (int(factor), int(factor), int(factor))
+    elif isinstance(factor, (list, tuple)):
+        if len(factor) != 3:
+            raise ValueError(f"For 3D, factor must have length 3, got {factor}")
+        factor_tuple = tuple(int(f) for f in factor)
+    else:
+        raise ValueError(f"Unsupported factor type: {type(factor)}")
+
     inputs = layers.Input(shape=input_shape)
 
     # Feature extraction block
     F_in = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
 
-    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor
+    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor_tuple
 
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:
         project_layer = layers.Conv3D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
-    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_up")
-    down_layer = layers.Conv3D(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_down")
+    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=proj_kernel, strides=factor_tuple, padding="same", name="fb_up")
+    down_layer = layers.Conv3D(n_filters, kernel_size=proj_kernel, strides=factor_tuple, padding="same", name="fb_down")
     
     # Shared Layer Normalization layers to stabilize recurrent loop scale
     ln_hr = layers.LayerNormalization(axis=-1, name="fb_ln_hr")
@@ -1223,7 +1243,7 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
