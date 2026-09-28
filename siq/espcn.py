@@ -1164,21 +1164,30 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     return keras.Model(inputs, outputs, name="asdbpn_2d")
 
 
-def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True):
+def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True, projection_kernel_size=None):
     """
     Creates a 3D Attention-Guided Shared Back-Projection Network (AS-DBPN) model.
     It combines recurrent feedback loops with channel attention to guide refinement.
+
+    Note: the global skip connection upsamples with nearest-neighbor
+    interpolation (`layers.UpSampling3D`), since Keras 3 has no built-in
+    trilinear/bilinear resize op for 5D volumes (unlike `UpSampling2D`,
+    which uses `interpolation="bilinear"` in `create_asdbpn_2d`). This is
+    a real, currently unavoidable quality asymmetry between the 2D and 3D
+    models' global skip paths.
     """
     inputs = layers.Input(shape=input_shape)
-    
+
     # Feature extraction block
     F_in = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
-    
+
+    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor
+
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:
         project_layer = layers.Conv3D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
-    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_up")
-    down_layer = layers.Conv3D(n_filters, kernel_size=factor, strides=factor, padding="same", name="fb_down")
+    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_up")
+    down_layer = layers.Conv3D(n_filters, kernel_size=proj_kernel, strides=factor, padding="same", name="fb_down")
     
     # Shared Layer Normalization layers to stabilize recurrent loop scale
     ln_hr = layers.LayerNormalization(axis=-1, name="fb_ln_hr")

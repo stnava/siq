@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 import numpy as np
 
 # Configure Keras PyTorch backend
@@ -17,21 +18,21 @@ def parse_markdown_table_to_html(md_text, title):
     lines = md_text.strip().split("\n")
     if not lines:
         return ""
-    
+
     html = f'<h3 style="color: #3b82f6; margin-top: 30px;">{title}</h3>\n'
     html += '<div style="overflow-x: auto; margin-bottom: 30px;">\n'
     html += '  <table class="metrics-table" style="font-size: 0.9em;">\n'
-    
+
     in_thead = True
     html += '    <thead>\n'
-    
+
     for line in lines:
         if not line.startswith("|"):
             continue
         cells = [c.strip() for c in line.split("|")[1:-1]]
         if all(c.startswith("-") or c.startswith(":") or c.endswith(":") for c in cells):
             continue
-            
+
         if in_thead:
             html += '      <tr>\n'
             for cell in cells:
@@ -48,39 +49,157 @@ def parse_markdown_table_to_html(md_text, title):
                 else:
                     html += f'        <td>{cell}</td>\n'
             html += '      </tr>\n'
-            
+
     html += '    </tbody>\n'
     html += '  </table>\n'
     html += '</div>\n'
     return html
 
+
+def get_dim_config(dim, artifact_dir):
+    """
+    Dimension-specific configuration: which pretrained model checkpoints to
+    look for, which custom Keras layers they need for deserialization, and
+    where to read/write the validation-patch and report artifacts.
+
+    2D config points at the r16 brain-MRI pilot models trained so far.
+    3D config points at the *_3d_refined.keras checkpoints produced by
+    `tests/train_model_refinement.py <model> --dim 3` (see that script for
+    the exact filenames each model type writes). Any model not yet trained
+    in 3D (or, for espcn-rc/wdsr-rc, never implemented in 3D) is simply
+    omitted here and will show up as "TBD" in the report.
+    """
+    if dim == 2:
+        model_files = {
+            "ESPCN": os.path.join(artifact_dir, "espcn_2d_attention_refined.keras"),
+            "WDSR": os.path.join(artifact_dir, "wdsr_2d_refined.keras"),
+            "RCAN": os.path.join(artifact_dir, "rcan_2d_refined.keras"),
+            "CARN": os.path.join(artifact_dir, "carn_2d_refined.keras"),
+            "LDBPN": os.path.join(artifact_dir, "ldbpn_2d_refined.keras"),
+            "REF-DBPN": os.path.join(artifact_dir, "ref_dbpn_2d_refined.keras"),
+            "ESPCN-RC": os.path.join(artifact_dir, "espcn_2d_resize_conv_refined.keras"),
+            "WDSR-RC": os.path.join(artifact_dir, "wdsr_2d_resize_conv_refined.keras"),
+            "SRFBN": os.path.join(artifact_dir, "srfbn_2d_refined.keras"),
+            "SAN": os.path.join(artifact_dir, "san_2d_refined.keras"),
+            "AS-DBPN": os.path.join(artifact_dir, "asdbpn_2d_refined.keras"),
+        }
+        custom_objects = {
+            "PixelShuffle2D": siq.PixelShuffle2D,
+            "LearnableScale": siq.LearnableScale,
+            "LearnableSharpening": siq.LearnableSharpening,
+        }
+        # Latency figures below are from measured MPS benchmarks (see README);
+        # parameter counts are overridden with the live model.count_params()
+        # value computed during inference below, so they stay in sync with
+        # whatever checkpoint is actually loaded.
+        model_latency = {
+            "ESPCN": "20.88 ms", "ESPCN-RC": "17.39 ms", "WDSR": "17.89 ms",
+            "WDSR-RC": "18.63 ms", "CARN": "10.37 ms", "RCAN": "23.30 ms",
+            "LDBPN": "20.27 ms", "REF-DBPN": "648.40 ms", "SRFBN": "14.45 ms",
+            "SAN": "22.30 ms", "AS-DBPN": "59.05 ms",
+        }
+        val_prefix = "r16"
+        grid_dir_name = "class_grid"
+        html_filename = "summary_results.html"
+        report_title = "Super-Resolution 2D Pilot Comparison"
+        report_subtitle = "Visual and quantitative evaluation of all models trained for 300 iterations on the r16 brain MRI test image."
+        spacing_lr = [2.0, 2.0]
+        spacing_hr = [1.0, 1.0]
+    else:
+        model_files = {
+            "ESPCN": os.path.join(artifact_dir, "espcn_3d_attention_refined.keras"),
+            "WDSR": os.path.join(artifact_dir, "wdsr_3d_refined.keras"),
+            "RCAN": os.path.join(artifact_dir, "rcan_3d_refined.keras"),
+            "CARN": os.path.join(artifact_dir, "carn_3d_refined.keras"),
+            "LDBPN": os.path.join(artifact_dir, "ldbpn_3d_refined.keras"),
+            "REF-DBPN": os.path.join(artifact_dir, "ref_dbpn_3d_refined.keras"),
+            "SRFBN": os.path.join(artifact_dir, "srfbn_3d_refined.keras"),
+            "SAN": os.path.join(artifact_dir, "san_3d_refined.keras"),
+            "AS-DBPN": os.path.join(artifact_dir, "asdbpn_3d_refined.keras"),
+        }
+        custom_objects = {
+            "PixelShuffle3D": siq.PixelShuffle3D,
+            "LearnableScale": siq.LearnableScale,
+            "LearnableSharpening3D": siq.LearnableSharpening3D,
+        }
+        # No 3D latency benchmark has been run yet; report "TBD" until one is.
+        model_latency = {}
+        val_prefix = "val3d"
+        grid_dir_name = "class_grid_3d"
+        html_filename = "summary_results_3d.html"
+        report_title = "Super-Resolution 3D Pilot Comparison"
+        report_subtitle = "Visual and quantitative evaluation of all 3D-trained models on an MNI template validation patch."
+        spacing_lr = [2.0, 2.0, 2.0]
+        spacing_hr = [1.0, 1.0, 1.0]
+
+    return {
+        "model_files": model_files,
+        "custom_objects": custom_objects,
+        "model_latency": model_latency,
+        "val_prefix": val_prefix,
+        "grid_dir_name": grid_dir_name,
+        "html_filename": html_filename,
+        "report_title": report_title,
+        "report_subtitle": report_subtitle,
+        "spacing_lr": spacing_lr,
+        "spacing_hr": spacing_hr,
+    }
+
+
+def prepare_validation_patch(dim):
+    """
+    Returns (lr_patch, hr_patch) ANTsImages for the quantitative/visual
+    single-image comparison section of the report.
+
+    2D uses the classic ANTsPy r16 brain-MRI test image (as the original
+    2D pilot report did). 3D uses the MNI template shipped with ANTsPy,
+    since there is no 3D analogue of r16 bundled with the package.
+    """
+    if dim == 2:
+        img = ants.image_read(ants.get_data("r16"))
+        img = ants.crop_image(img)
+        low_res = ants.resample_image(img, [s * 2 for s in img.spacing], use_voxels=False, interp_type=0)
+        mid_lr = [s // 2 for s in low_res.shape]
+        lr_patch = ants.crop_indices(low_res, [m - 24 for m in mid_lr], [m + 24 for m in mid_lr])
+        mid_hr = [s // 2 for s in img.shape]
+        hr_patch = ants.crop_indices(img, [m - 48 for m in mid_hr], [m + 48 for m in mid_hr])
+    else:
+        img = ants.image_read(ants.get_ants_data("mni"))
+        img = ants.crop_image(img)
+        low_res = ants.resample_image(img, [s * 2 for s in img.spacing], use_voxels=False, interp_type=0)
+        mid_lr = [s // 2 for s in low_res.shape]
+        lr_patch = ants.crop_indices(low_res, [m - 16 for m in mid_lr], [m + 16 for m in mid_lr])
+        mid_hr = [s // 2 for s in img.shape]
+        hr_patch = ants.crop_indices(img, [m - 32 for m in mid_hr], [m + 32 for m in mid_hr])
+    return lr_patch, hr_patch
+
+
 def main():
-    print("Generating validation patches from r16...")
-    img = ants.image_read(ants.get_data("r16"))
-    img = ants.crop_image(img)
-    low_res = ants.resample_image(img, [s*2 for s in img.spacing], use_voxels=False, interp_type=0)
+    parser = argparse.ArgumentParser(description="Generate the SIQ model-comparison HTML report and comparison images.")
+    parser.add_argument("--dim", type=int, choices=[2, 3], default=2, help="Dimensionality of the models/report to generate (default: 2)")
+    args = parser.parse_args()
+    dim = args.dim
 
-    mid_lr = [s//2 for s in low_res.shape]
-    lr_patch = ants.crop_indices(low_res, [m - 24 for m in mid_lr], [m + 24 for m in mid_lr])
+    # Everything is written next to this script (the repo root), so the
+    # report is reproducible regardless of the machine/session it runs on.
+    artifact_dir = os.path.dirname(os.path.abspath(__file__))
+    cfg = get_dim_config(dim, artifact_dir)
+    val_prefix = cfg["val_prefix"]
 
-    mid_hr = [s//2 for s in img.shape]
-    hr_patch = ants.crop_indices(img, [m - 48 for m in mid_hr], [m + 48 for m in mid_hr])
+    print(f"Generating {dim}D validation patches...")
+    lr_patch, hr_patch = prepare_validation_patch(dim)
 
     # Ground truth numpy array
     gt_np = hr_patch.numpy()
 
-    # Output directory in artifacts
-    artifact_dir = "/Users/stnava/.gemini/antigravity-cli/brain/bf9e3239-711d-4a46-8dd4-8a3f33959db5"
-    os.makedirs(artifact_dir, exist_ok=True)
-
     # Save Ground Truth
-    gt_path = os.path.join(artifact_dir, "r16_ground_truth.png")
-    ants.plot(hr_patch, filename=gt_path, title="Ground Truth (r16 HR)")
+    gt_path = os.path.join(artifact_dir, f"{val_prefix}_ground_truth.png")
+    ants.plot(hr_patch, filename=gt_path, title="Ground Truth (HR)")
     print(f"Saved Ground Truth to {gt_path}")
 
     # Nearest Neighbor metrics
     nn_sr = ants.resample_image_to_target(lr_patch, hr_patch, interp_type=1)
-    nn_path = os.path.join(artifact_dir, "r16_nearest_neighbor.png")
+    nn_path = os.path.join(artifact_dir, f"{val_prefix}_nearest_neighbor.png")
     ants.plot(nn_sr, filename=nn_path, title="Nearest Neighbor")
     print(f"Saved Nearest Neighbor to {nn_path}")
     nn_np = nn_sr.numpy()
@@ -92,7 +211,7 @@ def main():
 
     # Bilinear metrics
     linear_sr = ants.resample_image_to_target(lr_patch, hr_patch, interp_type=0)
-    linear_path = os.path.join(artifact_dir, "r16_bilinear.png")
+    linear_path = os.path.join(artifact_dir, f"{val_prefix}_bilinear.png")
     ants.plot(linear_sr, filename=linear_path, title="Bilinear Interpolation")
     print(f"Saved Bilinear to {linear_path}")
     linear_np = linear_sr.numpy()
@@ -102,26 +221,8 @@ def main():
     linear_hfen = float(compute_hfen(gt_np, linear_np))
     linear_corr = float(np.corrcoef(linear_np.flatten(), gt_np.flatten())[0, 1])
 
-    # Models list
-    model_files = {
-        "ESPCN": "./espcn_2d_attention_refined.keras",
-        "WDSR": "./wdsr_2d_refined.keras",
-        "RCAN": "./rcan_2d_refined.keras",
-        "CARN": "./carn_2d_refined.keras",
-        "LDBPN": "./ldbpn_2d_refined.keras",
-        "REF-DBPN": "./ref_dbpn_2d_refined.keras",
-        "ESPCN-RC": "./espcn_2d_resize_conv_refined.keras",
-        "WDSR-RC": "./wdsr_2d_resize_conv_refined.keras",
-        "SRFBN": "./srfbn_2d_refined.keras",
-        "SAN": "./san_2d_refined.keras",
-        "AS-DBPN": "./asdbpn_2d_refined.keras"
-    }
-
-    custom_objects = {
-        "PixelShuffle2D": siq.PixelShuffle2D,
-        "LearnableScale": siq.LearnableScale,
-        "LearnableSharpening": siq.LearnableSharpening
-    }
+    model_files = cfg["model_files"]
+    custom_objects = cfg["custom_objects"]
 
     # Run inference and save images
     model_results = []
@@ -132,18 +233,18 @@ def main():
                 model = keras.models.load_model(m_path, custom_objects=custom_objects, compile=False, safe_mode=False)
                 sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
-                
+
                 sr_np = sr_img.numpy()
                 psnr = float(antspynet.psnr(hr_patch, sr_img))
                 ssim = float(antspynet.ssim(hr_patch, sr_img))
                 gmsd = float(compute_gmsd(gt_np, sr_np))
                 hfen = float(compute_hfen(gt_np, sr_np))
                 corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
-                
-                img_path = os.path.join(artifact_dir, f"r16_{model_name.lower()}.png")
+
+                img_path = os.path.join(artifact_dir, f"{val_prefix}_{model_name.lower()}.png")
                 ants.plot(sr_img, filename=img_path, title=f"{model_name} (PSNR: {psnr:.2f} dB)")
                 print(f"Saved {model_name} output to {img_path}")
-                
+
                 model_results.append({
                     "name": model_name,
                     "psnr": psnr,
@@ -151,8 +252,9 @@ def main():
                     "gmsd": gmsd,
                     "hfen": hfen,
                     "corr": corr,
-                    "filename": f"r16_{model_name.lower()}.png",
-                    "status": "done"
+                    "filename": f"{val_prefix}_{model_name.lower()}.png",
+                    "status": "done",
+                    "params_count": model.count_params(),
                 })
             except Exception as e:
                 print(f"Failed to run inference for {model_name}: {e}")
@@ -164,7 +266,8 @@ def main():
                     "hfen": None,
                     "corr": None,
                     "filename": None,
-                    "status": "error"
+                    "status": "error",
+                    "params_count": None,
                 })
         else:
             print(f"Model file for {model_name} not found, adding TBD...")
@@ -176,14 +279,15 @@ def main():
                 "hfen": None,
                 "corr": None,
                 "filename": None,
-                "status": "tbd"
+                "status": "tbd",
+                "params_count": None,
             })
 
     # Generate 9-class visual comparison grid images
     print("Generating 9-class visual comparison grid images...")
-    grid_dir = os.path.join(artifact_dir, "class_grid")
+    grid_dir = os.path.join(artifact_dir, cfg["grid_dir_name"])
     os.makedirs(grid_dir, exist_ok=True)
-    
+
     classes = [
         "brain_procedural",
         "layered",
@@ -195,7 +299,7 @@ def main():
         "grid_patterns",
         "fractal_noise"
     ]
-    
+
     # Reload model objects for class evaluation (cached inside loaded_models during main loop)
     loaded_models = {}
     for model_name, m_path in model_files.items():
@@ -210,40 +314,40 @@ def main():
         print(f"  Generating sample for class: {cls}")
         # Set seed for reproducible simulation sample
         antspyt1w.set_global_scientific_computing_random_seed(1234)
-        
+
         gen = siq.blind_sr_generator(
             hr_base_cache=None,
             batch_size=1,
-            lr_patch_size=48,
+            lr_patch_size=48 if dim == 2 else 24,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
             simulation_classes={cls: 1.0},
             zoom_range=(1.0, 1.0),
             use_cache=False,
-            dimensionality=2,
+            dimensionality=dim,
             use_layer2=False
         )
-        
+
         try:
             x_batch, y_batch = next(gen)
             lr_np = x_batch[0, ..., 0]
             hr_np = y_batch[0, ..., 0]
-            
+
             lr_img = ants.from_numpy(lr_np)
             hr_img = ants.from_numpy(hr_np)
-            lr_img.set_spacing([2.0, 2.0])
-            hr_img.set_spacing([1.0, 1.0])
-            
+            lr_img.set_spacing(cfg["spacing_lr"])
+            hr_img.set_spacing(cfg["spacing_hr"])
+
             # Save Ground Truth
             gt_class_path = os.path.join(grid_dir, f"class_{cls}_gt.png")
             ants.plot(hr_img, filename=gt_class_path)
-            
+
             # Save Bilinear
             bilinear_class_sr = ants.resample_image_to_target(lr_img, hr_img, interp_type=0)
             bilinear_class_path = os.path.join(grid_dir, f"class_{cls}_bilinear.png")
             ants.plot(bilinear_class_sr, filename=bilinear_class_path)
-            
+
             # Save each model's output
             for m_name, model in loaded_models.items():
                 try:
@@ -270,21 +374,23 @@ def main():
         cls_title = cls.replace("_", " ").title()
         html_grid_table += f"                        <th>{cls_title}</th>\n"
     html_grid_table += "                    </tr>\n                </thead>\n                <tbody>\n"
-    
+
+    grid_dir_name = cfg["grid_dir_name"]
+
     # 1. Ground Truth
     html_grid_table += "                    <tr>\n                        <td style='font-weight: bold; color: #10b981;'>Ground Truth</td>\n"
     for cls in classes:
-        img_src = f"class_grid/class_{cls}_gt.png"
+        img_src = f"{grid_dir_name}/class_{cls}_gt.png"
         html_grid_table += f"                        <td><img src='{img_src}' alt='GT {cls}'></td>\n"
     html_grid_table += "                    </tr>\n"
-    
+
     # 2. Bilinear
     html_grid_table += "                    <tr>\n                        <td style='font-weight: bold; color: #f59e0b;'>Bilinear</td>\n"
     for cls in classes:
-        img_src = f"class_grid/class_{cls}_bilinear.png"
+        img_src = f"{grid_dir_name}/class_{cls}_bilinear.png"
         html_grid_table += f"                        <td><img src='{img_src}' alt='Bilinear {cls}'></td>\n"
     html_grid_table += "                    </tr>\n"
-    
+
     # 3. Models
     for m_name in model_files.keys():
         m_name_lower = m_name.lower()
@@ -292,88 +398,88 @@ def main():
         for cls in classes:
             img_path = os.path.join(grid_dir, f"class_{cls}_{m_name_lower}.png")
             if os.path.exists(img_path):
-                img_src = f"class_grid/class_{cls}_{m_name_lower}.png"
+                img_src = f"{grid_dir_name}/class_{cls}_{m_name_lower}.png"
                 html_grid_table += f"                        <td><img src='{img_src}' alt='{m_name} {cls}'></td>\n"
             else:
                 html_grid_table += "                        <td><div class='grid-tbd-cell'>TBD</div></td>\n"
         html_grid_table += "                    </tr>\n"
-        
+
     html_grid_table += "                </tbody>\n            </table>\n        </div>\n"
 
     # Generate HTML report
-    html_path = os.path.join(artifact_dir, "summary_results.html")
-    
-    html_content = """<!DOCTYPE html>
+    html_path = os.path.join(artifact_dir, cfg["html_filename"])
+
+    html_content = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Super-Resolution 2D Pilot Comparison Report</title>
+    <title>{cfg['report_title']}</title>
     <style>
-        body {
+        body {{
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #0b0f19;
             color: #f3f4f6;
             margin: 0;
             padding: 40px 20px;
-        }
-        .container {
+        }}
+        .container {{
             max-width: 1200px;
             margin: 0 auto;
-        }
-        h1 {
+        }}
+        h1 {{
             text-align: center;
             font-size: 2.5em;
             margin-bottom: 10px;
             background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        p.subtitle {
+        }}
+        p.subtitle {{
             text-align: center;
             color: #9ca3af;
             font-size: 1.1em;
             margin-bottom: 40px;
-        }
-        .grid {
+        }}
+        .grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 25px;
             margin-bottom: 50px;
-        }
-        .card {
+        }}
+        .card {{
             background-color: #161b22;
             border: 1px solid #30363d;
             border-radius: 12px;
             overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .card:hover {
+        }}
+        .card:hover {{
             transform: translateY(-5px);
             box-shadow: 0 10px 15px rgba(59, 130, 246, 0.2);
             border-color: #3b82f6;
-        }
-        .card img {
+        }}
+        .card img {{
             width: 100%;
             height: auto;
             display: block;
             border-bottom: 1px solid #30363d;
             background-color: #000;
-        }
-        .card-content {
+        }}
+        .card-content {{
             padding: 15px;
-        }
-        .card-title {
+        }}
+        .card-title {{
             font-size: 1.2em;
             font-weight: bold;
             margin-bottom: 8px;
             color: #3b82f6;
-        }
-        .card-metrics {
+        }}
+        .card-metrics {{
             font-size: 0.95em;
             color: #e5e7eb;
-        }
-        .metrics-table {
+        }}
+        .metrics-table {{
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 40px;
@@ -381,28 +487,28 @@ def main():
             border: 1px solid #30363d;
             border-radius: 12px;
             overflow: hidden;
-        }
-        .metrics-table th, .metrics-table td {
+        }}
+        .metrics-table th, .metrics-table td {{
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #30363d;
-        }
-        .metrics-table th {
+        }}
+        .metrics-table th {{
             background-color: #21262d;
             color: #3b82f6;
             font-weight: 600;
-        }
-        .metrics-table tr:hover {
+        }}
+        .metrics-table tr:hover {{
             background-color: #1f242c;
-        }
-        .badge {
+        }}
+        .badge {{
             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             padding: 3px 8px;
             border-radius: 6px;
             font-size: 0.85em;
             font-weight: bold;
-        }
-        .grid-table {
+        }}
+        .grid-table {{
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 50px;
@@ -411,14 +517,14 @@ def main():
             border-radius: 12px;
             overflow-x: auto;
             display: block;
-        }
-        .grid-table th, .grid-table td {
+        }}
+        .grid-table th, .grid-table td {{
             padding: 8px;
             text-align: center;
             border: 1px solid #30363d;
             min-width: 100px;
-        }
-        .grid-table img {
+        }}
+        .grid-table img {{
             width: 90px;
             height: 90px;
             object-fit: cover;
@@ -426,14 +532,14 @@ def main():
             transition: transform 0.2s;
             display: block;
             margin: 0 auto;
-        }
-        .grid-table img:hover {
+        }}
+        .grid-table img:hover {{
             transform: scale(2.5);
             z-index: 10;
             position: relative;
             box-shadow: 0 5px 15px rgba(0,0,0,0.8);
-        }
-        .grid-tbd-cell {
+        }}
+        .grid-tbd-cell {{
             width: 90px;
             height: 90px;
             display: flex;
@@ -446,14 +552,14 @@ def main():
             border-radius: 6px;
             border: 1px dashed #30363d;
             margin: 0 auto;
-        }
+        }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Super-Resolution 2D Pilot Comparison</h1>
-        <p class="subtitle">Visual and quantitative evaluation of all models trained for 300 iterations on the r16 brain MRI test image.</p>
-        
+        <h1>{cfg['report_title']}</h1>
+        <p class="subtitle">{cfg['report_subtitle']}</p>
+
         <h2>Quantitative Results</h2>
         <table class="metrics-table">
             <thead>
@@ -482,10 +588,10 @@ def main():
                     <td>-</td>
                 </tr>
 """
-    
+
     # Collect all rows
     all_rows = []
-    
+
     # Baselines
     all_rows.append({
         "name": "Bilinear Interpolation",
@@ -495,7 +601,8 @@ def main():
         "hfen": linear_hfen,
         "corr": linear_corr,
         "badge": "",
-        "status": "done"
+        "status": "done",
+        "params_count": None,
     })
     all_rows.append({
         "name": "Nearest Neighbor",
@@ -505,9 +612,10 @@ def main():
         "hfen": nn_hfen,
         "corr": nn_corr,
         "badge": "",
-        "status": "done"
+        "status": "done",
+        "params_count": None,
     })
-    
+
     # Models
     for r in model_results:
         badge_str = ""
@@ -517,7 +625,7 @@ def main():
             badge_str = ' <span class="badge">Heavy Baseline</span>'
         elif r["name"] in ["SRFBN", "SAN"]:
             badge_str = ' <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span>'
-            
+
         all_rows.append({
             "name": r["name"],
             "psnr": r["psnr"],
@@ -526,22 +634,23 @@ def main():
             "hfen": r["hfen"],
             "corr": r["corr"],
             "badge": badge_str,
-            "status": r["status"]
+            "status": r["status"],
+            "params_count": r.get("params_count"),
         })
-        
-    # Calculate Rank of Ranks for r16 done rows
+
+    # Calculate Rank of Ranks for done rows
     import pandas as pd
     done_rows = [row for row in all_rows if row["status"] == "done"]
     if done_rows:
-        df_r16 = pd.DataFrame(done_rows)
-        df_r16["psnr_rank"] = df_r16["psnr"].rank(ascending=False)
-        df_r16["ssim_rank"] = df_r16["ssim"].rank(ascending=False)
-        df_r16["gmsd_rank"] = df_r16["gmsd"].rank(ascending=True)
-        df_r16["hfen_rank"] = df_r16["hfen"].rank(ascending=True)
-        df_r16["corr_rank"] = df_r16["corr"].rank(ascending=False)
-        df_r16["rank_score"] = df_r16[["psnr_rank", "ssim_rank", "gmsd_rank", "hfen_rank", "corr_rank"]].mean(axis=1)
-        
-        rank_map = dict(zip(df_r16["name"], df_r16["rank_score"]))
+        df_rank = pd.DataFrame(done_rows)
+        df_rank["psnr_rank"] = df_rank["psnr"].rank(ascending=False)
+        df_rank["ssim_rank"] = df_rank["ssim"].rank(ascending=False)
+        df_rank["gmsd_rank"] = df_rank["gmsd"].rank(ascending=True)
+        df_rank["hfen_rank"] = df_rank["hfen"].rank(ascending=True)
+        df_rank["corr_rank"] = df_rank["corr"].rank(ascending=False)
+        df_rank["rank_score"] = df_rank[["psnr_rank", "ssim_rank", "gmsd_rank", "hfen_rank", "corr_rank"]].mean(axis=1)
+
+        rank_map = dict(zip(df_rank["name"], df_rank["rank_score"]))
         for row in all_rows:
             row["rank_score"] = rank_map.get(row["name"], None)
     else:
@@ -551,25 +660,11 @@ def main():
     # Sort all rows by rank_score ascending, with TBD/None at bottom
     def get_sort_key(row):
         return row["rank_score"] if row["rank_score"] is not None else 999.0
-        
+
     all_rows.sort(key=get_sort_key)
-    
-    model_complexity = {
-        "Bilinear Interpolation": {"params": "-", "latency": "-"},
-        "Nearest Neighbor": {"params": "-", "latency": "-"},
-        "ESPCN": {"params": "2,541,762", "latency": "20.88 ms"},
-        "ESPCN-RC": {"params": "637,858", "latency": "17.39 ms"},
-        "WDSR": {"params": "2,431,970", "latency": "17.89 ms"},
-        "WDSR-RC": {"params": "2,404,226", "latency": "18.63 ms"},
-        "CARN": {"params": "328,802", "latency": "10.37 ms"},
-        "RCAN": {"params": "1,074,130", "latency": "23.30 ms"},
-        "LDBPN": {"params": "1,580,929", "latency": "20.27 ms"},
-        "REF-DBPN": {"params": "4,356,993", "latency": "648.40 ms"},
-        "SRFBN": {"params": "60,556", "latency": "14.45 ms"},
-        "SAN": {"params": "1,189,874", "latency": "22.30 ms"},
-        "AS-DBPN": {"params": "1,291,156", "latency": "59.05 ms"}
-    }
-    
+
+    model_latency = cfg["model_latency"]
+
     for row in all_rows:
         if row["status"] == "done":
             rank_score_val = f"{row['rank_score']:.2f}"
@@ -585,11 +680,13 @@ def main():
             gmsd_val = "TBD"
             hfen_val = "TBD"
             corr_val = "TBD"
-            
-        complexity = model_complexity.get(row["name"], {"params": "TBD", "latency": "TBD"})
-        params_val = complexity["params"]
-        latency_val = complexity["latency"]
-            
+
+        # Parameter counts are read live from whichever checkpoint was
+        # actually loaded, so they can never go stale; latency is a
+        # separately-measured benchmark figure, kept per-dimension.
+        params_val = f"{row['params_count']:,}" if row.get("params_count") else "-" if row["name"] in ("Bilinear Interpolation", "Nearest Neighbor") else "TBD"
+        latency_val = model_latency.get(row["name"], "-" if row["name"] in ("Bilinear Interpolation", "Nearest Neighbor") else "TBD")
+
         html_content += f"""                <tr>
                     <td>{row['name']}{row['badge']}</td>
                     <td><strong>{rank_score_val}</strong></td>
@@ -698,23 +795,32 @@ def main():
                     <td>Moderate susceptibility</td>
                     <td>Medium-Heavy (~60ms inference)</td>
                 </tr>
+                <tr>
+                    <td><strong>AS-DBPN</strong></td>
+                    <td>Deconvolution + Back-projection (shared weights)</td>
+                    <td>Yes (Recurrent, shared)</td>
+                    <td>Shared-weight recurrent back-projection + single final SOCA block</td>
+                    <td>Completely eliminated</td>
+                    <td>Lightweight-Medium (~59ms inference, 2D)</td>
+                </tr>
             </tbody>
         </table>
 """
-    
+
     # Try to extract quantitative results from class_performance_summary.md
+    # (currently only produced for the 2D pipeline).
     rank_table_html = ""
     psnr_table_html = ""
     ssim_table_html = ""
     gmsd_table_html = ""
     hfen_table_html = ""
     corr_table_html = ""
-    class_perf_path = os.path.join(artifact_dir, "class_performance_summary.md")
+    class_perf_path = os.path.join(artifact_dir, "class_performance_summary.md" if dim == 2 else "class_performance_summary_3d.md")
     if os.path.exists(class_perf_path):
         try:
             with open(class_perf_path, "r") as f:
                 content = f.read()
-                
+
             rank_start = content.find("## Overall Performance: Rank of Ranks")
             if rank_start != -1:
                 rank_end = content.find("## Average PSNR (dB) per Class", rank_start)
@@ -728,7 +834,7 @@ def main():
                 psnr_section = content[psnr_start:psnr_end] if psnr_end != -1 else content[psnr_start:]
                 psnr_table_md = "\n".join([line for line in psnr_section.split("\n") if line.strip().startswith("|")])
                 psnr_table_html = parse_markdown_table_to_html(psnr_table_md, "Average PSNR (dB) per Simulation Class")
-                
+
             ssim_start = content.find("## Average SSIM per Class")
             if ssim_start != -1:
                 ssim_end = content.find("## Average GMSD per Class", ssim_start)
@@ -757,10 +863,10 @@ def main():
                 corr_table_md = "\n".join([line for line in corr_section.split("\n") if line.strip().startswith("|")])
                 corr_table_html = parse_markdown_table_to_html(corr_table_md, "Average Correlation per Simulation Class")
         except Exception as e:
-            print(f"Error parsing class_performance_summary.md: {e}")
+            print(f"Error parsing {class_perf_path}: {e}")
 
     html_content += html_grid_table
-    
+
     if rank_table_html or psnr_table_html or ssim_table_html or gmsd_table_html or hfen_table_html or corr_table_html:
         html_content += "<h2>9-Class Simulation Quantitative Performance</h2>"
         html_content += rank_table_html
@@ -769,11 +875,14 @@ def main():
         html_content += gmsd_table_html
         html_content += hfen_table_html
         html_content += corr_table_html
-        
+
+    if dim == 2:
+        # Regression/heatmap visuals below were computed from the 2D
+        # 9-class benchmark; no 3D equivalent exists yet.
         html_content += """
         <h2>Predictor Importance & Complexity Mapping</h2>
         <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Analyzing how model parameters, inference latency, attention gates, and iterative feedback project onto overall model performance (Rank of Ranks score) using standardized multi-variable linear regression.</p>
-        
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-bottom: 40px;">
             <div class="card" style="padding: 25px; box-sizing: border-box;">
                 <div class="card-title" style="color: #8b5cf6; margin-top: 0; margin-bottom: 10px;">Standardized Regression Coefficients</div>
@@ -810,7 +919,7 @@ def main():
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="card" style="padding: 25px; box-sizing: border-box;">
                 <div class="card-title" style="color: #ec4899; margin-top: 0; margin-bottom: 15px;">Key Analytical Insights</div>
                 <ul style="font-size: 0.9em; line-height: 1.6; padding-left: 20px; color: #e5e7eb; margin: 0;">
@@ -832,12 +941,12 @@ def main():
             </div>
         </div>
         """
-    
-    html_content += """
-        <h2>Visual Comparison Grid (r16)</h2>
+
+    html_content += f"""
+        <h2>Visual Comparison Grid ({'r16' if dim == 2 else 'MNI template'})</h2>
         <div class="grid">
             <div class="card">
-                <img src="r16_ground_truth.png" alt="Ground Truth">
+                <img src="{val_prefix}_ground_truth.png" alt="Ground Truth">
                 <div class="card-content">
                     <div class="card-title" style="color: #10b981;">Ground Truth</div>
                     <div class="card-metrics">Original HR crop</div>
@@ -847,14 +956,14 @@ def main():
 
     # Add baselines to visual cards
     html_content += f"""            <div class="card">
-                <img src="r16_bilinear.png" alt="Bilinear">
+                <img src="{val_prefix}_bilinear.png" alt="Bilinear">
                 <div class="card-content">
                     <div class="card-title" style="color: #f59e0b;">Bilinear</div>
                     <div class="card-metrics">PSNR: {linear_psnr:.2f} dB | SSIM: {linear_ssim:.4f}</div>
                 </div>
             </div>
             <div class="card">
-                <img src="r16_nearest_neighbor.png" alt="Nearest Neighbor">
+                <img src="{val_prefix}_nearest_neighbor.png" alt="Nearest Neighbor">
                 <div class="card-content">
                     <div class="card-title" style="color: #ef4444;">Nearest Neighbor</div>
                     <div class="card-metrics">PSNR: {nn_psnr:.2f} dB | SSIM: {nn_ssim:.4f}</div>
@@ -887,27 +996,10 @@ def main():
 </body>
 </html>
 """
-    
+
     with open(html_path, "w") as f:
         f.write(html_content)
     print(f"Successfully generated summary HTML at {html_path}")
-
-    # Copy all generated files to workspace directory for user visibility
-    workspace_dir = "/Users/stnava/Library/Mobile Documents/com~apple~CloudDocs/code/siq"
-    import shutil
-    try:
-        print(f"Copying results to workspace directory: {workspace_dir}")
-        shutil.copy2(html_path, os.path.join(workspace_dir, "summary_results.html"))
-        ws_grid_dir = os.path.join(workspace_dir, "class_grid")
-        if os.path.exists(ws_grid_dir):
-            shutil.rmtree(ws_grid_dir)
-        shutil.copytree(grid_dir, ws_grid_dir)
-        for f in os.listdir(artifact_dir):
-            if f.endswith(".png") and not f.startswith("class_"):
-                shutil.copy2(os.path.join(artifact_dir, f), os.path.join(workspace_dir, f))
-        print("Successfully copied all results to workspace.")
-    except Exception as e:
-        print(f"Failed to copy results to workspace: {e}")
 
 if __name__ == "__main__":
     main()
