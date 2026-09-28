@@ -19,11 +19,11 @@ PYTHONUNBUFFERED=1 python tests/train_model_refinement.py asdbpn \
   --load-model checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras \
   --stage1-iter 50 --stage2-iter 750 --stage3-iter 3000 \
   --checkpoint-freq 25 \
-  --balancer-freq 10 --update-freq 10 \
+  --balancer-freq 25 --update-freq 25 \
   --prefetch-size 4 \
   --perceptual-backend resnet \
   --anneal-iter 0 \
-  --dampening 0.92 \
+  --dampening 0.97 \
   --init-l1-weight   3.788569 \
   --init-feat-weight 565.098821 \
   --init-tv-weight   0.462579 \
@@ -115,6 +115,26 @@ identical in `training=False` and `training=True`. This is expected and correct.
 | Perceptual (ResNet) | 65%    | Structural fidelity       |
 | Total Variation     | 5%     | Smoothness regularizer    |
 | MSE (L2)            | 0%     | Disabled in Stage 2+      |
+
+## Balancer Dampening Sensitivity
+
+The `--dampening` flag controls how aggressively the LOWESS weight balancer
+moves toward the 30/65/5 target ratio each update step. Too low = oscillation;
+too high = too slow to correct pre-calibrated weights that drift.
+
+| dampening | balancer-freq | Behavior |
+|-----------|---------------|----------|
+| 0.92 | 10 | ❌ Over-corrects — loss balance oscillates ±20pp per update (Run C) |
+| **0.97** | **25** | ✅ **Stable** — converges to target in ~100 steps smoothly (Run D) |
+| 0.98 (default) | 25 | ⚠️ Slow — takes ~200+ steps to correct from fresh pre-calibrated weights |
+
+At `dampening=d`, each update moves weights by approximately `(1-d) × decay_factor`:
+- `d=0.92` → ~8% per step → overshoots, oscillates
+- `d=0.97` → ~3% per step → smooth convergence
+
+Always pair `--dampening 0.97` with `--balancer-freq 25 --update-freq 25`.
+Smaller freq values (e.g. 10) compound oscillation by applying corrections
+before the smoother has enough data points.
 
 ## Key File Locations
 
