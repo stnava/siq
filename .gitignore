@@ -13,4 +13,5 @@ siq_example_output/
 siq_multi_task_example_output/
 scratch/
 checkpoints/
+reports/**/step_*.png
 
