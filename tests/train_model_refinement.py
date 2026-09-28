@@ -1,6 +1,14 @@
 import os
 import sys
 
+# Ensure repo root and tests dir are on sys.path
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+tests_dir = os.path.dirname(os.path.abspath(__file__))
+if tests_dir not in sys.path:
+    sys.path.insert(0, tests_dir)
+
 # Configure Keras to use PyTorch backend for GPU MPS/CUDA acceleration
 os.environ["KERAS_BACKEND"] = "torch"
 
@@ -212,6 +220,12 @@ def main():
     parser.add_argument("--smooth-window", type=int, default=100, help="LOWESS smoothing window size (default: 100)")
     parser.add_argument("--update-freq", type=int, default=10, help="Weight update frequency in iterations (default: 10)")
     parser.add_argument("--use-layer2", action="store_true", default=False, help="Enable Layer 2 procedural shape simulations (default: False)")
+    parser.add_argument("--projection-kernel-size", type=int, default=None, help="Projection kernel size for AS-DBPN (default: 6 for asdbpn, None for others)")
+    parser.add_argument("--checkpoint-freq", type=int, default=50, help="Frequency (in iterations) to save convergence checkpoints and update visual report (default: 50)")
+    parser.add_argument("--eval-freq", type=int, default=20, help="Frequency (in iterations) to evaluate metrics during warmup (default: 20)")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory to save convergence checkpoints")
+    parser.add_argument("--report-dir", type=str, default=None, help="Directory to save visual report assets")
+    parser.add_argument("--warmup-max-iter", type=int, default=500, help="Maximum iterations for MSE warmup (default: 500)")
     args = parser.parse_args()
     
     model_type = args.model
@@ -228,8 +242,9 @@ def main():
     custom_objects = None
             
     print(f"Initializing {model_type.upper()} {dim}D Refinement Pipeline...")
-    scratch_dir = "/Users/stnava/.gemini/antigravity-cli/brain/bf9e3239-711d-4a46-8dd4-8a3f33959db5/scratch"
     workspace_dir = "."
+    scratch_dir = os.path.join(workspace_dir, "scratch")
+    os.makedirs(scratch_dir, exist_ok=True)
     
     import pandas as pd
     last_iteration = 0
@@ -263,6 +278,14 @@ def main():
     mid_hr = [s//2 for s in img.shape]
     hr_patch = ants.crop_indices(img, [m - 48 for m in mid_hr], [m + 48 for m in mid_hr])
     gt_np = hr_patch.numpy()
+
+    # Initialize Visual Convergence Reporter
+    from tests.visual_convergence_report import VisualConvergenceReporter
+    ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else f"checkpoints/{model_type}_{dim}d"
+    rep_dir = args.report_dir if args.report_dir else f"reports/{model_type}_{dim}d"
+    html_name = f"{model_type}_{dim}d_report.html"
+    reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name)
+    reporter.setup_validation_patches(lr_patch, hr_patch)
     
     # 2. Cache disabled by default (generating raw volumes on-the-fly)
     print("Cache disabled by default. Training volumes will be generated raw on the fly.")
@@ -588,13 +611,15 @@ def main():
                     projection_kernel_size=6
                 )
             else:
-                print("Baseline model not found. Building a new AS-DBPN 3D model...")
+                proj_k = args.projection_kernel_size if args.projection_kernel_size is not None else 6
+                print(f"Baseline model not found. Building a new AS-DBPN 3D model (n_filters=64, n_steps=4, projection_kernel_size={proj_k})...")
                 model = siq.create_asdbpn_3d(
                     input_shape=(None, None, None, 1),
                     factor=2,
                     n_filters=64,
                     n_steps=4,
-                    use_global_skip=True
+                    use_global_skip=True,
+                    projection_kernel_size=proj_k
                 )
     elif model_type == "san":
         if dim == 2:
@@ -994,7 +1019,7 @@ def main():
         
         # Compile model with pure MSE loss for warmup
         # We use a slightly higher learning rate for warmup as suggested
-        warmup_lr = 1e-4 if model_type in ["ref-dbpn", "ldbpn"] else 5e-5
+        warmup_lr = 1e-4 if model_type in ["ref-dbpn", "ldbpn", "asdbpn"] else 5e-5
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=warmup_lr), loss="mse")
         
         # Instantiate generator for warmup (using clean mixed geometries)
@@ -1012,22 +1037,28 @@ def main():
             use_layer2=args.use_layer2
         )
         
-        warmup_max_iter = 5000
+        warmup_max_iter = args.warmup_max_iter
         start_time_warmup = time.time()
         warmup_completed = False
+        
+        # Record initial pre-training baseline at iteration 0 (if not already recorded)
+        if not any(r.get("iteration") == 0 for r in reporter.history):
+            try:
+                reporter.record_checkpoint(model, 0, "Initial (Pre-Warmup)", 1.0, is_convergence_step=True)
+            except Exception as e:
+                print(f"[Warning] Failed to record initial state checkpoint: {e}")
         
         for warmup_iter in range(1, warmup_max_iter + 1):
             x_batch, y_batch = next(train_gen_warmup)
             mse_loss = model.train_on_batch(x_batch, y_batch)
             
-            # Print every 20 iterations and evaluate validation PSNR
-            if warmup_iter % 20 == 0 or warmup_iter == 1:
-                # Run validation evaluation
-                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
-                ants.copy_image_info(hr_patch, sr_img)
-                val_psnr = float(antspynet.psnr(hr_patch, sr_img))
-                val_ssim = float(antspynet.ssim(hr_patch, sr_img))
-                
+            is_eval = (warmup_iter % args.eval_freq == 0 or warmup_iter == 1)
+            is_ckpt = (warmup_iter % args.checkpoint_freq == 0)
+            
+            if is_eval or is_ckpt:
+                entry = reporter.record_checkpoint(model, warmup_iter, "Warmup", mse_loss, is_convergence_step=is_ckpt)
+                val_psnr = entry.get("val_psnr", 0.0)
+                val_ssim = entry.get("val_ssim", 0.0)
                 print(f"[Warmup] Iter {warmup_iter:04d}/{warmup_max_iter} - MSE Loss: {mse_loss:.6f} - Val PSNR: {val_psnr:.2f} dB (Target: {target_psnr:.2f} dB) - Val SSIM: {val_ssim:.4f}")
                 
                 # Check stopping condition
@@ -1077,8 +1108,8 @@ def main():
             # Print iteration log immediately
             print(f"Stage 1 Iter {iteration:03d}/{stage1_max} - Loss: {loss:.6f}")
             
-            # Track and log heavy loss components and monitor metrics every 50 iterations
-            if iteration % 50 == 0 or iteration == 1 or iteration == max(1, last_iteration + 1):
+            # Track and log heavy loss components and monitor metrics every checkpoint_freq iterations
+            if iteration % args.checkpoint_freq == 0 or iteration == 1 or iteration == max(1, last_iteration + 1) or iteration == stage1_max:
                 print_loss_components("Stage 1", iteration, stage1_max, x_batch, y_batch, loss)
                 # Save actual training batch inputs sent to model.train_on_batch
                 try:
@@ -1097,21 +1128,12 @@ def main():
                 except Exception as e:
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
-                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
-                ants.copy_image_info(hr_patch, sr_img)
-                sr_np = sr_img.numpy()
-                corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
-                psnr = float(antspynet.psnr(hr_patch, sr_img))
-                ssim = float(antspynet.ssim(hr_patch, sr_img))
-                gmsd = compute_gmsd(gt_np, sr_np)
-                hfen = compute_hfen(gt_np, sr_np)
-                
-                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
+                is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage1_max)
+                entry = reporter.record_checkpoint(model, iteration, "Stage 1 Adaptation", loss, is_convergence_step=is_ckpt)
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
                     model.save(output_model_path)
-                    print(f"  --> Saved checkpoint to {output_model_path}")
 
         # ==============================================================
         # Stage 2: Joint Fine-Tuning with Rician Noise (Iter 101-2000)
@@ -1153,8 +1175,8 @@ def main():
             # Print iteration log immediately
             print(f"Stage 2 Iter {iteration:03d}/{stage2_max} - Loss: {loss:.6f}")
             
-            # Track and log heavy loss components and monitor metrics every 50 iterations
-            if iteration % 50 == 0 or iteration == stage1_max + 1 or iteration == start_iter:
+            # Track and log heavy loss components and monitor metrics every checkpoint_freq iterations
+            if iteration % args.checkpoint_freq == 0 or iteration == stage1_max + 1 or iteration == start_iter or iteration == stage2_max:
                 print_loss_components("Stage 2", iteration, stage2_max, x_batch, y_batch, loss)
                 # Save actual training batch inputs sent to model.train_on_batch
                 try:
@@ -1173,21 +1195,12 @@ def main():
                 except Exception as e:
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
-                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
-                ants.copy_image_info(hr_patch, sr_img)
-                sr_np = sr_img.numpy()
-                corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
-                psnr = float(antspynet.psnr(hr_patch, sr_img))
-                ssim = float(antspynet.ssim(hr_patch, sr_img))
-                gmsd = compute_gmsd(gt_np, sr_np)
-                hfen = compute_hfen(gt_np, sr_np)
-                
-                print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
+                is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage2_max)
+                entry = reporter.record_checkpoint(model, iteration, "Stage 2 Robustness", loss, is_convergence_step=is_ckpt)
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
                     model.save(output_model_path)
-                    print(f"  --> Saved checkpoint to {output_model_path}")
     else:
         print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
@@ -1248,8 +1261,8 @@ def main():
         # Print iteration log immediately
         print(f"Stage 3 Iter {iteration:03d}/{stage3_max} - Loss: {loss:.6f}")
         
-        # Track and log heavy loss components and monitor metrics every 50 iterations
-        if iteration % 50 == 0 or iteration == stage2_max + 1 or iteration == start_iter:
+        # Track and log heavy loss components and monitor metrics every checkpoint_freq iterations
+        if iteration % args.checkpoint_freq == 0 or iteration == stage2_max + 1 or iteration == start_iter or iteration == stage3_max:
             print_loss_components("Stage 3", iteration, stage3_max, x_batch, y_batch, loss)
             # Save actual training batch inputs sent to model.train_on_batch
             try:
@@ -1268,21 +1281,12 @@ def main():
             except Exception as e:
                 print(f"  [Warning] Failed to save actual training batch images: {e}")
 
-            sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
-            ants.copy_image_info(hr_patch, sr_img)
-            sr_np = sr_img.numpy()
-            corr = float(np.corrcoef(sr_np.flatten(), gt_np.flatten())[0, 1])
-            psnr = float(antspynet.psnr(hr_patch, sr_img))
-            ssim = float(antspynet.ssim(hr_patch, sr_img))
-            gmsd = compute_gmsd(gt_np, sr_np)
-            hfen = compute_hfen(gt_np, sr_np)
-            
-            print(f"  [OASIS Monitor] Corr: {corr:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}, GMSD: {gmsd:.4f}, HFEN: {hfen:.4f}")
+            is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage3_max)
+            entry = reporter.record_checkpoint(model, iteration, "Stage 3 Refinement", loss, is_convergence_step=is_ckpt)
             
             if loss < best_val_loss:
                 best_val_loss = loss
                 model.save(output_model_path)
-                print(f"  --> Saved checkpoint to {output_model_path}")
 
     print(f"{model_type.upper()} {dim}D Refinement Pipeline Complete.")
 

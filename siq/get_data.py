@@ -3261,35 +3261,20 @@ def simulate_vessel_tubes(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pra
     num_pts = np.random.randint(4, 7)
     ctrl_pts = np.random.uniform(-0.8, 0.8, size=(num_pts, ndim))
     
-    M = 100
-    t = np.linspace(0, 1, M)
-    curve_pts = np.zeros((M, ndim))
+    M = 200
+    t = np.linspace(0, 1, M, dtype="float32")
+    curve_pts = np.zeros((M, ndim), dtype="float32")
     for i in range(num_pts):
         coeff = float(math.comb(num_pts - 1, i)) * ((1 - t) ** (num_pts - 1 - i)) * (t ** i)
         for d in range(ndim):
             curve_pts[:, d] += coeff * ctrl_pts[i, d]
             
-    min_dist_sq = np.full(flat_grid.shape[0], np.inf, dtype="float32")
-    for j in range(M - 1):
-        p0 = curve_pts[j]
-        p1 = curve_pts[j+1]
-        v = p1 - p0
-        v_norm_sq = np.sum(v**2) + 1e-8
-        
-        w = flat_grid - p0
-        t_proj = np.sum(w * v, axis=-1) / v_norm_sq
-        t_proj = np.clip(t_proj, 0.0, 1.0)
-        
-        closest = p0 + t_proj[:, np.newaxis] * v
-        dist_sq = np.sum((flat_grid - closest)**2, axis=-1)
-        min_dist_sq = np.minimum(min_dist_sq, dist_sq)
-        
-    dist_field = np.sqrt(min_dist_sq).reshape(shape)
     base_radius = np.random.uniform(0.08, 0.16)
-    
+    from scipy.spatial import cKDTree
+    tree = cKDTree(curve_pts)
+    dists, _ = tree.query(flat_grid, distance_upper_bound=base_radius, workers=-1)
+    mask = (dists < base_radius).reshape(shape)
     intensity = np.zeros(shape, dtype="float32")
-    mask = dist_field < base_radius
-    
     val = np.random.uniform(0.6, 0.9)
     intensity[mask] = val
     

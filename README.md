@@ -34,6 +34,8 @@ The **Attention-Guided Shared Deep Back-Projection Network (AS-DBPN)** is a stat
 GitHub does not render standalone `.html` files inline, so the interactive reports below are linked through [htmlpreview.github.io](https://htmlpreview.github.io), which renders them straight from this repo:
 
 *   **[9-Class Simulation Benchmark: Overall Model Comparison](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/summary_results.html)** — interactive PSNR/SSIM/GMSD/HFEN/Correlation comparison across all 12 models (11 architectures + bilinear baseline) and 9 synthetic simulation classes (brain, vessels, fractal noise, sinewave, etc.).
+*   **[3D 9-Class Simulation Benchmark Report](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/summary_results_3d.html)** — interactive multi-model 3D comparison report across architectures and 3D synthetic classes.
+*   **[3D AS-DBPN Visual Convergence & Quality Dashboard](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/asdbpn_3d_report.html)** — live auto-updating dashboard monitoring 3D AS-DBPN convergence with orthogonal slice montages (Axial, Coronal, Sagittal), residual error maps ($|\text{SR} - \text{GT}|$), and SVG sparklines.
 *   **[`r16` Brain MRI Qualitative Comparison](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/r16_comparison.html)** — side-by-side visual comparison of ground truth, bilinear, SAN, and AS-DBPN reconstructions on the classic `r16` test image.
 *   **[Simulated Example Gallery](https://htmlpreview.github.io/?https://github.com/stnava/siq/blob/main/docs/simulated_examples.html)** — low-res/high-res pairs across all 9 simulation classes used for blind training and evaluation.
 
@@ -170,6 +172,22 @@ The script executes a curriculum-based training sequence across 3 stages:
 1. **Stage 1: Adaptation Phase (Clean Mixed Geometries)**: 100 warmup iterations on clean mixed geometries.
 2. **Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)**: 150 joint fine-tuning iterations introducing Rician noise.
 3. **Stage 3: Dedicated Refinement Phase (High-Fidelity Brain Focus)**: 200 iterations focusing on high-fidelity brain anatomy structures with a very low learning rate ($1 \times 10^{-7}$).
+
+**Live Convergence Dashboard & Checkpointing:**
+When running refinement (e.g. for `asdbpn`), the training pipeline dynamically saves regular convergence checkpoints and auto-renders a visual HTML dashboard (`asdbpn_3d_report.html`) complete with orthogonal slice montages (Axial, Coronal, Sagittal), residual error maps ($|\text{SR} - \text{GT}|$), and SVG sparklines:
+```bash
+# Refine 3D AS-DBPN with live visual reporting every 25 iterations
+python tests/train_model_refinement.py asdbpn --dim 3 \
+  --checkpoint-freq 25 \
+  --eval-freq 25 \
+  --projection-kernel-size 6 \
+  --warmup-max-iter 150
+```
+
+* `--checkpoint-freq <int>`: Frequency in iterations to write `asdbpn_3d_step_{iter:04d}.keras` and slice montages (default: 50).
+* `--eval-freq <int>`: Frequency in iterations to evaluate validation PSNR/SSIM during warmup (default: 20).
+* `--projection-kernel-size <int>`: Deconv/conv back-projection kernel size (default: 6 for AS-DBPN, matching 2D benchmark capacity).
+* Fast procedural simulations: 3D tubular vessel generation is accelerated 118x via `scipy.spatial.cKDTree` bounded Euclidean queries.
 
 **Intelligent Restart & Skipping:**
 * If a refined model checkpoint already exists (e.g., `espcn_3d_attention_refined.keras`, `ldbpn_3d_refined.keras`, or `ref_dbpn_3d_refined.keras`), the script automatically loads it, **skips Stage 1 and Stage 2**, and proceeds directly to **Stage 3 (Dedicated Refinement)**.

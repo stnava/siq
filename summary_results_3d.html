@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Super-Resolution 3D Pilot Comparison</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 1.1em;
+            margin-bottom: 40px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+        .card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-bottom: 1px solid #30363d;
+            background-color: #000;
+        }
+        .card-content {
+            padding: 15px;
+        }
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #3b82f6;
+        }
+        .card-metrics {
+            font-size: 0.95em;
+            color: #e5e7eb;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .metrics-table th, .metrics-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
+        }
+        .metrics-table th {
+            background-color: #21262d;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .metrics-table tr:hover {
+            background-color: #1f242c;
+        }
+        .badge {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 50px;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow-x: auto;
+            display: block;
+        }
+        .grid-table th, .grid-table td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #30363d;
+            min-width: 100px;
+        }
+        .grid-table img {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 6px;
+            transition: transform 0.2s;
+            display: block;
+            margin: 0 auto;
+        }
+        .grid-table img:hover {
+            transform: scale(2.5);
+            z-index: 10;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+        }
+        .grid-tbd-cell {
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0c1017;
+            color: #8b949e;
+            font-size: 0.85em;
+            font-family: monospace;
+            border-radius: 6px;
+            border: 1px dashed #30363d;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Super-Resolution 3D Pilot Comparison</h1>
+        <p class="subtitle">Visual and quantitative evaluation of all 3D-trained models on an MNI template validation patch.</p>
+
+        <h2>Quantitative Results</h2>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Rank Score (Avg Rank)</th>
+                    <th>PSNR (dB)</th>
+                    <th>SSIM</th>
+                    <th>GMSD</th>
+                    <th>HFEN</th>
+                    <th>Correlation</th>
+                    <th>Parameters</th>
+                    <th>Latency (MPS)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Ground Truth</td>
+                    <td>-</td>
+                    <td>&infin;</td>
+                    <td>1.0000</td>
+                    <td>0.0000</td>
+                    <td>0.0000</td>
+                    <td>1.0000</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Bilinear Interpolation</td>
+                    <td><strong>1.00</strong></td>
+                    <td>16.55 dB</td>
+                    <td>0.8006</td>
+                    <td>0.2234</td>
+                    <td>1.0236</td>
+                    <td>0.8035</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Nearest Neighbor</td>
+                    <td><strong>2.00</strong></td>
+                    <td>15.87 dB</td>
+                    <td>0.7720</td>
+                    <td>0.2418</td>
+                    <td>1.0770</td>
+                    <td>0.7769</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>LDBPN</td>
+                    <td><strong>3.00</strong></td>
+                    <td>15.18 dB</td>
+                    <td>0.7455</td>
+                    <td>0.3010</td>
+                    <td>1.1223</td>
+                    <td>0.7529</td>
+                    <td>8,220,801</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>ESPCN <span class="badge">Best Lightweight</span></td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>WDSR</td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>RCAN</td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>CARN</td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>REF-DBPN <span class="badge">Heavy Baseline</span></td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>SRFBN <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span></td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>SAN <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span></td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>AS-DBPN</td>
+                    <td><strong>TBD</strong></td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                    <td>TBD</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Architecture Comparison</h2>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Architecture</th>
+                    <th>Upsampling Method</th>
+                    <th>Feedback Loop?</th>
+                    <th>Core Mechanism</th>
+                    <th>Checkerboard Artifacts</th>
+                    <th>Computational Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>ESPCN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Attention-enhanced sub-pixel mapping</td>
+                    <td>High susceptibility</td>
+                    <td>Lightweight (~25ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>ESPCN-RC</strong></td>
+                    <td>Resize + Conv</td>
+                    <td>No</td>
+                    <td>Bilinear resize followed by convolutions</td>
+                    <td>Completely eliminated</td>
+                    <td>Lightweight (~20ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>WDSR</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Wide activation before ReLU (feature preserving)</td>
+                    <td>High susceptibility</td>
+                    <td>Medium (~35ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>WDSR-RC</strong></td>
+                    <td>Resize + Conv</td>
+                    <td>No</td>
+                    <td>Bilinear resize with wide activation blocks</td>
+                    <td>Completely eliminated</td>
+                    <td>Medium (~17ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>CARN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Cascading residual connections + 1x1 convs</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Lightweight (~19ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>RCAN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Residual channel attention + global residual groups</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Medium-Heavy (~48ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>LDBPN</strong></td>
+                    <td>Deconvolution + Back-projection</td>
+                    <td>Yes (Iterative)</td>
+                    <td>Iterative up/down projection error correction</td>
+                    <td>Completely eliminated</td>
+                    <td>Medium-Light (~35ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>REF-DBPN</strong></td>
+                    <td>Deconvolution + Back-projection</td>
+                    <td>Yes (Iterative)</td>
+                    <td>Deep iterative projection blocks (heavy)</td>
+                    <td>Completely eliminated</td>
+                    <td>Very Heavy (~200ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>SRFBN</strong></td>
+                    <td>Deconvolution</td>
+                    <td>Yes (Recurrent)</td>
+                    <td>Feedback block sharing weights recurrently</td>
+                    <td>Low susceptibility</td>
+                    <td>Medium (~40ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>SAN</strong></td>
+                    <td>PixelShuffle</td>
+                    <td>No</td>
+                    <td>Second-order local attention blocks (LSRAB)</td>
+                    <td>Moderate susceptibility</td>
+                    <td>Medium-Heavy (~60ms inference)</td>
+                </tr>
+                <tr>
+                    <td><strong>AS-DBPN</strong></td>
+                    <td>Deconvolution + Back-projection (shared weights)</td>
+                    <td>Yes (Recurrent, shared)</td>
+                    <td>Shared-weight recurrent back-projection + single final SOCA block</td>
+                    <td>Completely eliminated</td>
+                    <td>Lightweight-Medium (~59ms inference, 2D)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>9-Class Simulation Comparison Grid</h2>
+        <p class="subtitle" style="text-align: left; margin-bottom: 20px;">Hover over any cell image to magnify details (scale 2.5x).</p>
+        <div style="overflow-x: auto;">
+            <table class="grid-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                            <th>Brain Procedural</th>
+                        <th>Layered</th>
+                        <th>Sinewave</th>
+                        <th>Organic Blobs</th>
+                        <th>Vessel Tubes</th>
+                        <th>Cellular Voronoi</th>
+                        <th>Geometric Phantoms</th>
+                        <th>Grid Patterns</th>
+                        <th>Fractal Noise</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style='font-weight: bold; color: #10b981;'>Ground Truth</td>
+                        <td><img src='class_grid_3d/class_brain_procedural_gt.png' alt='GT brain_procedural'></td>
+                        <td><img src='class_grid_3d/class_layered_gt.png' alt='GT layered'></td>
+                        <td><img src='class_grid_3d/class_sinewave_gt.png' alt='GT sinewave'></td>
+                        <td><img src='class_grid_3d/class_organic_blobs_gt.png' alt='GT organic_blobs'></td>
+                        <td><img src='class_grid_3d/class_vessel_tubes_gt.png' alt='GT vessel_tubes'></td>
+                        <td><img src='class_grid_3d/class_cellular_voronoi_gt.png' alt='GT cellular_voronoi'></td>
+                        <td><img src='class_grid_3d/class_geometric_phantoms_gt.png' alt='GT geometric_phantoms'></td>
+                        <td><img src='class_grid_3d/class_grid_patterns_gt.png' alt='GT grid_patterns'></td>
+                        <td><img src='class_grid_3d/class_fractal_noise_gt.png' alt='GT fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #f59e0b;'>Bilinear</td>
+                        <td><img src='class_grid_3d/class_brain_procedural_bilinear.png' alt='Bilinear brain_procedural'></td>
+                        <td><img src='class_grid_3d/class_layered_bilinear.png' alt='Bilinear layered'></td>
+                        <td><img src='class_grid_3d/class_sinewave_bilinear.png' alt='Bilinear sinewave'></td>
+                        <td><img src='class_grid_3d/class_organic_blobs_bilinear.png' alt='Bilinear organic_blobs'></td>
+                        <td><img src='class_grid_3d/class_vessel_tubes_bilinear.png' alt='Bilinear vessel_tubes'></td>
+                        <td><img src='class_grid_3d/class_cellular_voronoi_bilinear.png' alt='Bilinear cellular_voronoi'></td>
+                        <td><img src='class_grid_3d/class_geometric_phantoms_bilinear.png' alt='Bilinear geometric_phantoms'></td>
+                        <td><img src='class_grid_3d/class_grid_patterns_bilinear.png' alt='Bilinear grid_patterns'></td>
+                        <td><img src='class_grid_3d/class_fractal_noise_bilinear.png' alt='Bilinear fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>ESPCN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>WDSR</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>RCAN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>CARN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>LDBPN</td>
+                        <td><img src='class_grid_3d/class_brain_procedural_ldbpn.png' alt='LDBPN brain_procedural'></td>
+                        <td><img src='class_grid_3d/class_layered_ldbpn.png' alt='LDBPN layered'></td>
+                        <td><img src='class_grid_3d/class_sinewave_ldbpn.png' alt='LDBPN sinewave'></td>
+                        <td><img src='class_grid_3d/class_organic_blobs_ldbpn.png' alt='LDBPN organic_blobs'></td>
+                        <td><img src='class_grid_3d/class_vessel_tubes_ldbpn.png' alt='LDBPN vessel_tubes'></td>
+                        <td><img src='class_grid_3d/class_cellular_voronoi_ldbpn.png' alt='LDBPN cellular_voronoi'></td>
+                        <td><img src='class_grid_3d/class_geometric_phantoms_ldbpn.png' alt='LDBPN geometric_phantoms'></td>
+                        <td><img src='class_grid_3d/class_grid_patterns_ldbpn.png' alt='LDBPN grid_patterns'></td>
+                        <td><img src='class_grid_3d/class_fractal_noise_ldbpn.png' alt='LDBPN fractal_noise'></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>REF-DBPN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>SRFBN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>SAN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                    <tr>
+                        <td style='font-weight: bold; color: #3b82f6;'>AS-DBPN</td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Visual Comparison Grid (MNI template)</h2>
+        <div class="grid">
+            <div class="card">
+                <img src="val3d_ground_truth.png" alt="Ground Truth">
+                <div class="card-content">
+                    <div class="card-title" style="color: #10b981;">Ground Truth</div>
+                    <div class="card-metrics">Original HR crop</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="val3d_bilinear.png" alt="Bilinear">
+                <div class="card-content">
+                    <div class="card-title" style="color: #f59e0b;">Bilinear</div>
+                    <div class="card-metrics">PSNR: 16.55 dB | SSIM: 0.8006</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="val3d_nearest_neighbor.png" alt="Nearest Neighbor">
+                <div class="card-content">
+                    <div class="card-title" style="color: #ef4444;">Nearest Neighbor</div>
+                    <div class="card-metrics">PSNR: 15.87 dB | SSIM: 0.7720</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    ESPCN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">ESPCN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    WDSR<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">WDSR</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    RCAN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">RCAN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    CARN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">CARN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card">
+                <img src="val3d_ldbpn.png" alt="LDBPN">
+                <div class="card-content">
+                    <div class="card-title">LDBPN</div>
+                    <div class="card-metrics">PSNR: 15.18 dB | SSIM: 0.7455 | GMSD: 0.3010</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    REF-DBPN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">REF-DBPN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    SRFBN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">SRFBN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    SAN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">SAN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+            <div class="card" style="opacity: 0.55; border-style: dashed;">
+                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
+                    AS-DBPN<br>(Training TBD)
+                </div>
+                <div class="card-content">
+                    <div class="card-title" style="color: #8b949e;">AS-DBPN</div>
+                    <div class="card-metrics">Metrics will populate post-training</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
