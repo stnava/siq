@@ -450,22 +450,29 @@ class VisualConvergenceReporter:
         gain_color = "#10b981" if psnr_gain >= 0 else "#f59e0b"
         
         # Compute monotonic cumulative global steps and extract stage transition markers
+        warmup_max_iter = 0
+        for r in self.history:
+            st = str(r.get("stage", ""))
+            if "Warmup" in st or "Initial" in st:
+                warmup_max_iter = max(warmup_max_iter, int(r.get("iteration", 0)))
+        if warmup_max_iter == 0:
+            warmup_max_iter = 150
+
         global_steps = []
         stage_markers = []
-        curr_offset = 0
         prev_stage = None
-        prev_iter = 0
-        
         for r in self.history:
-            stage = r.get("stage", "Unknown")
+            st = str(r.get("stage", "Unknown"))
             it = int(r.get("iteration", 0))
-            if prev_stage is not None and stage != prev_stage:
-                curr_offset += max(prev_iter, 0)
-                short_stage = stage.replace("Phase", "").replace("Joint Fine-Tuning", "Stage 2").strip()
-                stage_markers.append((curr_offset, short_stage))
-            global_steps.append(curr_offset + it)
-            prev_stage = stage
-            prev_iter = it
+            if "Warmup" in st or "Initial" in st:
+                g_step = it
+            else:
+                g_step = warmup_max_iter + it
+            global_steps.append(g_step)
+            if prev_stage is not None and st != prev_stage:
+                short_stage = st.replace("Phase", "").replace("Joint Fine-Tuning", "Stage 3").strip()
+                stage_markers.append((g_step, short_stage))
+            prev_stage = st
             
         psnrs = [float(r["val_psnr"]) for r in self.history]
         ssims = [float(r["val_ssim"]) for r in self.history]
