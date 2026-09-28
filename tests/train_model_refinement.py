@@ -226,11 +226,29 @@ def main():
     parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory to save convergence checkpoints")
     parser.add_argument("--report-dir", type=str, default=None, help="Directory to save visual report assets")
     parser.add_argument("--warmup-max-iter", type=int, default=500, help="Maximum iterations for MSE warmup (default: 500)")
+    parser.add_argument("--lr-patch-size", type=int, default=None, help="Low-resolution patch size (default: 32 for 3D, 48 for 2D)")
+    parser.add_argument("--stage1-lr", type=float, default=None, help="Learning rate for Stage 1 (default: 1e-4 for 3D, 5e-5 for 2D)")
+    parser.add_argument("--stage2-lr", type=float, default=None, help="Learning rate for Stage 2 (default: 5e-5 for 3D, 2e-5 for 2D)")
+    parser.add_argument("--stage3-lr", type=float, default=None, help="Learning rate for Stage 3 (default: 2e-5 for 3D, 1e-5 for 2D)")
+    parser.add_argument("--skip-warmup", action="store_true", default=False, help="Skip MSE warmup phase (useful when resuming/fine-tuning from an existing trained model)")
+    parser.add_argument("--load-model", type=str, default=None, help="Explicit path to pretrained/checkpoint model to load weights from")
+    parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
     args = parser.parse_args()
     
+    try:
+        keras.config.enable_unsafe_deserialization()
+    except Exception:
+        pass
+        
     model_type = args.model
     batch_size = args.batch_size
     dim = args.dim
+    lr_patch_size = args.lr_patch_size if args.lr_patch_size is not None else (32 if dim == 3 else 48)
+    hr_patch_size = lr_patch_size * 2
+    stage1_lr = args.stage1_lr if args.stage1_lr is not None else (1e-4 if dim == 3 else 5e-5)
+    stage2_lr = args.stage2_lr if args.stage2_lr is not None else (5e-5 if dim == 3 else 2e-5)
+    stage3_lr = args.stage3_lr if args.stage3_lr is not None else (2e-5 if dim == 3 else 1e-5)
+    
     stage1_max = args.stage1_iter
     stage2_max = args.stage2_iter
     stage3_max = args.stage3_iter
@@ -242,6 +260,7 @@ def main():
     custom_objects = None
             
     print(f"Initializing {model_type.upper()} {dim}D Refinement Pipeline...")
+    print(f"  Configuration: batch_size={batch_size}, lr_patch_size={lr_patch_size} (HR={hr_patch_size}), stage1_lr={stage1_lr}, stage2_lr={stage2_lr}, stage3_lr={stage3_lr}")
     workspace_dir = "."
     scratch_dir = os.path.join(workspace_dir, "scratch")
     os.makedirs(scratch_dir, exist_ok=True)
@@ -249,7 +268,13 @@ def main():
     import pandas as pd
     last_iteration = 0
     csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
-    if os.path.exists(csv_log_path):
+    if args.reset_history and os.path.exists(csv_log_path):
+        try:
+            os.remove(csv_log_path)
+            print(f"Reset history requested: removed {csv_log_path}")
+        except Exception as e:
+            pass
+    elif os.path.exists(csv_log_path):
         try:
             df = pd.read_csv(csv_log_path)
             if len(df) > 0:
@@ -284,7 +309,7 @@ def main():
     ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else f"checkpoints/{model_type}_{dim}d"
     rep_dir = args.report_dir if args.report_dir else f"reports/{model_type}_{dim}d"
     html_name = f"{model_type}_{dim}d_report.html"
-    reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name)
+    reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name, reset_history=args.reset_history)
     reporter.setup_validation_patches(lr_patch, hr_patch)
     
     # 2. Cache disabled by default (generating raw volumes on-the-fly)
@@ -591,14 +616,17 @@ def main():
             best_model_path = os.path.join(workspace_dir, "asdbpn_3d_best_mdl.keras")
             custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening3D": siq.LearnableSharpening3D}
         
-        if os.path.exists(output_model_path):
+        if args.load_model and os.path.exists(args.load_model):
+            print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
+            model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
+        elif os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
-            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if last_iteration >= 2000:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline AS-DBPN model from {best_model_path}...")
-            model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False)
+            model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
         else:
             if dim == 2:
                 print("Baseline model not found. Building a new AS-DBPN 2D model...")
@@ -699,7 +727,7 @@ def main():
     # 5. Load feature extractor for perceptual loss (VGG Layers [3, 6, 9])
     if dim == 2:
         print("Loading 2D VGG feature extractor (Layers [3, 6, 9])...")
-        def build_vgg_2d(inshape=[96, 96], layers=[3, 6, 9]):
+        def build_vgg_2d(inshape=[hr_patch_size, hr_patch_size], layers=[3, 6, 9]):
             inputs = keras.layers.Input(shape=(inshape[0], inshape[1], 1))
             x = keras.layers.Concatenate(axis=-1)([inputs, inputs, inputs])
             vgg19 = keras.applications.VGG19(include_top=False, weights="imagenet", input_shape=(inshape[0], inshape[1], 3))
@@ -708,14 +736,15 @@ def main():
             feature_model = keras.Model(inputs=vgg19.inputs, outputs=outputs)
             feature_model.trainable = False
             return keras.Model(inputs=inputs, outputs=feature_model(x))
-        feature_extractor = build_vgg_2d(inshape=[96, 96], layers=[3, 6, 9])
+        feature_extractor = build_vgg_2d(inshape=[hr_patch_size, hr_patch_size], layers=[3, 6, 9])
     else:
-        print("Loading pseudo-3D VGG feature extractors (Layers [3, 6, 9])...")
-        fe_3 = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=3)
-        fe_6 = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=6)
-        fe_9 = siq.pseudo_3d_vgg_features_unbiased(inshape=[96, 96, 96], layer=9)
+        fe_inshape = [hr_patch_size, hr_patch_size, hr_patch_size]
+        print(f"Loading pseudo-3D VGG feature extractors (Layers [3, 6, 9], inshape={fe_inshape})...")
+        fe_3 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=3)
+        fe_6 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
+        fe_9 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=9)
         
-        inputs = keras.layers.Input(shape=(96, 96, 96, 1))
+        inputs = keras.layers.Input(shape=(hr_patch_size, hr_patch_size, hr_patch_size, 1))
         o3 = fe_3(inputs)
         o6 = fe_6(inputs)
         o9 = fe_9(inputs)
@@ -745,8 +774,8 @@ def main():
         # Temporary generator to obtain clean patches for calibration
         temp_gen = siq.blind_sr_generator(
             hr_base_cache=None,
-            batch_size=1,
-            lr_patch_size=48,
+            batch_size=batch_size,
+            lr_patch_size=lr_patch_size,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
@@ -776,8 +805,8 @@ def main():
     # Generate a sample batch to compute initial raw loss values for calibration / weight scaling
     temp_gen = siq.blind_sr_generator(
         hr_base_cache=None,
-        batch_size=1,
-        lr_patch_size=48,
+        batch_size=batch_size,
+        lr_patch_size=lr_patch_size,
         factor=2,
         blur_sigma_range=(0.0, 0.0),
         noise_std_range=(0.0, 0.0),
@@ -997,7 +1026,7 @@ def main():
             feat_weight_var.assign(new_w['percep'])
             tv_weight_var.assign(new_w['tv'])
 
-    if last_iteration == 0:
+    if last_iteration == 0 and not args.skip_warmup:
         import time
         print("\n=======================================================")
         print("Dedicated MSE-Only Warmup Phase (Targeting Bilinear Parity)")
@@ -1018,7 +1047,6 @@ def main():
         print(f"[Warmup Gate] Bilinear baseline target PSNR: {target_psnr:.4f} dB")
         
         # Compile model with pure MSE loss for warmup
-        # We use a slightly higher learning rate for warmup as suggested
         warmup_lr = 1e-4 if model_type in ["ref-dbpn", "ldbpn", "asdbpn"] else 5e-5
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=warmup_lr), loss="mse")
         
@@ -1026,7 +1054,7 @@ def main():
         train_gen_warmup = siq.blind_sr_generator(
             hr_base_cache=None,
             batch_size=batch_size,
-            lr_patch_size=48,
+            lr_patch_size=lr_patch_size,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
@@ -1073,6 +1101,12 @@ def main():
         if not warmup_completed:
             print(f"\n[Warmup Gate] Finished max warmup iterations ({warmup_max_iter}) without reaching target PSNR. Proceeding to normal stages.")
             model.save(output_model_path)
+    elif args.skip_warmup and not any(r.get("iteration") == 0 for r in reporter.history):
+        try:
+            reporter.record_checkpoint(model, 0, "Initial (Warm-Started)", 0.01, is_convergence_step=True)
+            print("[Convergence Checkpoint] Recorded warm-started baseline at Step 0.")
+        except Exception as e:
+            print(f"[Warning] Failed to record warm-started baseline: {e}")
 
     if not skip_stages_1_2:
         # ==============================================================
@@ -1087,7 +1121,7 @@ def main():
         train_gen_clean = siq.blind_sr_generator(
             hr_base_cache=None,
             batch_size=batch_size,
-            lr_patch_size=48,
+            lr_patch_size=lr_patch_size,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
@@ -1098,7 +1132,7 @@ def main():
             use_layer2=args.use_layer2
         )
         
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-5), loss=hybrid_loss)
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_lr), loss=hybrid_loss)
         
         for iteration in range(max(1, last_iteration + 1), stage1_max + 1):
             x_batch, y_batch = next(train_gen_clean)
@@ -1114,8 +1148,8 @@ def main():
                 # Save actual training batch inputs sent to model.train_on_batch
                 try:
                     os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
-                    x_img_actual = ants.from_numpy(np.squeeze(x_batch))
-                    y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                    x_img_actual = ants.from_numpy(np.squeeze(x_batch[0]))
+                    y_img_actual = ants.from_numpy(np.squeeze(y_batch[0]))
                     actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage1_iter_{iteration}_lr_input.png")
                     actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage1_iter_{iteration}_hr_target.png")
                     if dim == 2:
@@ -1152,7 +1186,7 @@ def main():
         train_gen_robust = siq.blind_sr_generator(
             hr_base_cache=None,
             batch_size=batch_size,
-            lr_patch_size=48,
+            lr_patch_size=lr_patch_size,
             factor=2,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.02),
@@ -1164,7 +1198,7 @@ def main():
             use_layer2=args.use_layer2
         )
         
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=2e-5), loss=hybrid_loss)
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_lr), loss=hybrid_loss)
         
         start_iter = max(stage1_max + 1, last_iteration + 1)
         for iteration in range(start_iter, stage2_max + 1):
@@ -1181,8 +1215,8 @@ def main():
                 # Save actual training batch inputs sent to model.train_on_batch
                 try:
                     os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
-                    x_img_actual = ants.from_numpy(np.squeeze(x_batch))
-                    y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                    x_img_actual = ants.from_numpy(np.squeeze(x_batch[0]))
+                    y_img_actual = ants.from_numpy(np.squeeze(y_batch[0]))
                     actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage2_iter_{iteration}_lr_input.png")
                     actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage2_iter_{iteration}_hr_target.png")
                     if dim == 2:
@@ -1237,7 +1271,7 @@ def main():
     train_gen_refine = siq.blind_sr_generator(
         hr_base_cache=None,
         batch_size=batch_size,
-        lr_patch_size=48,
+        lr_patch_size=lr_patch_size,
         factor=2,
         blur_sigma_range=(0.0, 0.0),
         noise_std_range=(0.0, 0.01),
@@ -1249,7 +1283,7 @@ def main():
         use_layer2=args.use_layer2
     )
     
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=5e-6), loss=hybrid_loss)
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_lr), loss=hybrid_loss)
     best_val_loss = float("inf")
 
     start_iter = max(stage2_max + 1, last_iteration + 1)
@@ -1267,8 +1301,8 @@ def main():
             # Save actual training batch inputs sent to model.train_on_batch
             try:
                 os.makedirs(os.path.join(scratch_dir, "training_samples"), exist_ok=True)
-                x_img_actual = ants.from_numpy(np.squeeze(x_batch))
-                y_img_actual = ants.from_numpy(np.squeeze(y_batch))
+                x_img_actual = ants.from_numpy(np.squeeze(x_batch[0]))
+                y_img_actual = ants.from_numpy(np.squeeze(y_batch[0]))
                 actual_lr_png = os.path.join(scratch_dir, "training_samples", f"stage3_iter_{iteration}_lr_input.png")
                 actual_hr_png = os.path.join(scratch_dir, "training_samples", f"stage3_iter_{iteration}_hr_target.png")
                 if dim == 2:

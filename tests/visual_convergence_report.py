@@ -206,7 +206,7 @@ class VisualConvergenceReporter:
     Manages regular convergence checkpointing, metric tracking, orthogonal slice
     montage generation, and live HTML report updating during 3D AS-DBPN training.
     """
-    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html"):
+    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html", reset_history=False):
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.checkpoint_dir = os.path.join(self.workspace_dir, checkpoint_dir)
         self.report_dir = os.path.join(self.workspace_dir, report_dir)
@@ -220,6 +220,13 @@ class VisualConvergenceReporter:
         self.best_psnr = -1.0
         self.best_iter = 0
         self.start_time = time.time()
+        
+        if reset_history and os.path.exists(self.csv_path):
+            try:
+                os.remove(self.csv_path)
+                print(f"[Convergence Reporter] Reset history requested: cleared {self.csv_path}")
+            except Exception as e:
+                print(f"[Convergence Reporter] Warning: Could not remove old history: {e}")
         
         # Load existing history if available
         if os.path.exists(self.csv_path):
