@@ -15,6 +15,7 @@ Function-specific documentation is [here](https://stnava.github.io/siq/siq/get_d
 ## New in Keras 3 Integration
 
 - **Dual Backend Support:** Seamlessly switch between PyTorch and TensorFlow.
+- **Universal Anisotropic / Asymmetric Upsampling:** All 2D and 3D architectures (ESPCN, LDBPN, WDSR, RCAN, CARN, SRFBN, SAN, AS-DBPN) natively support anisotropic scaling factors (e.g. `factor=(1, 2)` for 2D or `factor=(1, 1, 2)`, `factor=(2, 2, 4)` for 3D), ideal for converting thick-slice clinical MRI acquisitions into isotropic high-resolution volumes.
 - **3D ESPCN Architecture:** High-performance super-resolution using Pixel Shuffling, optimized for Apple Silicon (MPS).
 - **Patch-wise Inference:** Memory-efficient inference with Gaussian blending to eliminate stitching artifacts.
 - **Blind Perceptual Training:** Synthetic data simulation for robust, general-purpose MRI enhancement.

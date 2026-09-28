@@ -1,64 +1,89 @@
+import math
 import keras
 from keras import layers, ops
+
+def _normalize_factor(factor, dim):
+    """
+    Normalizes a super-resolution scaling factor into an integer tuple of length `dim`.
+    Supports scalars (e.g. 2 -> (2, 2) or (2, 2, 2)) and tuples/lists (e.g. (1, 1, 2)).
+    """
+    if isinstance(factor, (int, float)):
+        return tuple([int(factor)] * dim)
+    elif isinstance(factor, (list, tuple)):
+        if len(factor) != dim:
+            raise ValueError(f"For {dim}D model, factor must have length {dim}, got {factor}")
+        return tuple(int(f) for f in factor)
+    else:
+        raise ValueError(f"Unsupported factor type: {type(factor)}")
 
 def pixel_shuffle_3d(inputs, factor=2):
     """
     Implementation of 3D Pixel Shuffle for Keras/Keras3.
     Args:
         inputs: (batch, d, h, w, c)
-        factor: scaling factor (integer)
+        factor: scaling factor (integer or 3-element tuple/list)
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_d, f_h, f_w = factor_tuple
+    f_total = f_d * f_h * f_w
     input_shape = ops.shape(inputs)
     batch_size = input_shape[0]
     d, h, w = input_shape[1], input_shape[2], input_shape[3]
     channels = input_shape[4]
     
-    new_channels = channels // (factor ** 3)
+    new_channels = channels // f_total
     
-    # Reshape: (batch, d, h, w, f, f, f, new_c)
-    x = ops.reshape(inputs, (batch_size, d, h, w, factor, factor, factor, new_channels))
+    # Reshape: (batch, d, h, w, f_d, f_h, f_w, new_c)
+    x = ops.reshape(inputs, (batch_size, d, h, w, f_d, f_h, f_w, new_channels))
     
-    # Transpose to (batch, d, f, h, f, w, f, new_c)
+    # Transpose to (batch, d, f_d, h, f_h, w, f_w, new_c)
     x = ops.transpose(x, (0, 1, 4, 2, 5, 3, 6, 7))
     
-    # Reshape to (batch, d*f, h*f, w*f, new_c)
-    new_d, new_h, new_w = d * factor, h * factor, w * factor
+    # Reshape to (batch, d*f_d, h*f_h, w*f_w, new_c)
+    new_d, new_h, new_w = d * f_d, h * f_h, w * f_w
     return ops.reshape(x, (batch_size, new_d, new_h, new_w, new_channels))
 
 @keras.saving.register_keras_serializable(package="siq")
 class PixelShuffle3D(layers.Layer):
     def __init__(self, factor=2, **kwargs):
         super().__init__(**kwargs)
-        self.factor = factor
+        self.factor = _normalize_factor(factor, 3) if isinstance(factor, (list, tuple)) else factor
 
     def call(self, inputs):
         return pixel_shuffle_3d(inputs, self.factor)
 
     def compute_output_shape(self, input_shape):
-        factor = self.factor
-        d = input_shape[1] * factor if input_shape[1] is not None else None
-        h = input_shape[2] * factor if input_shape[2] is not None else None
-        w = input_shape[3] * factor if input_shape[3] is not None else None
-        c = input_shape[4] // (factor ** 3) if input_shape[4] is not None else None
+        factor_tuple = _normalize_factor(self.factor, 3)
+        f_d, f_h, f_w = factor_tuple
+        f_total = f_d * f_h * f_w
+        d = input_shape[1] * f_d if input_shape[1] is not None else None
+        h = input_shape[2] * f_h if input_shape[2] is not None else None
+        w = input_shape[3] * f_w if input_shape[3] is not None else None
+        c = input_shape[4] // f_total if input_shape[4] is not None else None
         return (input_shape[0], d, h, w, c)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"factor": self.factor})
+        return config
 
 def create_espcn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64):
     """
     Creates a 3D ESPCN model.
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = layers.Input(shape=input_shape)
     
     # Feature extraction
     x = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu")(inputs)
     x = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu")(x)
     
-    # Last layer before shuffle must have factor**3 channels
-    # To output 1 channel, we need factor**3 channels here
     out_channels = 1
-    x = layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same")(x)
+    x = layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same")(x)
     
     # Pixel Shuffle
-    outputs = PixelShuffle3D(factor=factor)(x)
+    outputs = PixelShuffle3D(factor=factor_tuple)(x)
     
     return keras.Model(inputs, outputs, name="espcn_3d")
 
@@ -66,6 +91,8 @@ def create_espcn_3d_residual(input_shape=(None, None, None, 1), factor=2, n_filt
     """
     Creates a 3D Residual ESPCN model.
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = layers.Input(shape=input_shape)
     
     # Initial projection
@@ -81,12 +108,11 @@ def create_espcn_3d_residual(input_shape=(None, None, None, 1), factor=2, n_filt
     # Shrinking
     x = layers.Conv3D(n_filters // 2, kernel_size=3, padding="same", activation="relu")(x)
     
-    # Last conv before shuffle: output 32 * factor**3 channels
     out_channels = 32
-    x = layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same")(x)
+    x = layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same")(x)
     
     # Pixel Shuffle transition to high-resolution space
-    x = PixelShuffle3D(factor=factor)(x)
+    x = PixelShuffle3D(factor=factor_tuple)(x)
     
     # Non-linear processing in high-resolution space
     x = layers.Conv3D(32, kernel_size=3, padding="same", activation="relu")(x)
@@ -225,7 +251,10 @@ def create_espcn_3d_attention(input_shape=(None, None, None, 1), factor=2, n_fil
     Creates a 3D Residual ESPCN model with Channel Attention and optional Global Skip.
     Initial attention weights output 1.0, and the global skip weight outputs 0.0,
     enabling perfect identity initialization from standard ESPCN weights.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = layers.Input(shape=input_shape)
     
     # Initial projection
@@ -244,10 +273,10 @@ def create_espcn_3d_attention(input_shape=(None, None, None, 1), factor=2, n_fil
     
     # Last conv before shuffle
     out_channels = 32
-    x = layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    x = layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
     
     # Pixel Shuffle
-    outputs = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    outputs = PixelShuffle3D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     # Non-linear processing in high-res space
     x = layers.Conv3D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
@@ -256,7 +285,7 @@ def create_espcn_3d_attention(input_shape=(None, None, None, 1), factor=2, n_fil
     
     # Optional Global Skip connection
     if use_global_skip:
-        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         # Learnable scale initialized to 1.0
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
@@ -264,32 +293,38 @@ def create_espcn_3d_attention(input_shape=(None, None, None, 1), factor=2, n_fil
     return keras.Model(inputs, outputs, name="espcn_3d_attention")
 
 def up_projection_unit(lr_input, n_filters, factor=2, name_prefix=""):
-    x = layers.Conv3D(n_filters * (factor ** 3), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv1")(lr_input)
-    h_temp = PixelShuffle3D(factor=factor, name=f"{name_prefix}_up_shuffle1")(x)
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
+    x = layers.Conv3D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv1")(lr_input)
+    h_temp = PixelShuffle3D(factor=factor_tuple, name=f"{name_prefix}_up_shuffle1")(x)
     
-    l_temp = layers.Conv3D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_up_down1")(h_temp)
+    l_temp = layers.Conv3D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_up_down1")(h_temp)
     e_lr = layers.subtract([lr_input, l_temp], name=f"{name_prefix}_up_sub")
     
-    x_err = layers.Conv3D(n_filters * (factor ** 3), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv2")(e_lr)
-    e_hr = PixelShuffle3D(factor=factor, name=f"{name_prefix}_up_shuffle2")(x_err)
+    x_err = layers.Conv3D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv2")(e_lr)
+    e_hr = PixelShuffle3D(factor=factor_tuple, name=f"{name_prefix}_up_shuffle2")(x_err)
     
     return layers.add([h_temp, e_hr], name=f"{name_prefix}_up_add")
 
 def down_projection_unit(hr_input, n_filters, factor=2, name_prefix=""):
-    l_temp = layers.Conv3D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_down_conv1")(hr_input)
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
+    l_temp = layers.Conv3D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_down_conv1")(hr_input)
     
-    x = layers.Conv3D(n_filters * (factor ** 3), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_down_conv2")(l_temp)
-    h_temp = PixelShuffle3D(factor=factor, name=f"{name_prefix}_down_shuffle1")(x)
+    x = layers.Conv3D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_down_conv2")(l_temp)
+    h_temp = PixelShuffle3D(factor=factor_tuple, name=f"{name_prefix}_down_shuffle1")(x)
     
     e_hr = layers.subtract([hr_input, h_temp], name=f"{name_prefix}_down_sub")
-    e_lr = layers.Conv3D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_down_conv3")(e_hr)
+    e_lr = layers.Conv3D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_down_conv3")(e_hr)
     
     return layers.add([l_temp, e_lr], name=f"{name_prefix}_down_add")
 
 def create_ldbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_stages=3):
     """
     Creates a Lightweight 3D Deep Back-Projection Network (L-DBPN) using PixelShuffle3D.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
     inputs = layers.Input(shape=input_shape)
     l0 = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
     
@@ -303,7 +338,7 @@ def create_ldbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
         else:
             l_proj = l_list[0]
             
-        h = up_projection_unit(l_proj, n_filters, factor, name_prefix=f"stage_{i}")
+        h = up_projection_unit(l_proj, n_filters, factor_tuple, name_prefix=f"stage_{i}")
         h_list.append(h)
         
         if len(h_list) > 1:
@@ -312,7 +347,7 @@ def create_ldbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
         else:
             h_proj = h_list[0]
             
-        l = down_projection_unit(h_proj, n_filters, factor, name_prefix=f"stage_{i}")
+        l = down_projection_unit(h_proj, n_filters, factor_tuple, name_prefix=f"stage_{i}")
         l_list.append(l)
         
     h_final_cat = layers.concatenate(h_list, name="h_final_cat")
@@ -379,46 +414,58 @@ def pixel_shuffle_2d(inputs, factor=2):
     Implementation of 2D Pixel Shuffle for Keras/Keras3.
     Args:
         inputs: (batch, h, w, c)
-        factor: scaling factor (integer)
+        factor: scaling factor (integer or 2-element tuple/list)
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_h, f_w = factor_tuple
+    f_total = f_h * f_w
     input_shape = ops.shape(inputs)
     batch_size = input_shape[0]
     h, w = input_shape[1], input_shape[2]
     channels = input_shape[3]
     
-    new_channels = channels // (factor ** 2)
+    new_channels = channels // f_total
     
-    # Reshape: (batch, h, w, f, f, new_c)
-    x = ops.reshape(inputs, (batch_size, h, w, factor, factor, new_channels))
+    # Reshape: (batch, h, w, f_h, f_w, new_c)
+    x = ops.reshape(inputs, (batch_size, h, w, f_h, f_w, new_channels))
     
-    # Transpose to (batch, h, f, w, f, new_c)
+    # Transpose to (batch, h, f_h, w, f_w, new_c)
     x = ops.transpose(x, (0, 1, 3, 2, 4, 5))
     
-    # Reshape to (batch, h*f, w*f, new_c)
-    new_h, new_w = h * factor, w * factor
+    # Reshape to (batch, h*f_h, w*f_w, new_c)
+    new_h, new_w = h * f_h, w * f_w
     return ops.reshape(x, (batch_size, new_h, new_w, new_channels))
 
 @keras.saving.register_keras_serializable(package="siq")
 class PixelShuffle2D(keras.layers.Layer):
     def __init__(self, factor=2, **kwargs):
         super().__init__(**kwargs)
-        self.factor = factor
+        self.factor = _normalize_factor(factor, 2) if isinstance(factor, (list, tuple)) else factor
 
     def call(self, inputs):
         return pixel_shuffle_2d(inputs, self.factor)
 
     def compute_output_shape(self, input_shape):
-        factor = self.factor
-        h = input_shape[1] * factor if input_shape[1] is not None else None
-        w = input_shape[2] * factor if input_shape[2] is not None else None
-        c = input_shape[3] // (factor ** 2) if input_shape[3] is not None else None
+        factor_tuple = _normalize_factor(self.factor, 2)
+        f_h, f_w = factor_tuple
+        f_total = f_h * f_w
+        h = input_shape[1] * f_h if input_shape[1] is not None else None
+        w = input_shape[2] * f_w if input_shape[2] is not None else None
+        c = input_shape[3] // f_total if input_shape[3] is not None else None
         return (input_shape[0], h, w, c)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"factor": self.factor})
+        return config
 
 def create_espcn_2d_attention(input_shape=(None, None, 1), factor=2, n_filters=64, n_res_blocks=8, use_global_skip=True):
     """
     Creates a 2D Residual ESPCN model with Channel Attention and optional Global Skip.
-    Identical design to the 3D version but adapted for 2D.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     
     # Initial projection
@@ -446,10 +493,10 @@ def create_espcn_2d_attention(input_shape=(None, None, 1), factor=2, n_filters=6
     
     # Last conv before shuffle
     out_channels = 32
-    x = keras.layers.Conv2D(out_channels * (factor ** 2), kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    x = keras.layers.Conv2D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
     
     # Pixel Shuffle
-    outputs = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    outputs = PixelShuffle2D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     # Non-linear processing in high-res space
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
@@ -458,39 +505,45 @@ def create_espcn_2d_attention(input_shape=(None, None, 1), factor=2, n_filters=6
     
     # Optional Global Skip connection
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
     return keras.Model(inputs, outputs, name="espcn_2d_attention")
 
 def up_projection_unit_2d(lr_input, n_filters, factor=2, name_prefix=""):
-    x = keras.layers.Conv2D(n_filters * (factor ** 2), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv1")(lr_input)
-    h_temp = PixelShuffle2D(factor=factor, name=f"{name_prefix}_up_shuffle1")(x)
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
+    x = keras.layers.Conv2D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv1")(lr_input)
+    h_temp = PixelShuffle2D(factor=factor_tuple, name=f"{name_prefix}_up_shuffle1")(x)
     
-    l_temp = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_up_down1")(h_temp)
+    l_temp = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_up_down1")(h_temp)
     e_lr = keras.layers.subtract([lr_input, l_temp], name=f"{name_prefix}_up_sub")
     
-    x_err = keras.layers.Conv2D(n_filters * (factor ** 2), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv2")(e_lr)
-    e_hr = PixelShuffle2D(factor=factor, name=f"{name_prefix}_up_shuffle2")(x_err)
+    x_err = keras.layers.Conv2D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_up_conv2")(e_lr)
+    e_hr = PixelShuffle2D(factor=factor_tuple, name=f"{name_prefix}_up_shuffle2")(x_err)
     
     return keras.layers.add([h_temp, e_hr], name=f"{name_prefix}_up_add")
 
 def down_projection_unit_2d(hr_input, n_filters, factor=2, name_prefix=""):
-    l_temp = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_down_conv1")(hr_input)
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
+    l_temp = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_down_conv1")(hr_input)
     
-    x = keras.layers.Conv2D(n_filters * (factor ** 2), kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_down_conv2")(l_temp)
-    h_temp = PixelShuffle2D(factor=factor, name=f"{name_prefix}_down_shuffle1")(x)
+    x = keras.layers.Conv2D(n_filters * f_total, kernel_size=3, padding="same", activation="relu", name=f"{name_prefix}_down_conv2")(l_temp)
+    h_temp = PixelShuffle2D(factor=factor_tuple, name=f"{name_prefix}_down_shuffle1")(x)
     
     e_hr = keras.layers.subtract([hr_input, h_temp], name=f"{name_prefix}_down_sub")
-    e_lr = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor, padding="same", activation="relu", name=f"{name_prefix}_down_conv3")(e_hr)
+    e_lr = keras.layers.Conv2D(n_filters, kernel_size=3, strides=factor_tuple, padding="same", activation="relu", name=f"{name_prefix}_down_conv3")(e_hr)
     
     return keras.layers.add([l_temp, e_lr], name=f"{name_prefix}_down_add")
 
 def create_ldbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_stages=3):
     """
     Creates a Lightweight 2D Deep Back-Projection Network (L-DBPN) using PixelShuffle2D.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
     inputs = keras.layers.Input(shape=input_shape)
     l0 = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
     
@@ -504,7 +557,7 @@ def create_ldbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_stage
         else:
             l_proj = l_list[0]
             
-        h = up_projection_unit_2d(l_proj, n_filters, factor, name_prefix=f"stage_{i}")
+        h = up_projection_unit_2d(l_proj, n_filters, factor_tuple, name_prefix=f"stage_{i}")
         h_list.append(h)
         
         if len(h_list) > 1:
@@ -513,7 +566,7 @@ def create_ldbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_stage
         else:
             h_proj = h_list[0]
             
-        l = down_projection_unit_2d(h_proj, n_filters, factor, name_prefix=f"stage_{i}")
+        l = down_projection_unit_2d(h_proj, n_filters, factor_tuple, name_prefix=f"stage_{i}")
         l_list.append(l)
         
     h_final_cat = keras.layers.concatenate(h_list, name="h_final_cat")
@@ -543,7 +596,10 @@ def wdsr_block_3d(x, n_filters, expansion_ratio=4, name_prefix=""):
 def create_wdsr_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_res_blocks=8, expansion_ratio=4, use_global_skip=True):
     """
     Creates a 2D Wide Activation Super-Resolution (WDSR) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     for i in range(n_res_blocks):
@@ -552,15 +608,15 @@ def create_wdsr_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_res_bl
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv2D(out_channels * (factor ** 2), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv2D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle2D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv2D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv2D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -569,7 +625,10 @@ def create_wdsr_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_res_bl
 def create_wdsr_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_res_blocks=8, expansion_ratio=4, use_global_skip=True):
     """
     Creates a 3D Wide Activation Super-Resolution (WDSR) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv3D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     for i in range(n_res_blocks):
@@ -578,15 +637,15 @@ def create_wdsr_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle3D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv3D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv3D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -641,7 +700,10 @@ def residual_group_3d(x, n_filters, n_blocks=4, name_prefix=""):
 def create_rcan_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
     """
     Creates a 2D Residual Channel Attention Network (RCAN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     for i in range(n_groups):
@@ -650,15 +712,15 @@ def create_rcan_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv2D(out_channels * (factor ** 2), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv2D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle2D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv2D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv2D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -667,7 +729,10 @@ def create_rcan_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups
 def create_rcan_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
     """
     Creates a 3D Residual Channel Attention Network (RCAN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv3D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     for i in range(n_groups):
@@ -676,15 +741,15 @@ def create_rcan_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle3D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv3D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv3D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -717,7 +782,10 @@ def carn_block_3d(x, n_filters, name_prefix=""):
 def create_carn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_blocks=3, use_global_skip=True):
     """
     Creates a 2D Cascading Residual Network (CARN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     block_outputs = []
@@ -733,15 +801,15 @@ def create_carn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_blocks
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv2D(out_channels * (factor ** 2), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv2D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle2D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv2D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv2D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -750,7 +818,10 @@ def create_carn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_blocks
 def create_carn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_blocks=3, use_global_skip=True):
     """
     Creates a 3D Cascading Residual Network (CARN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv3D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     block_outputs = []
@@ -766,15 +837,15 @@ def create_carn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     
     # preshuffle
     out_channels = 32
-    x = keras.layers.Conv3D(out_channels * (factor ** 3), kernel_size=3, padding="same", name="preshuffle_conv")(x)
-    outputs = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    x = keras.layers.Conv3D(out_channels * f_total, kernel_size=3, padding="same", name="preshuffle_conv")(x)
+    outputs = PixelShuffle3D(factor=factor_tuple, name="pixel_shuffle")(x)
     
     x = keras.layers.Conv3D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
     x = keras.layers.Conv3D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -785,7 +856,9 @@ def create_espcn_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters
     """
     Creates a 2D Residual ESPCN model using Bilinear Resize + Conv instead of PixelShuffle
     to mitigate checkerboard / step artifacts.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
     
@@ -807,7 +880,7 @@ def create_espcn_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters
     
     # Bilinear Resize + Conv instead of PixelShuffle
     out_channels = 32
-    x = keras.layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="resize_upsample")(x)
+    x = keras.layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="resize_upsample")(x)
     outputs = keras.layers.Conv2D(out_channels, kernel_size=3, padding="same", name="resize_conv")(x)
     
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
@@ -815,7 +888,7 @@ def create_espcn_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters
     outputs = keras.layers.Conv2D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -826,7 +899,9 @@ def create_wdsr_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters=
     """
     Creates a 2D WDSR model using Bilinear Resize + Conv instead of PixelShuffle
     to mitigate checkerboard / step artifacts.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
     inputs = keras.layers.Input(shape=input_shape)
     x = keras.layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     for i in range(n_res_blocks):
@@ -835,7 +910,7 @@ def create_wdsr_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters=
     
     # Bilinear Resize + Conv instead of PixelShuffle
     out_channels = 32
-    x = keras.layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="resize_upsample")(x)
+    x = keras.layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="resize_upsample")(x)
     outputs = keras.layers.Conv2D(out_channels, kernel_size=3, padding="same", name="resize_conv")(x)
     
     x = keras.layers.Conv2D(32, kernel_size=3, padding="same", activation="relu", name="hr_conv1")(outputs)
@@ -843,7 +918,7 @@ def create_wdsr_2d_resize_conv(input_shape=(None, None, 1), factor=2, n_filters=
     outputs = keras.layers.Conv2D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = keras.layers.UpSampling2D(size=(factor, factor), name="global_skip")(inputs)
+        skip = keras.layers.UpSampling2D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -858,7 +933,9 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
     """
     Creates a 2D Super-Resolution Feedback Network (SRFBN) model.
     It uses a recurrent feedback block across n_steps to iteratively refine low-resolution representations.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
     inputs = layers.Input(shape=input_shape)
     
     # Feature extraction block
@@ -867,8 +944,8 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:
         project_layer = layers.Conv2D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
-    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_up")
-    down_layer = layers.Conv2D(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_down")
+    up_layer = layers.Conv2DTranspose(n_filters, kernel_size=factor_tuple, strides=factor_tuple, padding="same", activation="relu", name="fb_up")
+    down_layer = layers.Conv2D(n_filters, kernel_size=factor_tuple, strides=factor_tuple, padding="same", activation="relu", name="fb_down")
     
     # Recurrent feedback loop
     L_t = F_in
@@ -893,7 +970,7 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -904,7 +981,9 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
 def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_steps=4, use_global_skip=True):
     """
     Creates a 3D Super-Resolution Feedback Network (SRFBN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
     inputs = layers.Input(shape=input_shape)
     
     # Feature extraction block
@@ -913,8 +992,8 @@ def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:
         project_layer = layers.Conv3D(n_filters, kernel_size=1, padding="same", activation="relu", name="fb_project")
-    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_up")
-    down_layer = layers.Conv3D(n_filters, kernel_size=factor, strides=factor, padding="same", activation="relu", name="fb_down")
+    up_layer = layers.Conv3DTranspose(n_filters, kernel_size=factor_tuple, strides=factor_tuple, padding="same", activation="relu", name="fb_up")
+    down_layer = layers.Conv3D(n_filters, kernel_size=factor_tuple, strides=factor_tuple, padding="same", activation="relu", name="fb_down")
     
     # Recurrent feedback loop
     L_t = F_in
@@ -939,7 +1018,7 @@ def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1053,7 +1132,10 @@ def residual_group_soca_3d(x, n_filters, n_blocks=4, name_prefix=""):
 def create_san_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
     """
     Creates a 2D Second-order Attention Network (SAN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2), (2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 2)
+    f_total = math.prod(factor_tuple)
     inputs = layers.Input(shape=input_shape)
     x = layers.Conv2D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     
@@ -1065,12 +1147,12 @@ def create_san_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=
     x = layers.add([x, res], name="group_add")
     
     # Upsampling via PixelShuffle
-    x = layers.Conv2D(n_filters * (factor ** 2), kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
-    x = PixelShuffle2D(factor=factor, name="pixel_shuffle")(x)
+    x = layers.Conv2D(n_filters * f_total, kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
+    x = PixelShuffle2D(factor=factor_tuple, name="pixel_shuffle")(x)
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="final_conv")(x)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=(factor, factor), interpolation="bilinear", name="global_skip")(inputs)
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1080,7 +1162,10 @@ def create_san_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=
 def create_san_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_groups=3, n_blocks=4, use_global_skip=True):
     """
     Creates a 3D Second-order Attention Network (SAN) model.
+    Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
     """
+    factor_tuple = _normalize_factor(factor, 3)
+    f_total = math.prod(factor_tuple)
     inputs = layers.Input(shape=input_shape)
     x = layers.Conv3D(n_filters, kernel_size=3, padding="same", name="init_conv")(inputs)
     
@@ -1092,12 +1177,12 @@ def create_san_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_g
     x = layers.add([x, res], name="group_add")
     
     # Upsampling via PixelShuffle
-    x = layers.Conv3D(n_filters * (factor ** 3), kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
-    x = PixelShuffle3D(factor=factor, name="pixel_shuffle")(x)
+    x = layers.Conv3D(n_filters * f_total, kernel_size=3, padding="same", name="pre_shuffle_conv")(x)
+    x = PixelShuffle3D(factor=factor_tuple, name="pixel_shuffle")(x)
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="final_conv")(x)
     
     if use_global_skip:
-        skip = layers.UpSampling3D(size=(factor, factor, factor), name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1110,15 +1195,7 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     It combines recurrent feedback loops with channel attention to guide refinement.
     Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 2)).
     """
-    if isinstance(factor, (int, float)):
-        factor_tuple = (int(factor), int(factor))
-    elif isinstance(factor, (list, tuple)):
-        if len(factor) != 2:
-            raise ValueError(f"For 2D, factor must have length 2, got {factor}")
-        factor_tuple = tuple(int(f) for f in factor)
-    else:
-        raise ValueError(f"Unsupported factor type: {type(factor)}")
-
+    factor_tuple = _normalize_factor(factor, 2)
     inputs = layers.Input(shape=input_shape)
     
     # Feature extraction block
@@ -1187,14 +1264,7 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     a real, currently unavoidable quality asymmetry between the 2D and 3D
     models' global skip paths.
     """
-    if isinstance(factor, (int, float)):
-        factor_tuple = (int(factor), int(factor), int(factor))
-    elif isinstance(factor, (list, tuple)):
-        if len(factor) != 3:
-            raise ValueError(f"For 3D, factor must have length 3, got {factor}")
-        factor_tuple = tuple(int(f) for f in factor)
-    else:
-        raise ValueError(f"Unsupported factor type: {type(factor)}")
+    factor_tuple = _normalize_factor(factor, 3)
 
     inputs = layers.Input(shape=input_shape)
 
