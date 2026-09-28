@@ -51,6 +51,13 @@ def watch_and_protect():
                     print(f"[Watcher] Detected new checkpoint in CSV at {time.strftime('%H:%M:%S')}. Updating dashboard...", flush=True)
 
             if needs_repair:
+                # Keep 4-way SR upsampled image synced with latest checkpoint output
+                current_sr = "reports/asdbpn_3d/val3d_asdbpn_current.png"
+                target_sr = "reports/asdbpn_3d/val3d_sr_upsampled.png"
+                if os.path.exists(current_sr):
+                    import shutil
+                    shutil.copyfile(current_sr, target_sr)
+
                 render_html_dashboard_from_csv(csv_path, html_path)
                 last_render_time = time.time()
                 print(f"[Watcher] Successfully rendered monotonic dashboard at {time.strftime('%H:%M:%S')}", flush=True)
