@@ -133,6 +133,12 @@ export TF_NUM_INTRAOP_THREADS=8
 export TF_NUM_INTEROP_THREADS=8
 ```
 
+**Note:** `tests/train_model_refinement.py` and `generate_summary_images.py` force `KERAS_BACKEND=torch` at import time (for MPS/CUDA acceleration via PyTorch), so refining/training a model requires `torch` to be installed in addition to the `requirements.txt` dependencies:
+
+```bash
+pip install torch
+```
+
 ### Model Refinement & Fine-Tuning
 
 To refine and fine-tune pre-trained models using our advanced mixed-modality simulation engine (supporting brain structures, sinewaves, layered strips, Rician noise, and coordinate zoom):
@@ -148,6 +154,18 @@ python tests/train_model_refinement.py ldbpn --batch-size 2
 python tests/train_model_refinement.py ref-dbpn --batch-size 1
 ```
 
+Every model accepts `--dim {2,3}` (**default: 3**), so 3D training needs no extra flags:
+
+```bash
+# Refine the 3D AS-DBPN model (low-latency blind super-resolution)
+python tests/train_model_refinement.py asdbpn --dim 3 --batch-size 1
+
+# Equivalent to the above, since --dim defaults to 3
+python tests/train_model_refinement.py asdbpn --batch-size 1
+```
+
+`espcn-rc` and `wdsr-rc` are 2D-only (resize-conv checkerboard-mitigation pilots) and will raise an error if run with `--dim 3`; every other model type (`espcn`, `ldbpn`, `ref-dbpn`, `wdsr`, `rcan`, `carn`, `srfbn`, `san`, `asdbpn`) supports both dimensionalities.
+
 The script executes a curriculum-based training sequence across 3 stages:
 1. **Stage 1: Adaptation Phase (Clean Mixed Geometries)**: 100 warmup iterations on clean mixed geometries.
 2. **Stage 2: Robustness Fine-Tuning Phase (Low LR + Noise)**: 150 joint fine-tuning iterations introducing Rician noise.
@@ -156,6 +174,20 @@ The script executes a curriculum-based training sequence across 3 stages:
 **Intelligent Restart & Skipping:**
 * If a refined model checkpoint already exists (e.g., `espcn_3d_attention_refined.keras`, `ldbpn_3d_refined.keras`, or `ref_dbpn_3d_refined.keras`), the script automatically loads it, **skips Stage 1 and Stage 2**, and proceeds directly to **Stage 3 (Dedicated Refinement)**.
 * To train from scratch starting from the baseline model, delete or rename the existing refined `.keras` file in the workspace.
+
+### Generating Evaluation Reports
+
+`generate_summary_images.py` builds the interactive HTML comparison report (see [Evaluations & Visual Reports](#evaluations--visual-reports)) from whichever refined checkpoints are present in the repo root. It also accepts `--dim`:
+
+```bash
+# 2D report (default): reads *_2d_refined.keras, writes summary_results.html
+python generate_summary_images.py
+
+# 3D report: reads *_3d_refined.keras, writes summary_results_3d.html
+python generate_summary_images.py --dim 3
+```
+
+Any model without a matching checkpoint for that dimensionality shows up as "TBD" in the report rather than causing an error, so it's safe to run before every model has been trained in 3D.
 
 ### Publishing a New Release
 
