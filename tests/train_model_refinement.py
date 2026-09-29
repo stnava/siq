@@ -1041,6 +1041,32 @@ def main():
             diff_w = ops.mean(ops.abs(y_pred_init[:, :, :, 1:, :] - y_pred_init[:, :, :, :-1, :]))
             init_tv = float(diff_d + diff_h + diff_w)
             
+        # Also measure GMS raw loss for calibration info (not used in weight init — fixed at args.gms_weight)
+        if args.gms_weight > 0:
+            if dim == 2:
+                _gd2 = ops.pad(ops.abs(y_init_t[:,1:,:,:] - y_init_t[:,:-1,:,:]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh2 = ops.pad(ops.abs(y_init_t[:,:,1:,:] - y_init_t[:,:,:-1,:]), [[0,0],[0,0],[0,1],[0,0]])
+                _gd2p = ops.pad(ops.abs(y_pred_init[:,1:,:,:] - y_pred_init[:,:-1,:,:]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh2p = ops.pad(ops.abs(y_pred_init[:,:,1:,:] - y_pred_init[:,:,:-1,:]), [[0,0],[0,0],[0,1],[0,0]])
+                m2t = ops.sqrt(ops.square(_gd2)+ops.square(_gh2)+1e-8)
+                m2p = ops.sqrt(ops.square(_gd2p)+ops.square(_gh2p)+1e-8)
+            else:
+                _gd2 = ops.pad(ops.abs(y_init_t[:,1:,:,:,:] - y_init_t[:,:-1,:,:,:]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh2 = ops.pad(ops.abs(y_init_t[:,:,1:,:,:] - y_init_t[:,:,:-1,:,:]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw2 = ops.pad(ops.abs(y_init_t[:,:,:,1:,:] - y_init_t[:,:,:,:-1,:]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                _gd2p = ops.pad(ops.abs(y_pred_init[:,1:,:,:,:] - y_pred_init[:,:-1,:,:,:]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh2p = ops.pad(ops.abs(y_pred_init[:,:,1:,:,:] - y_pred_init[:,:,:-1,:,:]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw2p = ops.pad(ops.abs(y_pred_init[:,:,:,1:,:] - y_pred_init[:,:,:,:-1,:]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                m2t = ops.sqrt(ops.square(_gd2)+ops.square(_gh2)+ops.square(_gw2)+1e-8)
+                m2p = ops.sqrt(ops.square(_gd2p)+ops.square(_gh2p)+ops.square(_gw2p)+1e-8)
+            _gms_c = 0.0026
+            _gms_map = (2.0*m2t*m2p + _gms_c) / (ops.square(m2t)+ops.square(m2p)+_gms_c)
+            _gms_mean = ops.mean(_gms_map, keepdims=True)
+            init_gms = float(ops.mean(ops.square(_gms_map - _gms_mean)) + ops.mean(ops.square(1.0 - _gms_map)))
+            print(f"Initial raw GMS loss: {init_gms:.6f} (fixed weight={args.gms_weight:.4f}, contribution={init_gms*args.gms_weight:.4f})")
+        else:
+            init_gms = 0.0
+
         print(f"Initial raw loss components: MAE={init_mae:.6f}, Perceptual={init_percep:.6f}, TV={init_tv:.6f}")
         
         t_mae = target_pcts.get('mae', 30.0)
