@@ -103,7 +103,10 @@ def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseli
 def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_history.csv",
                                    html_path="asdbpn_3d_report.html",
                                    bilinear_metrics=None,
-                                   ldbpn_metrics=None):
+                                   ldbpn_metrics=None,
+                                   report_dir=None,
+                                   checkpoint_dir=None,
+                                   factor=None):
     """
     Lightning-fast, standalone HTML dashboard generator that reads convergence_history.csv
     and renders a beautiful, monotonic convergence dashboard in ~15ms with ZERO GPU or heavy module imports.
@@ -115,6 +118,16 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     history = df.to_dict("records")
     if len(history) == 0:
         return False
+
+    if report_dir is None:
+        base_stem = os.path.basename(html_path).replace("_report.html", "").replace(".html", "")
+        report_dir = f"reports/{base_stem}"
+    html_dir = os.path.dirname(os.path.abspath(html_path))
+    if os.path.isabs(report_dir):
+        report_dir = os.path.relpath(report_dir, html_dir)
+    if os.path.isabs(checkpoint_dir):
+        checkpoint_dir = os.path.relpath(checkpoint_dir, html_dir)
+    factor_str = f"{factor[0]}x{factor[1]}x{factor[2]}" if isinstance(factor, (list, tuple)) else (f"{factor}x" if factor else "")
         
     bilinear = bilinear_metrics or {"psnr": 27.10, "ssim": 0.9285, "hfen": 0.4500, "corr": 0.9320}
     ldbpn = ldbpn_metrics or {"psnr": 26.50, "ssim": 0.9150, "hfen": 0.4900, "corr": 0.9180}
@@ -197,9 +210,9 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
         p_sign = "+" if p_diff >= 0 else ""
         p_color = "#10b981" if p_diff >= 0 else "#e2e8f0"
         
-        ortho_rel = f"reports/asdbpn_3d/{r.get('ortho_image', '')}"
-        diff_rel = f"reports/asdbpn_3d/{r.get('diff_image', '')}"
-        ckpt_rel = f"checkpoints/asdbpn_3d/{r.get('checkpoint_file', '')}"
+        ortho_rel = f"{report_dir}/{r.get('ortho_image', '')}"
+        diff_rel = f"{report_dir}/{r.get('diff_image', '')}"
+        ckpt_rel = f"{checkpoint_dir}/{r.get('checkpoint_file', '')}"
         
         checkpoint_rows += f"""
         <tr>
@@ -640,17 +653,17 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 <div class="card-4way">
                     <div class="card-4way-header">
                         <span class="card-4way-title" style="color: #38bdf8;">1. Original Image</span>
-                        <span class="card-4way-badge">Ground Truth HR (1.0mm)</span>
+                        <span class="card-4way-badge">Ground Truth HR</span>
                     </div>
-                    <img src="reports/asdbpn_3d/val3d_original.png" alt="Original Image" class="viewport-image-4way">
+                    <img src="{report_dir}/val3d_original.png" alt="Original Image" class="viewport-image-4way">
                 </div>
 
                 <div class="card-4way">
                     <div class="card-4way-header">
                         <span class="card-4way-title" style="color: #f59e0b;">2. Downsampled Image</span>
-                        <span class="card-4way-badge">LR Input (2.0mm, Same FOV)</span>
+                        <span class="card-4way-badge">LR Input ({factor_str if factor_str else 'Downsampled'}, Same FOV)</span>
                     </div>
-                    <img src="reports/asdbpn_3d/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image-4way">
+                    <img src="{report_dir}/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image-4way">
                 </div>
 
                 <div class="card-4way">
@@ -658,7 +671,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                         <span class="card-4way-title" style="color: #a855f7;">3. Linear Upsampled Image</span>
                         <span class="card-4way-badge">Bilinear (PSNR: {lin_psnr:.2f} dB)</span>
                     </div>
-                    <img src="reports/asdbpn_3d/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image-4way">
+                    <img src="{report_dir}/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image-4way">
                 </div>
 
                 <div class="card-4way">
@@ -666,7 +679,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                         <span class="card-4way-title" style="color: #10b981;">4. SR Upsampled Image</span>
                         <span class="card-4way-badge">3D AS-DBPN (PSNR: {cur_psnr:.2f} dB)</span>
                     </div>
-                    <img src="reports/asdbpn_3d/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image-4way">
+                    <img src="{report_dir}/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image-4way">
                 </div>
             </div>
         </section>
@@ -687,49 +700,49 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
 
             <div class="viewer-display">
                 <div id="view-comparison4way" class="view-pane active">
-                    <img src="reports/asdbpn_3d/val3d_4way_comparison.png" alt="4-Way Stacked Comparison" class="viewport-image">
+                    <img src="{report_dir}/val3d_4way_comparison.png" alt="4-Way Stacked Comparison" class="viewport-image">
                     <div class="view-overlay">
                         <strong>Unified 4-Way Comparative Montage</strong> &bull; Original vs Downsampled vs Linear vs 3D AS-DBPN (Identical Scale &amp; Contrast)
                     </div>
                 </div>
 
                 <div id="view-original" class="view-pane">
-                    <img src="reports/asdbpn_3d/val3d_original.png" alt="Original Image" class="viewport-image">
+                    <img src="{report_dir}/val3d_original.png" alt="Original Image" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>1. Original Image (Ground Truth HR)</strong> &bull; 96&times;96&times;96 Brain MRI Volume
+                        <strong>1. Original Image (Ground Truth HR)</strong> &bull; Brain MRI Volume
                     </div>
                 </div>
 
                 <div id="view-downsampled" class="view-pane">
-                    <img src="reports/asdbpn_3d/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image">
+                    <img src="{report_dir}/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image">
                     <div class="view-overlay">
                         <strong>2. Downsampled Image (LR Input)</strong> &bull; Low-Resolution Input displayed at identical scale
                     </div>
                 </div>
 
                 <div id="view-linear" class="view-pane">
-                    <img src="reports/asdbpn_3d/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image">
+                    <img src="{report_dir}/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image">
                     <div class="view-overlay">
                         <strong>3. Linear Upsampled Image (Bilinear Baseline)</strong> &bull; PSNR: {lin_psnr:.2f} dB &bull; SSIM: {lin_ssim:.4f}
                     </div>
                 </div>
 
                 <div id="view-sr" class="view-pane">
-                    <img src="reports/asdbpn_3d/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
+                    <img src="{report_dir}/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
                     <div class="view-overlay">
                         <strong>4. SR Upsampled Image (3D AS-DBPN Latest)</strong> &bull; Step {cur_step} &bull; PSNR: {cur_psnr:.2f} dB &bull; SSIM: {cur_ssim:.4f}
                     </div>
                 </div>
 
                 <div id="view-diff" class="view-pane">
-                    <img src="reports/asdbpn_3d/{latest_entry.get('diff_image', 'diff3d_asdbpn_current.png')}" alt="Residual Error Map" class="viewport-image">
+                    <img src="{report_dir}/{latest_entry.get('diff_image', 'diff3d_asdbpn_current.png')}" alt="Residual Error Map" class="viewport-image">
                     <div class="view-overlay">
                         <strong>5. Residual Error Map |SR - Original| (Magma Colormap)</strong> &bull; High-frequency residual distribution
                     </div>
                 </div>
 
                 <div id="view-best" class="view-pane">
-                    <img src="reports/asdbpn_3d/val3d_asdbpn_best.png" alt="Peak Best Model Volume" class="viewport-image">
+                    <img src="{report_dir}/val3d_asdbpn_best.png" alt="Peak Best Model Volume" class="viewport-image">
                     <div class="view-overlay">
                         <strong>6. Peak All-Time Model (Step {best_step})</strong> &bull; PSNR: {best_psnr:.2f} dB
                     </div>

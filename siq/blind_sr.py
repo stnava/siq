@@ -90,13 +90,15 @@ def blind_sr_generator(
         use_cache: If False, generates training volumes raw on the fly (no cache).
         dimensionality: Dimensionality of generator (2 or 3).
     """
-    hr_patch_size = lr_patch_size * factor
-    if dimensionality == 2:
-        hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
-        lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
+    from .espcn import _normalize_factor
+    factor_tuple = _normalize_factor(factor, dimensionality)
+    if isinstance(lr_patch_size, (list, tuple)):
+        lr_patch_shape = tuple(int(s) for s in lr_patch_size)
     else:
-        hr_large_shape = (int(hr_patch_size * 1.5), int(hr_patch_size * 1.5), int(hr_patch_size * 1.5))
-        lr_large_shape = (int(lr_patch_size * 1.5), int(lr_patch_size * 1.5), int(lr_patch_size * 1.5))
+        lr_patch_shape = tuple([int(lr_patch_size)] * dimensionality)
+    hr_patch_shape = tuple(p * f for p, f in zip(lr_patch_shape, factor_tuple))
+    hr_large_shape = tuple(int(round(p * 1.5)) for p in hr_patch_shape)
+    lr_large_shape = tuple(int(round(p * 1.5)) for p in lr_patch_shape)
     
     if sim_params is None:
         sim_params = {}
@@ -242,17 +244,17 @@ def blind_sr_generator(
             hr_large_np = hr_large.numpy()
             
             # 3. Central Cropping
-            hr_start = (hr_large_shape[0] - hr_patch_size) // 2
-            hr_end = hr_start + hr_patch_size
-            lr_start = (lr_large_shape[0] - lr_patch_size) // 2
-            lr_end = lr_start + lr_patch_size
+            hr_starts = [(hr_large_shape[i] - hr_patch_shape[i]) // 2 for i in range(dimensionality)]
+            hr_ends = [hr_starts[i] + hr_patch_shape[i] for i in range(dimensionality)]
+            lr_starts = [(lr_large_shape[i] - lr_patch_shape[i]) // 2 for i in range(dimensionality)]
+            lr_ends = [lr_starts[i] + lr_patch_shape[i] for i in range(dimensionality)]
             
             if dimensionality == 2:
-                hr_crop = hr_large_np[hr_start:hr_end, hr_start:hr_end]
-                lr_crop = lr_large_np[lr_start:lr_end, lr_start:lr_end]
+                hr_crop = hr_large_np[hr_starts[0]:hr_ends[0], hr_starts[1]:hr_ends[1]]
+                lr_crop = lr_large_np[lr_starts[0]:lr_ends[0], lr_starts[1]:lr_ends[1]]
             else:
-                hr_crop = hr_large_np[hr_start:hr_end, hr_start:hr_end, hr_start:hr_end]
-                lr_crop = lr_large_np[lr_start:lr_end, lr_start:lr_end, lr_start:lr_end]
+                hr_crop = hr_large_np[hr_starts[0]:hr_ends[0], hr_starts[1]:hr_ends[1], hr_starts[2]:hr_ends[2]]
+                lr_crop = lr_large_np[lr_starts[0]:lr_ends[0], lr_starts[1]:lr_ends[1], lr_starts[2]:lr_ends[2]]
                 
             # 4. Augmentations
             for axis in range(dimensionality):
@@ -260,20 +262,35 @@ def blind_sr_generator(
                     hr_crop = np.flip(hr_crop, axis=axis)
                     lr_crop = np.flip(lr_crop, axis=axis)
             
-            rot_k = np.random.randint(0, 4)
-            if rot_k > 0:
-                if dimensionality == 2:
-                    hr_crop = np.rot90(hr_crop, k=rot_k, axes=(0, 1))
-                    lr_crop = np.rot90(lr_crop, k=rot_k, axes=(0, 1))
-                else:
-                    axes = np.random.choice([0, 1, 2], size=2, replace=False)
-                    hr_crop = np.rot90(hr_crop, k=rot_k, axes=axes)
-                    lr_crop = np.rot90(lr_crop, k=rot_k, axes=axes)
-                
-            if np.random.choice([True, False]):
-                perm = np.random.permutation(dimensionality)
-                hr_crop = np.transpose(hr_crop, perm)
-                lr_crop = np.transpose(lr_crop, perm)
+            is_isotropic = len(set(factor_tuple)) == 1
+            if is_isotropic:
+                rot_k = np.random.randint(0, 4)
+                if rot_k > 0:
+                    if dimensionality == 2:
+                        hr_crop = np.rot90(hr_crop, k=rot_k, axes=(0, 1))
+                        lr_crop = np.rot90(lr_crop, k=rot_k, axes=(0, 1))
+                    else:
+                        axes = np.random.choice([0, 1, 2], size=2, replace=False)
+                        hr_crop = np.rot90(hr_crop, k=rot_k, axes=axes)
+                        lr_crop = np.rot90(lr_crop, k=rot_k, axes=axes)
+                    
+                if np.random.choice([True, False]):
+                    perm = np.random.permutation(dimensionality)
+                    hr_crop = np.transpose(hr_crop, perm)
+                    lr_crop = np.transpose(lr_crop, perm)
+            else:
+                # Anisotropic (e.g. (1, 1, 2)): only rotate/swap in-plane axes sharing identical factor
+                equal_axes = [i for i, f in enumerate(factor_tuple) if factor_tuple.count(f) > 1 and f == factor_tuple[0]]
+                if len(equal_axes) >= 2:
+                    rot_k = np.random.randint(0, 4)
+                    if rot_k > 0:
+                        hr_crop = np.rot90(hr_crop, k=rot_k, axes=(equal_axes[0], equal_axes[1]))
+                        lr_crop = np.rot90(lr_crop, k=rot_k, axes=(equal_axes[0], equal_axes[1]))
+                    if np.random.choice([True, False]):
+                        perm = list(range(dimensionality))
+                        perm[equal_axes[0]], perm[equal_axes[1]] = perm[equal_axes[1]], perm[equal_axes[0]]
+                        hr_crop = np.transpose(hr_crop, perm)
+                        lr_crop = np.transpose(lr_crop, perm)
                 
             # 5. Noise
             noise_std = _sample_param(noise_std_range, (0.0, 0.03))

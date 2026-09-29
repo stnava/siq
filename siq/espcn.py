@@ -405,6 +405,167 @@ def transfer_dbpn_weights(src_model, dst_model):
             
     return matched
 
+def _adapt_weight_shape(src_w, target_shape):
+    """
+    Adapts a weight tensor to the target shape if dimensions differ only spatially
+    (e.g., center-cropping 6x6x6 filters down to 3x3x6 for anisotropic stride-1 projection).
+    """
+    import numpy as np
+    src_np = np.asarray(src_w)
+    if src_np.shape == target_shape:
+        return src_np
+    if src_np.ndim == 5 and len(target_shape) == 5 and src_np.shape[3:] == target_shape[3:]:
+        out = src_np
+        for ax in range(3):
+            s = out.shape[ax]
+            t = target_shape[ax]
+            if s > t:
+                start = (s - t) // 2
+                sl = [slice(None)] * 5
+                sl[ax] = slice(start, start + t)
+                out = out[tuple(sl)]
+            elif s < t:
+                return None
+        return out
+    return None
+
+def transfer_siq_weights(src_model, dst_model, verbose=True):
+    """
+    Universal weight transfer between two siq models by layer name with adaptive tensor shape handling.
+    Enables zero-cost transfer learning across different upsampling factors
+    (e.g., from isotropic 2x2x2 to anisotropic 1x1x2) or architectural refinements.
+
+    Returns:
+        int: Number of parametric layers successfully transferred.
+    """
+    import os
+    if isinstance(src_model, str):
+        src_model = keras.models.load_model(os.path.expanduser(src_model), compile=False)
+
+    matched = 0
+    total_dst_parametric = 0
+    for dst_l in dst_model.layers:
+        dst_w = dst_l.get_weights()
+        if len(dst_w) == 0:
+            continue
+        total_dst_parametric += 1
+        try:
+            src_l = src_model.get_layer(dst_l.name)
+            src_w = src_l.get_weights()
+            if len(src_w) == len(dst_w):
+                adapted_weights = []
+                compatible = True
+                for s, d in zip(src_w, dst_w):
+                    adapted = _adapt_weight_shape(s, d.shape)
+                    if adapted is not None:
+                        adapted_weights.append(adapted)
+                    else:
+                        compatible = False
+                        break
+                if compatible:
+                    dst_l.set_weights(adapted_weights)
+                    matched += 1
+                    if verbose:
+                        print(f"  [Transfer Learning] Layer '{dst_l.name}': {len(src_w)} tensor(s) transferred into {dst_w[0].shape}")
+                    continue
+            if verbose:
+                print(f"  [Transfer Learning] Skipping '{dst_l.name}': incompatible weight shapes.")
+        except Exception:
+            if verbose:
+                print(f"  [Transfer Learning] Skipping '{dst_l.name}': not found in source model.")
+
+    if verbose:
+        print(f"[siq] Transfer learning complete: successfully transferred {matched}/{total_dst_parametric} parametric layers.")
+    return matched
+
+def extract_siq_loss_weights(source, verbose=True):
+    """
+    Extract balanced training loss weights from a saved siq model, its companion
+    _config.json, or an associated training weights CSV.
+
+    Parameters
+    ----------
+    source : str, dict, or keras.Model
+        Path to a .keras file, path to a _config.json, a loaded config dict,
+        or a Keras model instance.
+    verbose : bool
+        Whether to log the found weights.
+
+    Returns
+    -------
+    dict or None
+        Dictionary of loss weights (e.g. {'l1': float, 'feat': float, ...})
+        or None if no loss weights could be located.
+    """
+    import json, os, glob
+    import pandas as pd
+
+    weights = None
+
+    if isinstance(source, dict):
+        if "loss_weights" in source and isinstance(source["loss_weights"], dict):
+            weights = dict(source["loss_weights"])
+    elif isinstance(source, str):
+        src_path = os.path.expanduser(source)
+        # 1. Try companion or direct config json
+        cfg_path = None
+        if src_path.endswith(".keras"):
+            cfg_path = src_path.replace(".keras", "_config.json")
+        elif src_path.endswith(".json"):
+            cfg_path = src_path
+
+        if cfg_path and os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r") as f:
+                    cfg = json.load(f)
+                if "loss_weights" in cfg and isinstance(cfg["loss_weights"], dict):
+                    weights = dict(cfg["loss_weights"])
+            except Exception:
+                pass
+
+        # 2. Fallback: search for sibling or parent directory weights CSV
+        if weights is None:
+            search_dirs = [
+                os.path.dirname(src_path),
+                os.path.join(os.path.dirname(src_path), ".."),
+                os.getcwd()
+            ]
+            for d in search_dirs:
+                if not d or not os.path.exists(d):
+                    continue
+                csv_candidates = glob.glob(os.path.join(d, "*refined_training_weights.csv"))
+                for c in csv_candidates:
+                    try:
+                        df = pd.read_csv(c)
+                        if "l1" in df.columns:
+                            row = df.iloc[-1]
+                            weights = {col: float(row[col]) for col in df.columns if pd.notnull(row[col])}
+                            break
+                    except Exception:
+                        pass
+                if weights is not None:
+                    break
+
+    if weights is not None:
+        normalized = {
+            "l1": float(weights.get("l1", 0.0)),
+            "feat": float(weights.get("feat", 0.0)),
+            "tv": float(weights.get("tv", 0.0)),
+            "msq": float(weights.get("msq", 0.0)),
+            "edge": float(weights.get("edge", 0.0)),
+            "gms": float(weights.get("gms", 0.0)),
+            "cbi": float(weights.get("cbi", 0.0)),
+        }
+        if verbose:
+            print(f"[siq] Extracted loss weights: L1={normalized['l1']:.6f}, "
+                  f"Feat={normalized['feat']:.6e}, TV={normalized['tv']:.6f}, "
+                  f"GMS={normalized['gms']:.4f}, CBI={normalized['cbi']:.4f}, Edge={normalized['edge']:.4f}")
+        return normalized
+
+    if verbose:
+        print("[siq] No saved loss weights found in source model or companion files.")
+    return None
+
 # ==============================================================================
 # 2D Super-Resolution Models
 # ==============================================================================
@@ -1271,7 +1432,15 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     # Feature extraction block
     F_in = layers.Conv3D(n_filters, kernel_size=3, padding="same", activation="relu", name="init_conv")(inputs)
 
-    proj_kernel = projection_kernel_size if projection_kernel_size is not None else factor_tuple
+    if projection_kernel_size is not None:
+        if isinstance(projection_kernel_size, (list, tuple)):
+            proj_kernel = tuple(projection_kernel_size)
+        elif isinstance(projection_kernel_size, int):
+            proj_kernel = tuple(3 if f == 1 else projection_kernel_size for f in factor_tuple)
+        else:
+            proj_kernel = projection_kernel_size
+    else:
+        proj_kernel = tuple(3 if f == 1 else 6 for f in factor_tuple)
 
     # Instantiate recurrent layers to share weights across steps
     if n_steps > 1:

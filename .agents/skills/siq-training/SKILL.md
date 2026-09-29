@@ -230,13 +230,33 @@ git log --oneline <last-tag>..HEAD      # commits since tag
 
 ### Step 3 — One-liner bump, tag, and push (replace OLD and NEW)
 ```bash
-OLD=0.10.6; NEW=0.10.7
+OLD=0.10.10; NEW=0.10.11
 sed -i '' "s/version = \"$OLD\"/version = \"$NEW\"/" pyproject.toml
-git add pyproject.toml && git commit -m "chore: bump version to $NEW"
+sed -i '' "s/__version__ = \"$OLD\"/__version__ = \"$NEW\"/" siq/version.py
+git add pyproject.toml siq/version.py && git commit -m "chore: bump version to $NEW"
 git tag v$NEW && git push origin main && git push origin v$NEW
 ```
 
 > [!NOTE]
-> Version string lives in `pyproject.toml` under `[project]`.
+> Version string lives in both `pyproject.toml` under `[project]` and `siq/version.py`.
 > Always push both the branch (`main`) and the tag separately.
 > Patch bumps cover training script changes; minor bumps for new public API.
+
+## Anisotropic 3D Super-Resolution Refinement (e.g. 1x1x2)
+
+To train an anisotropic model (e.g. $1 \times 1 \times 2$ for thick-slice MRI) transferring weights from a pre-trained isotropic $2 \times 2 \times 2$ checkpoint:
+
+```bash
+python -u tests/train_model_refinement.py asdbpn --dim 3 --factor 1 1 2 \
+  --transfer-from checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras \
+  --val-image /Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz \
+  --val-shift 40 0 40 \
+  --cbi-weight 2.0 --gms-weight 3.0 --clip-norm 1.0 \
+  --skip-warmup --stage1-iter 100 --stage2-iter 1500 --stage3-iter 3000 \
+  --batch-size 4 --checkpoint-freq 25
+```
+
+- **Network weight transfer**: Compatible convolution weights are transferred via `siq.transfer_siq_weights()`, adapting projection kernels to the new anisotropic factor.
+- **Loss weight provenance**: Multi-objective balanced weights (`l1`, `feat`, `tv`, `gms`, `cbi`) are extracted from the companion `_config.json` via `siq.extract_siq_loss_weights()`.
+- **Dynamic report routing**: Output files and HTML dashboards are routed to `reports/asdbpn_3d_1x1x2/` and `asdbpn_3d_1x1x2_report.html`.
+

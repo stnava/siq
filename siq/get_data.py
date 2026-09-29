@@ -2176,7 +2176,7 @@ def read_srmodel( srfilename, custom_objects=None ): # pragma: no cover
         raise RuntimeError(f"Could not infer upsampling factor. Error: {e}")
 
 
-def save_siq_model(model_path, model, config, verbose=True):  # pragma: no cover
+def save_siq_model(model_path, model, config, loss_weights=None, verbose=True):  # pragma: no cover
     """Save a siq model and its mandatory provenance config together.
 
     Always use this instead of ``model.save()`` directly so that the
@@ -2192,11 +2192,15 @@ def save_siq_model(model_path, model, config, verbose=True):  # pragma: no cover
         Provenance dict as returned by :func:`load_siq_model` or built by
         the training reporter. Must contain at minimum:
         ``normalization``, ``input_patch_shape``, ``inference``.
+    loss_weights : dict, optional
+        Dictionary of loss weights at save time to store in provenance config.
     verbose : bool
         Print save path.
     """
     import json
     model.save(model_path)
+    if loss_weights is not None:
+        config["loss_weights"] = {k: float(v) for k, v in loss_weights.items()}
     config_path = model_path.replace('.keras', '_config.json')
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
@@ -2235,6 +2239,7 @@ def load_siq_model(model_path, custom_objects=None, verbose=True):  # pragma: no
         - ``inference``          — dispatch rules (single-pass vs overlapping)
         - ``training``           — training hyperparameters at save time
         - ``val_metrics``        — validation metrics at save time
+        - ``loss_weights``       — balanced training loss weights at save time
 
     Raises
     ------
@@ -2278,6 +2283,13 @@ def load_siq_model(model_path, custom_objects=None, verbose=True):  # pragma: no
                   f"SSIM={m.get('val_ssim',float('nan')):.4f} "
                   f"GMSD={m.get('val_gmsd',float('nan')):.4f} "
                   f"HFEN={m.get('val_hfen',float('nan')):.4f}")
+        if 'loss_weights' in config:
+            lw = config['loss_weights']
+            print(f"  Loss weights:   L1={lw.get('l1', 0.0):.4f} "
+                  f"Feat={lw.get('feat', 0.0):.2e} "
+                  f"TV={lw.get('tv', 0.0):.4f} "
+                  f"GMS={lw.get('gms', 0.0):.2f} "
+                  f"CBI={lw.get('cbi', 0.0):.2f}")
     return model, config
 
 
@@ -2336,10 +2348,19 @@ def default_siq_config(model=None):  # pragma: no cover
         else:
             cfg["output_patch_shape"] = out_s
         try:
-            if model.output_shape[1] is not None and model.input_shape[1] is not None:
-                cfg["upsample_factor"] = int(round(model.output_shape[1] / model.input_shape[1]))
+            dim_factors = []
+            for o, i in zip(out_s[:-1], in_s[:-1]):
+                if o is not None and i is not None:
+                    dim_factors.append(int(round(o / i)))
+            if dim_factors and len(dim_factors) == len(out_s) - 1:
+                cfg["upsample_factor"] = dim_factors[0] if len(set(dim_factors)) == 1 else dim_factors
             else:
-                cfg["upsample_factor"] = 2
+                ndim = len(in_s) - 1
+                dummy_shape = [1] + [8] * ndim + [in_s[-1] if in_s[-1] is not None else 1]
+                dummy = keras.ops.zeros(dummy_shape)
+                out_dummy = model(dummy)
+                dim_factors = [int(round(out_dummy.shape[d+1] / dummy.shape[d+1])) for d in range(ndim)]
+                cfg["upsample_factor"] = dim_factors[0] if len(set(dim_factors)) == 1 else dim_factors
         except Exception:
             cfg["upsample_factor"] = 2
     return cfg
@@ -3601,12 +3622,18 @@ def inference( # pragma: no cover
     else:
         # Default: direct full-volume inference in a single forward pass (no patch stitching)
         if verbose:
-            print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[_upfactor * s for s in input_shape_list]}")
+            if isinstance(_upfactor, (list, tuple)):
+                print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[f * s for f, s in zip(_upfactor, input_shape_list)]}")
+            else:
+                print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[_upfactor * s for s in input_shape_list]}")
         arr = pimg_norm.numpy()[np.newaxis, ..., np.newaxis].astype('float32')
         out = mdl.predict(arr, verbose=0)[0, ..., 0]
         if _output_clip:
             out = np.clip(out, 0.0, 1.0)
-        new_spacing = tuple(float(s) / _upfactor for s in pimg_norm.spacing)
+        if isinstance(_upfactor, (list, tuple)):
+            new_spacing = tuple(float(s) / f for s, f in zip(pimg_norm.spacing, _upfactor))
+        else:
+            new_spacing = tuple(float(s) / _upfactor for s in pimg_norm.spacing)
         imgsr = ants.from_numpy(out)
         ants.set_spacing(imgsr, new_spacing)
         ants.set_direction(imgsr, pimg_norm.direction)

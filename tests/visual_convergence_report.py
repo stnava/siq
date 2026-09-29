@@ -18,10 +18,22 @@ def save_orthogonal_slice_montage(img_arr, out_path, title=None, vmin=None, vmax
     """
     Renders mid-axial (Z), mid-coronal (Y), and mid-sagittal (X) slices
     side-by-side into a single high-resolution PNG image.
+    Applies histogram equalization for crisp tissue contrast per project rules.
     """
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     if isinstance(img_arr, ants.ANTsImage):
-        img_arr = img_arr.numpy()
+        try:
+            disp_img = ants.histogram_equalize_image(img_arr, number_of_histogram_bins=256)
+            img_arr = disp_img.numpy()
+        except Exception:
+            img_arr = img_arr.numpy()
+    elif isinstance(img_arr, np.ndarray):
+        try:
+            temp_img = ants.from_numpy(np.squeeze(img_arr).astype(np.float32))
+            disp_img = ants.histogram_equalize_image(temp_img, number_of_histogram_bins=256)
+            img_arr = disp_img.numpy()
+        except Exception:
+            pass
     
     img_arr = np.squeeze(img_arr)
     d, h, w = img_arr.shape
@@ -118,15 +130,24 @@ def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path
     Across Axial, Coronal, and Sagittal orthogonal cross-sections.
     """
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    if isinstance(orig_arr, ants.ANTsImage): orig_arr = orig_arr.numpy()
-    if isinstance(down_arr, ants.ANTsImage): down_arr = down_arr.numpy()
-    if isinstance(bilin_arr, ants.ANTsImage): bilin_arr = bilin_arr.numpy()
-    if isinstance(sr_arr, ants.ANTsImage): sr_arr = sr_arr.numpy()
+    def _to_eq(a):
+        if isinstance(a, ants.ANTsImage):
+            try:
+                return ants.histogram_equalize_image(a, number_of_histogram_bins=256).numpy()
+            except Exception:
+                return a.numpy()
+        elif isinstance(a, np.ndarray):
+            try:
+                temp = ants.from_numpy(np.squeeze(a).astype(np.float32))
+                return ants.histogram_equalize_image(temp, number_of_histogram_bins=256).numpy()
+            except Exception:
+                return np.squeeze(a)
+        return a
 
-    orig_arr = np.squeeze(orig_arr)
-    down_arr = np.squeeze(down_arr)
-    bilin_arr = np.squeeze(bilin_arr)
-    sr_arr = np.squeeze(sr_arr)
+    orig_arr = _to_eq(orig_arr)
+    down_arr = _to_eq(down_arr)
+    bilin_arr = _to_eq(bilin_arr)
+    sr_arr = _to_eq(sr_arr)
 
     vmin = float(np.percentile(orig_arr, 1))
     vmax = float(np.percentile(orig_arr, 99))
@@ -315,28 +336,35 @@ class VisualConvergenceReporter:
         self.bilinear_metrics = {}
         self.ldbpn_metrics = {}
 
-    def setup_validation_patches(self, lr_patch, hr_patch):
+    def setup_validation_patches(self, lr_patch, hr_patch, factor=None):
         """
         Initializes validation patches and computes static baselines (Ground Truth, Bilinear, LDBPN).
         """
         self.lr_patch = lr_patch
         self.hr_patch = hr_patch
         self.gt_np = hr_patch.numpy()
+        self.factor = factor
         
         # 1. Ground Truth (Original Image) Orthogonal Montage
         gt_path = os.path.join(self.report_dir, "val3d_ground_truth.png")
         orig_path = os.path.join(self.report_dir, "val3d_original.png")
-        save_orthogonal_slice_montage(self.hr_patch, gt_path, title="1. Original Image (Ground Truth High Resolution - 96x96x96)")
-        save_orthogonal_slice_montage(self.hr_patch, orig_path, title="1. Original Image (Ground Truth High Resolution - 96x96x96)")
+        hr_shape_str = "x".join(str(s) for s in self.hr_patch.shape)
+        save_orthogonal_slice_montage(self.hr_patch, gt_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
+        save_orthogonal_slice_montage(self.hr_patch, orig_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
         
         # 2. Downsampled Image (LR Input displayed at identical scale via nearest-neighbor)
         lr_temp = ants.image_clone(lr_patch)
         hr_temp = ants.image_clone(hr_patch)
-        lr_temp.set_spacing([2.0, 2.0, 2.0])
-        hr_temp.set_spacing([1.0, 1.0, 1.0])
+        if factor is not None and isinstance(factor, (list, tuple)):
+            lr_temp.set_spacing([hr_temp.spacing[i] * factor[i] for i in range(len(factor))])
+        else:
+            f = factor if factor is not None else 2.0
+            lr_temp.set_spacing([s * f for s in hr_temp.spacing])
+        hr_temp.set_spacing(hr_temp.spacing)
         self.downsampled_img = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=1)
         down_path = os.path.join(self.report_dir, "val3d_downsampled.png")
-        save_orthogonal_slice_montage(self.downsampled_img, down_path, title="2. Downsampled Image (LR Input - 2x Downsampled, Identical Scale)")
+        f_str = f"{factor}" if factor is not None else "2x"
+        save_orthogonal_slice_montage(self.downsampled_img, down_path, title=f"2. Downsampled Image (LR Input - {f_str} Downsampled, Identical Scale)")
 
         # 3. Bilinear Baseline (Linear Upsampled Image)
         bilinear_sr = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=0)
@@ -400,7 +428,7 @@ class VisualConvergenceReporter:
                 
         print(f"[Convergence Reporter] Validation baselines initialized: Bilinear PSNR={lin_psnr:.2f} dB, SSIM={lin_ssim:.4f}")
 
-    def record_checkpoint(self, model, iteration, stage_name, train_loss, is_convergence_step=True):
+    def record_checkpoint(self, model, iteration, stage_name, train_loss, is_convergence_step=True, loss_weights=None):
         """
         Evaluates the model on the validation patch, writes checkpoint files,
         renders visualization slices, logs metrics to CSV, and generates the updated HTML report.
@@ -447,7 +475,9 @@ class VisualConvergenceReporter:
         _input_patch  = [64, 64, 64, in_s[-1] if in_s[-1] is not None else 1] if any(s is None for s in in_s[:-1]) else in_s
         _output_patch = [128, 128, 128, out_s[-1] if out_s[-1] is not None else 1] if any(s is None for s in out_s[:-1]) else out_s
         try:
-            if model.output_shape[1] is not None and model.input_shape[1] is not None:
+            if getattr(self, "factor", None) is not None:
+                _upfactor = list(self.factor) if isinstance(self.factor, (list, tuple)) else self.factor
+            elif model.output_shape[1] is not None and model.input_shape[1] is not None:
                 _upfactor = int(round(model.output_shape[1] / model.input_shape[1]))
             else:
                 _upfactor = 2
@@ -493,6 +523,26 @@ class VisualConvergenceReporter:
                 "val_hfen": float(val_hfen),
             }
         }
+        if loss_weights is not None:
+            provenance_config["loss_weights"] = {k: float(v) for k, v in loss_weights.items()}
+            try:
+                import pandas as pd
+                wts_row = {
+                    "msq": float(loss_weights.get("msq", 0.0)),
+                    "feat": float(loss_weights.get("feat", 0.0)),
+                    "tv": float(loss_weights.get("tv", 0.0)),
+                    "l1": float(loss_weights.get("l1", 0.0)),
+                    "edge": float(loss_weights.get("edge", 0.0)),
+                    "gms": float(loss_weights.get("gms", 0.0)),
+                    "cbi": float(loss_weights.get("cbi", 0.0)),
+                }
+                wts_df = pd.DataFrame([wts_row])
+                f_s = f"{_upfactor[0]}x{_upfactor[1]}x{_upfactor[2]}" if isinstance(_upfactor, (list, tuple)) else f"{_upfactor}x{_upfactor}x{_upfactor}"
+                wts_fn = "asdbpn_3d_refined_training_weights.csv" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_refined_training_weights.csv"
+                wts_df.to_csv(os.path.join(self.workspace_dir, wts_fn), index=False)
+                wts_df.to_csv(os.path.join(self.checkpoint_dir, wts_fn), index=False)
+            except Exception:
+                pass
 
         def _save_config(keras_path, cfg):
             cfg_path = keras_path.replace('.keras', '_config.json')
@@ -504,7 +554,10 @@ class VisualConvergenceReporter:
             _save_config(ckpt_path, provenance_config)
             
         # Always maintain latest refined model at repo root for generate_summary_images.py
-        refined_root_path = os.path.join(self.workspace_dir, "asdbpn_3d_refined.keras")
+        f_s = f"{_upfactor[0]}x{_upfactor[1]}x{_upfactor[2]}" if isinstance(_upfactor, (list, tuple)) else f"{_upfactor}x{_upfactor}x{_upfactor}"
+        refined_fn = "asdbpn_3d_refined.keras" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_refined.keras"
+        best_fn = "asdbpn_3d_best_mdl.keras" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_best_mdl.keras"
+        refined_root_path = os.path.join(self.workspace_dir, refined_fn)
         model.save(refined_root_path)
         _save_config(refined_root_path, provenance_config)
         
@@ -512,7 +565,7 @@ class VisualConvergenceReporter:
             best_psnr_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_psnr.keras")
             model.save(best_psnr_ckpt)
             _save_config(best_psnr_ckpt, provenance_config)
-            best_root_path = os.path.join(self.workspace_dir, "asdbpn_3d_best_mdl.keras")
+            best_root_path = os.path.join(self.workspace_dir, best_fn)
             model.save(best_root_path)
             _save_config(best_root_path, provenance_config)
             
@@ -600,7 +653,10 @@ class VisualConvergenceReporter:
                 csv_path=self.csv_path,
                 html_path=self.html_path,
                 bilinear_metrics=self.bilinear_metrics,
-                ldbpn_metrics=self.ldbpn_metrics
+                ldbpn_metrics=self.ldbpn_metrics,
+                report_dir=self.report_dir,
+                checkpoint_dir=self.checkpoint_dir,
+                factor=getattr(self, "factor", None)
             ):
                 return True
         except Exception:
@@ -672,9 +728,12 @@ class VisualConvergenceReporter:
             p_sign = "+" if p_diff >= 0 else ""
             p_color = "#10b981" if p_diff >= 0 else "#e2e8f0"
             
-            ortho_rel = f"reports/asdbpn_3d/{r.get('ortho_image', '')}"
-            diff_rel = f"reports/asdbpn_3d/{r.get('diff_image', '')}"
-            ckpt_rel = f"checkpoints/asdbpn_3d/{r.get('checkpoint_file', '')}"
+            html_dir = os.path.dirname(os.path.abspath(self.html_path))
+            rep_rel = os.path.relpath(self.report_dir, html_dir)
+            ckpt_rel_dir = os.path.relpath(self.checkpoint_dir, html_dir)
+            ortho_rel = f"{rep_rel}/{r.get('ortho_image', '')}"
+            diff_rel = f"{rep_rel}/{r.get('diff_image', '')}"
+            ckpt_rel = f"{ckpt_rel_dir}/{r.get('checkpoint_file', '')}"
             
             checkpoint_rows += f"""
             <tr>
@@ -706,7 +765,8 @@ class VisualConvergenceReporter:
             tabs_html += """
             <button class="tab-btn" onclick="selectView('ldbpn')">6. LDBPN 3D Baseline</button>
             """
-            
+        html_dir = os.path.dirname(os.path.abspath(self.html_path))
+        rep_rel = os.path.relpath(self.report_dir, html_dir)
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1125,12 +1185,12 @@ class VisualConvergenceReporter:
             </div>
 
             <div class="image-viewport">
-                <img id="img-current" src="reports/asdbpn_3d/val3d_asdbpn_current.png" alt="Current AS-DBPN" class="viewport-image active">
-                <img id="img-best" src="reports/asdbpn_3d/val3d_asdbpn_best.png" alt="Best AS-DBPN" class="viewport-image">
-                <img id="img-diff" src="reports/asdbpn_3d/diff3d_asdbpn_current.png" alt="Error Map" class="viewport-image">
-                <img id="img-gt" src="reports/asdbpn_3d/val3d_ground_truth.png" alt="Ground Truth" class="viewport-image">
-                <img id="img-bilinear" src="reports/asdbpn_3d/val3d_bilinear.png" alt="Bilinear" class="viewport-image">
-                {'<img id="img-ldbpn" src="reports/asdbpn_3d/val3d_ldbpn.png" alt="LDBPN 3D" class="viewport-image">' if self.ldbpn_metrics else ''}
+                <img id="img-current" src="{rep_rel}/val3d_asdbpn_current.png" alt="Current AS-DBPN" class="viewport-image active">
+                <img id="img-best" src="{rep_rel}/val3d_asdbpn_best.png" alt="Best AS-DBPN" class="viewport-image">
+                <img id="img-diff" src="{rep_rel}/diff3d_asdbpn_current.png" alt="Error Map" class="viewport-image">
+                <img id="img-gt" src="{rep_rel}/val3d_ground_truth.png" alt="Ground Truth" class="viewport-image">
+                <img id="img-bilinear" src="{rep_rel}/val3d_bilinear.png" alt="Bilinear" class="viewport-image">
+                {'<img id="img-ldbpn" src="' + rep_rel + '/val3d_ldbpn.png" alt="LDBPN 3D" class="viewport-image">' if self.ldbpn_metrics else ''}
             </div>
 
             <div class="selector-tabs">

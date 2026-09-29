@@ -377,6 +377,8 @@ def main():
     parser.add_argument("--stage3-lr", type=float, default=None, help="Learning rate for Stage 3 (default: 2e-5 for 3D, 1e-5 for 2D)")
     parser.add_argument("--skip-warmup", action="store_true", default=False, help="Skip MSE warmup phase (useful when resuming/fine-tuning from an existing trained model)")
     parser.add_argument("--load-model", type=str, default=None, help="Explicit path to pretrained/checkpoint model to load weights from")
+    parser.add_argument("--factor", nargs="+", type=int, default=[2], help="Super-resolution scaling factor (e.g. 2 or 1 1 2) (default: 2)")
+    parser.add_argument("--transfer-from", type=str, default=None, help="Explicit path to model to transfer compatible weights from (supports factor mismatch)")
     parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
     parser.add_argument(
         "--balancer-anneal-iters", type=int, default=200,
@@ -463,6 +465,13 @@ def main():
         help="Weight for differentiable 3D/2D alternating parity checkerboard loss (CBI). "
              "Directly penalises Nyquist-frequency (+1, -1) transposed-convolution ringing "
              "artifacts during training. 0.0=disabled (default). Try 1.0-5.0.")
+    parser.add_argument(
+        "--val-image", type=str, default=None,
+        help="Path to real MRI volume for validation monitoring (e.g. FPA participant T1w). "
+             "If None, defaults to the BLAST FPA participant if present on disk, else OASIS.")
+    parser.add_argument(
+        "--val-shift", nargs="+", type=int, default=None,
+        help="Voxel shift from image center for validation crop (e.g. 40 0 40).")
     args = parser.parse_args()
     
     try:
@@ -473,8 +482,25 @@ def main():
     model_type = args.model
     batch_size = args.batch_size
     dim = args.dim
+
+    if len(args.factor) == 1:
+        factor_tuple = tuple([args.factor[0]] * dim)
+    elif len(args.factor) == dim:
+        factor_tuple = tuple(args.factor)
+    else:
+        raise ValueError(f"--factor must specify 1 or {dim} integer values, got {args.factor}")
+    
+    is_default_factor = (factor_tuple == tuple([2] * dim))
+    factor_str = "x".join(str(f) for f in factor_tuple)
+
     lr_patch_size = args.lr_patch_size if args.lr_patch_size is not None else (32 if dim == 3 else 48)
-    hr_patch_size = lr_patch_size * 2
+    if isinstance(lr_patch_size, (list, tuple)):
+        lr_patch_shape = tuple(lr_patch_size)
+    else:
+        lr_patch_shape = tuple([lr_patch_size] * dim)
+    hr_patch_shape = tuple(p * f for p, f in zip(lr_patch_shape, factor_tuple))
+    hr_patch_size = hr_patch_shape[0]
+
     stage1_lr = args.stage1_lr if args.stage1_lr is not None else (1e-4 if dim == 3 else 5e-5)
     stage2_lr = args.stage2_lr if args.stage2_lr is not None else (5e-5 if dim == 3 else 2e-5)
     stage3_lr = args.stage3_lr if args.stage3_lr is not None else (2e-5 if dim == 3 else 1e-5)
@@ -489,15 +515,15 @@ def main():
     }
     custom_objects = None
             
-    print(f"Initializing {model_type.upper()} {dim}D Refinement Pipeline...")
-    print(f"  Configuration: batch_size={batch_size}, lr_patch_size={lr_patch_size} (HR={hr_patch_size}), stage1_lr={stage1_lr}, stage2_lr={stage2_lr}, stage3_lr={stage3_lr}")
+    print(f"Initializing {model_type.upper()} {dim}D Refinement Pipeline (factor={factor_tuple})...")
+    print(f"  Configuration: batch_size={batch_size}, lr_patch={lr_patch_shape} -> hr_patch={hr_patch_shape}, stage1_lr={stage1_lr}, stage2_lr={stage2_lr}, stage3_lr={stage3_lr}")
     workspace_dir = "."
     scratch_dir = os.path.join(workspace_dir, "scratch")
     os.makedirs(scratch_dir, exist_ok=True)
     
     import pandas as pd
     last_iteration = 0
-    csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
+    csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv" if is_default_factor else f"loss_contributions_{model_type}_{dim}d_{factor_str}.csv")
     if args.reset_history and os.path.exists(csv_log_path):
         try:
             os.remove(csv_log_path)
@@ -513,34 +539,59 @@ def main():
         except Exception as e:
             print(f"Could not read last iteration from CSV: {e}")
 
-    # 1. Load Real MRI (OASIS) validation patches for monitoring
-    print("Loading Real MRI (OASIS) validation volume...")
-    img_path = antspynet.get_antsxnet_data("oasis")
-    img = ants.image_read(img_path)
+    # 1. Load Real MRI validation patches for monitoring (e.g. FPA Participant T1w)
+    default_fpa = "/Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz"
+    if args.val_image and os.path.exists(args.val_image):
+        val_img_path = args.val_image
+    elif os.path.exists(default_fpa) and dim == 3:
+        val_img_path = default_fpa
+    else:
+        val_img_path = antspynet.get_antsxnet_data("oasis")
+
+    if args.val_shift:
+        val_shift = list(args.val_shift)
+        if len(val_shift) < dim:
+            val_shift = val_shift + [0] * (dim - len(val_shift))
+    elif "sub-BLAST" in val_img_path or "FPA" in val_img_path:
+        val_shift = [40, 0, 40] if dim == 3 else [40, 40]
+    else:
+        val_shift = [0] * dim
+
+    print(f"Loading Real MRI validation volume from: {val_img_path} (shift={val_shift})...")
+    img = ants.image_read(val_img_path)
+    img = ants.iMath(ants.iMath(img, 'TruncateIntensity', 0.001, 0.999), 'Normalize')
     
-    print("Simulating Validation Low Resolution...")
-    low_res = ants.resample_image(img, [s*2 for s in img.spacing], use_voxels=False, interp_type=0)
+    print(f"Simulating Validation Low Resolution (factor={factor_tuple})...")
+    val_target_spacing = [img.spacing[i] * factor_tuple[i] for i in range(dim)]
+    low_res = ants.resample_image(img, val_target_spacing, use_voxels=False, interp_type=0)
     
     if dim == 2:
-        print("Loading r16 validation image for 2D super-resolution monitoring...")
-        img = ants.image_read(ants.get_data("r16"))
-        img = ants.crop_image(img)
-        low_res = ants.resample_image(img, [s*2 for s in img.spacing], use_voxels=False, interp_type=0)
+        if args.val_image is None and not os.path.exists(default_fpa):
+            print("Loading r16 validation image for 2D super-resolution monitoring...")
+            img = ants.image_read(ants.get_data("r16"))
+            img = ants.crop_image(img)
+            val_target_spacing = [img.spacing[i] * factor_tuple[i] for i in range(dim)]
+            low_res = ants.resample_image(img, val_target_spacing, use_voxels=False, interp_type=0)
         
-    mid_lr = [s//2 for s in low_res.shape]
-    lr_patch = ants.crop_indices(low_res, [m - 24 for m in mid_lr], [m + 24 for m in mid_lr])
+    mid_lr = [low_res.shape[i] // 2 + int(round(val_shift[i] / factor_tuple[i])) for i in range(dim)]
+    mid_hr = [img.shape[i] // 2 + val_shift[i] for i in range(dim)]
+    lr_box = 24
+    lr_patch_low = [mid_lr[i] - lr_box for i in range(dim)]
+    lr_patch_high = [mid_lr[i] + lr_box for i in range(dim)]
+    lr_patch = ants.crop_indices(low_res, lr_patch_low, lr_patch_high)
     
-    mid_hr = [s//2 for s in img.shape]
-    hr_patch = ants.crop_indices(img, [m - 48 for m in mid_hr], [m + 48 for m in mid_hr])
+    hr_patch_low = [mid_hr[i] - lr_box * factor_tuple[i] for i in range(dim)]
+    hr_patch_high = [mid_hr[i] + lr_box * factor_tuple[i] for i in range(dim)]
+    hr_patch = ants.crop_indices(img, hr_patch_low, hr_patch_high)
     gt_np = hr_patch.numpy()
 
     # Initialize Visual Convergence Reporter
     from tests.visual_convergence_report import VisualConvergenceReporter
-    ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else f"checkpoints/{model_type}_{dim}d"
-    rep_dir = args.report_dir if args.report_dir else f"reports/{model_type}_{dim}d"
-    html_name = f"{model_type}_{dim}d_report.html"
+    ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else (f"checkpoints/{model_type}_{dim}d" if is_default_factor else f"checkpoints/{model_type}_{dim}d_{factor_str}")
+    rep_dir = args.report_dir if args.report_dir else (f"reports/{model_type}_{dim}d" if is_default_factor else f"reports/{model_type}_{dim}d_{factor_str}")
+    html_name = f"{model_type}_{dim}d_report.html" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_report.html"
     reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name, reset_history=args.reset_history)
-    reporter.setup_validation_patches(lr_patch, hr_patch)
+    reporter.setup_validation_patches(lr_patch, hr_patch, factor=factor_tuple)
     
     # 2. Cache disabled by default (generating raw volumes on-the-fly)
     print("Cache disabled by default. Training volumes will be generated raw on the fly.")
@@ -838,42 +889,73 @@ def main():
                 )
     elif model_type == "asdbpn":
         if dim == 2:
-            output_model_path = os.path.join(workspace_dir, "asdbpn_2d_refined.keras")
-            best_model_path = os.path.join(workspace_dir, "asdbpn_2d_best_mdl.keras")
+            output_model_path = os.path.join(workspace_dir, "asdbpn_2d_refined.keras" if is_default_factor else f"asdbpn_2d_{factor_str}_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "asdbpn_2d_best_mdl.keras" if is_default_factor else f"asdbpn_2d_{factor_str}_best_mdl.keras")
             custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening": siq.LearnableSharpening}
         else:
-            output_model_path = os.path.join(workspace_dir, "asdbpn_3d_refined.keras")
-            best_model_path = os.path.join(workspace_dir, "asdbpn_3d_best_mdl.keras")
+            output_model_path = os.path.join(workspace_dir, "asdbpn_3d_refined.keras" if is_default_factor else f"asdbpn_3d_{factor_str}_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "asdbpn_3d_best_mdl.keras" if is_default_factor else f"asdbpn_3d_{factor_str}_best_mdl.keras")
             custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening3D": siq.LearnableSharpening3D}
         
-        if args.load_model and os.path.exists(args.load_model):
-            print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
-            model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
-        elif os.path.exists(output_model_path):
+        proj_k = args.projection_kernel_size if args.projection_kernel_size is not None else 6
+        source_transfer_path = args.transfer_from if args.transfer_from else (args.load_model if (not is_default_factor and args.load_model) else None)
+        
+        ckpt_best_path = os.path.join(ckpt_dir, "asdbpn_3d_best_psnr.keras")
+        if os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if last_iteration >= 2000:
                 skip_stages_1_2 = True
+        elif os.path.exists(ckpt_best_path) and not args.reset_history:
+            print(f"Resuming training: loading best checkpoint from {ckpt_best_path}...")
+            model = keras.models.load_model(ckpt_best_path, custom_objects=custom_objects, compile=False, safe_mode=False)
+            if last_iteration >= 2000:
+                skip_stages_1_2 = True
+        elif source_transfer_path and os.path.exists(source_transfer_path):
+            print(f"[Transfer Learning] Initializing AS-DBPN {dim}D with factor={factor_tuple} (projection_kernel_size={proj_k})...")
+            if dim == 2:
+                model = siq.create_asdbpn_2d(
+                    input_shape=(None, None, 1),
+                    factor=factor_tuple,
+                    n_filters=128,
+                    n_steps=4,
+                    use_global_skip=True,
+                    projection_kernel_size=proj_k
+                )
+            else:
+                model = siq.create_asdbpn_3d(
+                    input_shape=(None, None, None, 1),
+                    factor=factor_tuple,
+                    n_filters=64,
+                    n_steps=4,
+                    use_global_skip=True,
+                    projection_kernel_size=proj_k
+                )
+            print(f"[Transfer Learning] Transferring compatible weights from: {source_transfer_path}...")
+            src_m, _ = siq.load_siq_model(source_transfer_path)
+            siq.transfer_siq_weights(src_m, model, verbose=True)
+        elif args.load_model and os.path.exists(args.load_model):
+            print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
+            model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline AS-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
         else:
             if dim == 2:
-                print("Baseline model not found. Building a new AS-DBPN 2D model...")
+                print(f"Baseline model not found. Building a new AS-DBPN 2D model (factor={factor_tuple})...")
                 model = siq.create_asdbpn_2d(
                     input_shape=(None, None, 1),
-                    factor=2,
+                    factor=factor_tuple,
                     n_filters=128,
                     n_steps=4,
                     use_global_skip=True,
-                    projection_kernel_size=6
+                    projection_kernel_size=proj_k
                 )
             else:
-                proj_k = args.projection_kernel_size if args.projection_kernel_size is not None else 6
-                print(f"Baseline model not found. Building a new AS-DBPN 3D model (n_filters=64, n_steps=4, projection_kernel_size={proj_k})...")
+                print(f"Baseline model not found. Building a new AS-DBPN 3D model (factor={factor_tuple}, n_filters=64, n_steps=4, projection_kernel_size={proj_k})...")
                 model = siq.create_asdbpn_3d(
                     input_shape=(None, None, None, 1),
-                    factor=2,
+                    factor=factor_tuple,
                     n_filters=64,
                     n_steps=4,
                     use_global_skip=True,
@@ -950,9 +1032,9 @@ def main():
                     option="large"
                 )
         
-    # Apply ICNR initialization when starting fresh (not resuming a refined run)
-    if not os.path.exists(output_model_path):
-        apply_icnr_initialization(model, factor=2)
+    # Apply ICNR initialization when starting fresh (not resuming or transferring weights)
+    if not os.path.exists(output_model_path) and not source_transfer_path:
+        apply_icnr_initialization(model, factor=factor_tuple)
         
     # 5. Load feature extractor for perceptual loss (VGG Layers [3, 6, 9])
     if dim == 2:
@@ -966,7 +1048,7 @@ def main():
             feature_model = keras.Model(inputs=vgg19.inputs, outputs=outputs)
             feature_model.trainable = False
             return keras.Model(inputs=inputs, outputs=feature_model(x))
-        feature_extractor = build_vgg_2d(inshape=[hr_patch_size, hr_patch_size], layers=[3, 6, 9])
+        feature_extractor = build_vgg_2d(inshape=[hr_patch_shape[0], hr_patch_shape[1]], layers=[3, 6, 9])
     else:
         if args.perceptual_backend == "resnet":
             print("Loading native 3D ResNet grader feature extractor (Layer 6) — 60x faster than VGG, "
@@ -974,7 +1056,7 @@ def main():
             feature_extractor = siq.get_grader_feature_network(layer=6)
             print(f"  ResNet grader output shape: {feature_extractor.output.shape}")
         else:
-            fe_inshape = [hr_patch_size, hr_patch_size, hr_patch_size]
+            fe_inshape = list(hr_patch_shape)
             print(f"Loading pseudo-3D VGG feature extractor (Layer 6, inshape={fe_inshape}) — canonical layer from Avants et al. medRxiv paper...")
             feature_extractor = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
 
@@ -989,7 +1071,7 @@ def main():
     gms_weight_var = keras.Variable(args.gms_weight, dtype="float32")    # differentiable GMSD loss
     cbi_weight_var = keras.Variable(args.checkerboard_weight, dtype="float32")  # differentiable checkerboard loss
     
-    wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv")
+    wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_refined_training_weights.csv")
     wts_loaded = False
     if os.path.exists(wts_csv) and not args.reset_history:
         print(f"Loading preset weights from {wts_csv}...")
@@ -1004,12 +1086,20 @@ def main():
             print(f"Could not read weights from CSV: {e}")
             wts_loaded = False
             
-    # ── Pre-calibrated weights override ───────────────────────────────────────
-    # When --init-l1-weight / --init-feat-weight / --init-tv-weight are all
-    # provided, skip the expensive auto-calibration forward pass and use the
-    # caller-supplied values directly.  These should be computed offline via:
-    #   w = (target_pct * target_total_loss) / median_raw_loss_over_N_batches
-    # which guarantees the 65/30/5 ratio from iteration 1.
+    # ── Provenance & Transfer Learning of Loss Weights ────────────────────────
+    transferred_wts = None
+    provenance_model_candidates = [
+        source_transfer_path,
+        args.load_model if args.load_model and os.path.exists(args.load_model) else None,
+        output_model_path if os.path.exists(output_model_path) else None,
+        best_model_path if os.path.exists(best_model_path) else None
+    ]
+    for cand in provenance_model_candidates:
+        if cand:
+            transferred_wts = siq.extract_siq_loss_weights(cand, verbose=True)
+            if transferred_wts is not None:
+                break
+
     if (args.init_l1_weight is not None
             and args.init_feat_weight is not None
             and args.init_tv_weight is not None):
@@ -1020,6 +1110,24 @@ def main():
         print(f"[Pre-calibrated weights] L1={w_mae_init:.6f}  "
               f"Feat={w_percep_init:.6f}  TV={w_tv_init:.6f}  "
               f"(bypassing auto-calibration)")
+    elif transferred_wts is not None:
+        w_mae_init = transferred_wts.get("l1", 1.0)
+        w_percep_init = transferred_wts.get("feat", 0.0)
+        w_tv_init = transferred_wts.get("tv", 0.0)
+        if transferred_wts.get("gms", 0.0) > 0 and args.gms_weight == 0.0:
+            args.gms_weight = transferred_wts["gms"]
+            gms_weight_var.assign(args.gms_weight)
+        if transferred_wts.get("cbi", 0.0) > 0 and args.checkerboard_weight == 0.0:
+            args.checkerboard_weight = transferred_wts["cbi"]
+            cbi_weight_var.assign(args.checkerboard_weight)
+        if transferred_wts.get("edge", 0.0) > 0 and args.edge_weight == 0.0:
+            args.edge_weight = transferred_wts["edge"]
+            edge_weight_var.assign(args.edge_weight)
+        wts_loaded = True
+        print(f"[Transfer Learning] Transferred loss weights from source: "
+              f"L1={w_mae_init:.6f}, Feat={w_percep_init:.6e}, TV={w_tv_init:.6f}, "
+              f"GMS={float(ops.convert_to_numpy(gms_weight_var)):.4f}, "
+              f"CBI={float(ops.convert_to_numpy(cbi_weight_var)):.4f}")
 
     if not wts_loaded:
 
@@ -1029,7 +1137,7 @@ def main():
             hr_base_cache=None,
             batch_size=batch_size,
             lr_patch_size=lr_patch_size,
-            factor=2,
+            factor=factor_tuple,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
             simulation_classes=simulation_classes,
@@ -1189,7 +1297,7 @@ def main():
         # Differentiable GMS loss — directly minimises GMSD evaluation metric
         # GMS(x,y) = (2*|∇x|*|∇y| + c) / (|∇x|² + |∇y|² + c) ∈ [0,1]
         # We minimise: var(GMS) + MSE(GMS, 1.0) — reduces std and pushes toward perfect match
-        if float(ops.convert_to_numpy(gms_weight_var)) > 1e-8:
+        if args.gms_weight > 1e-8:
             gms_c = 0.0026
             if dim == 2:
                 _gd_t = ops.pad(ops.abs(y_true[:, 1:, :, :] - y_true[:, :-1, :, :]), [[0,0],[0,1],[0,0],[0,0]])
@@ -1210,10 +1318,12 @@ def main():
             gms_map = (2.0 * m_t * m_p + gms_c) / (ops.square(m_t) + ops.square(m_p) + gms_c)
             gms_mean = ops.mean(gms_map, keepdims=True)
             gms_term = ops.mean(ops.square(gms_map - gms_mean)) + ops.mean(ops.square(1.0 - gms_map))
+        else:
+            gms_term = ops.zeros_like(l1_term)
         # Differentiable Alternating Parity Filter (Checkerboard Penalty)
         # K[i, j, k] = (-1)^(i+j+k) / 8
         # Penalises the Nyquist (+1, -1) deconvolution ringing artifact directly during backprop
-        if float(ops.convert_to_numpy(cbi_weight_var)) > 1e-8:
+        if args.checkerboard_weight > 1e-8:
             _cb_target = y_pred - y_true
             if dim == 2:
                 c00 = _cb_target[:, :-1, :-1, :]
@@ -1243,6 +1353,16 @@ def main():
                 gms_term * gms_weight_var +
                 cbi_term * cbi_weight_var)
 
+    def get_current_loss_weights():
+        return {
+            "msq": float(ops.convert_to_numpy(msq_weight_var)),
+            "l1": float(ops.convert_to_numpy(l1_weight_var)),
+            "feat": float(ops.convert_to_numpy(feat_weight_var)),
+            "tv": float(ops.convert_to_numpy(tv_weight_var)),
+            "edge": float(ops.convert_to_numpy(edge_weight_var)),
+            "gms": float(ops.convert_to_numpy(gms_weight_var)),
+            "cbi": float(ops.convert_to_numpy(cbi_weight_var)),
+        }
 
     def check_stage_convergence(history_deque, stage_name, patience):
         """
@@ -1413,12 +1533,7 @@ def main():
 
         # Update preset weights file
         try:
-            pd.DataFrame([[
-                0.0,
-                float(ops.convert_to_numpy(feat_weight_var)),
-                float(ops.convert_to_numpy(tv_weight_var)),
-                float(ops.convert_to_numpy(l1_weight_var))
-            ]], columns=["msq", "feat", "tv", "l1"]).to_csv(wts_csv, index=False)
+            pd.DataFrame([get_current_loss_weights()]).to_csv(wts_csv, index=False)
         except Exception as e:
             pass
 
@@ -1542,12 +1657,8 @@ def main():
         # Calculate target Bilinear PSNR on validation patch
         lr_patch_temp = ants.image_clone(lr_patch)
         hr_patch_temp = ants.image_clone(hr_patch)
-        if dim == 2:
-            lr_patch_temp.set_spacing([2.0, 2.0])
-            hr_patch_temp.set_spacing([1.0, 1.0])
-        else:
-            lr_patch_temp.set_spacing([2.0, 2.0, 2.0])
-            hr_patch_temp.set_spacing([1.0, 1.0, 1.0])
+        lr_patch_temp.set_spacing([hr_patch_temp.spacing[i] * factor_tuple[i] for i in range(dim)])
+        hr_patch_temp.set_spacing(hr_patch_temp.spacing)
 
         bilinear_monitor_sr = ants.resample_image_to_target(lr_patch_temp, hr_patch_temp, interp_type=0)
         target_psnr = float(antspynet.psnr(hr_patch_temp, bilinear_monitor_sr))
@@ -1562,7 +1673,7 @@ def main():
             hr_base_cache=None,
             batch_size=batch_size,
             lr_patch_size=lr_patch_size,
-            factor=2,
+            factor=factor_tuple,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.0),
             simulation_classes=simulation_classes,
@@ -1579,7 +1690,7 @@ def main():
         # Record initial pre-training baseline at iteration 0 (if not already recorded)
         if not any(r.get("iteration") == 0 for r in reporter.history):
             try:
-                reporter.record_checkpoint(model, 0, "Initial (Pre-Warmup)", 1.0, is_convergence_step=True)
+                reporter.record_checkpoint(model, 0, "Initial (Pre-Warmup)", 1.0, is_convergence_step=True, loss_weights=get_current_loss_weights())
             except Exception as e:
                 print(f"[Warning] Failed to record initial state checkpoint: {e}")
         
@@ -1593,7 +1704,7 @@ def main():
             is_ckpt = (warmup_iter % args.checkpoint_freq == 0)
             
             if is_eval or is_ckpt:
-                entry = reporter.record_checkpoint(model, warmup_iter, "Warmup", mse_loss, is_convergence_step=is_ckpt)
+                entry = reporter.record_checkpoint(model, warmup_iter, "Warmup", mse_loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
                 val_psnr = entry.get("val_psnr", 0.0)
                 val_ssim = entry.get("val_ssim", 0.0)
                 print(f"[Warmup] Iter {warmup_iter:04d}/{warmup_max_iter} - MSE Loss: {mse_loss:.6f} - Val PSNR: {val_psnr:.2f} dB (Target: {target_psnr:.2f} dB) - Val SSIM: {val_ssim:.4f}")
@@ -1624,7 +1735,7 @@ def main():
             model.save(output_model_path)
     elif args.skip_warmup and not any(r.get("iteration") == 0 for r in reporter.history):
         try:
-            reporter.record_checkpoint(model, 0, "Initial (Warm-Started)", 0.01, is_convergence_step=True)
+            reporter.record_checkpoint(model, 0, "Initial (Warm-Started)", 0.01, is_convergence_step=True, loss_weights=get_current_loss_weights())
             print("[Convergence Checkpoint] Recorded warm-started baseline at Step 0.")
         except Exception as e:
             print(f"[Warning] Failed to record warm-started baseline: {e}")
@@ -1644,7 +1755,7 @@ def main():
                 hr_base_cache=None,
                 batch_size=batch_size,
                 lr_patch_size=lr_patch_size,
-                factor=2,
+                factor=factor_tuple,
                 blur_sigma_range=(0.0, 0.0),
                 noise_std_range=(0.0, 0.0),
                 simulation_classes=simulation_classes,
@@ -1696,7 +1807,7 @@ def main():
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
                 is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage1_max)
-                entry = reporter.record_checkpoint(model, iteration, "Stage 1 Adaptation", loss, is_convergence_step=is_ckpt)
+                entry = reporter.record_checkpoint(model, iteration, "Stage 1 Adaptation", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -1742,7 +1853,7 @@ def main():
                 hr_base_cache=None,
                 batch_size=batch_size,
                 lr_patch_size=lr_patch_size,
-                factor=2,
+                factor=factor_tuple,
                 blur_sigma_range=(0.0, 0.0),
                 noise_std_range=(0.0, 0.02),
                 use_rician_noise=True,
@@ -1797,7 +1908,7 @@ def main():
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
                 is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage2_max)
-                entry = reporter.record_checkpoint(model, iteration, "Stage 2 Robustness", loss, is_convergence_step=is_ckpt)
+                entry = reporter.record_checkpoint(model, iteration, "Stage 2 Robustness", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -1861,7 +1972,7 @@ def main():
             hr_base_cache=None,
             batch_size=batch_size,
             lr_patch_size=lr_patch_size,
-            factor=2,
+            factor=factor_tuple,
             blur_sigma_range=(0.0, 0.0),
             noise_std_range=(0.0, 0.01),
             use_rician_noise=True,
@@ -1919,7 +2030,7 @@ def main():
                 print(f"  [Warning] Failed to save actual training batch images: {e}")
 
             is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage3_max)
-            entry = reporter.record_checkpoint(model, iteration, "Stage 3 Refinement", loss, is_convergence_step=is_ckpt)
+            entry = reporter.record_checkpoint(model, iteration, "Stage 3 Refinement", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
             
             if loss < best_val_loss:
                 best_val_loss = loss

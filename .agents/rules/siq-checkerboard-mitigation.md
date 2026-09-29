@@ -24,6 +24,8 @@ where `excess` is the measured 1D Nyquist spectral energy ratio relative to low 
 
 Always use `siq.load_siq_model(path)` (returning `model, config`) and `siq.save_siq_model(path, model, config)`. Companion `_config.json` files must always travel with `.keras` files so inference callers never guess normalization quantile bounds or patching schemes.
 
+Loss weights (`loss_weights` dict covering `l1`, `feat`, `tv`, `msq`, `edge`, `gms`, `cbi`) must always be saved to and loaded from companion `_config.json`. Any downstream transfer learning, checkpointing, or model refinement must load these calibrated weights via `siq.extract_siq_loss_weights(source)` rather than recalibrating from scratch.
+
 ## Visual Display Normalization (Histogram Equalization vs. Rank Normalization)
 
 When generating visual reports, montages, or diagnostic slice plots:
@@ -34,3 +36,14 @@ When generating visual reports, montages, or diagnostic slice plots:
 ## Amplitude-Based Sub-Voxel Notch Calibration
 
 `siq.estimate_anti_checkerboard_sigma(vol)` must solve for $\sigma$ using the 1D **amplitude spectrum** ($|F|$), never power ($|F|^2$). Power ratio squares the excess, artificially inflating $\sigma$ by $\sqrt{2}\times$ and causing over-blurring. Cap maximum bandwidth at $\sigma \le 0.40$ to guarantee $>96\%$ anatomical edge gradient preservation.
+
+## Anisotropic Super-Resolution Reporting & Path Invariant
+
+When training models with non-uniform downsampling factors (e.g. `--factor 1 1 2`):
+- Report images and checkpoints must reside in factor-specific directories:
+  - Reports: `reports/{model}_{dim}d_{factor_str}` (e.g. `reports/asdbpn_3d_1x1x2/`)
+  - Checkpoints: `checkpoints/{model}_{dim}d_{factor_str}` (e.g. `checkpoints/asdbpn_3d_1x1x2/`)
+  - HTML Dashboards: `{model}_{dim}d_{factor_str}_report.html` (e.g. `asdbpn_3d_1x1x2_report.html`)
+- HTML dashboard generators (`render_convergence_dashboard.py` and `visual_convergence_report.py`) must **NEVER** hardcode default paths (`reports/asdbpn_3d/`). All viewport and table `src=` / `href=` links must be dynamically derived relative to `report_dir` and `checkpoint_dir`.
+- Resumption precedence: When resuming a run without `--reset-history`, training scripts must always load existing in-progress checkpoints or refined models before falling back to `--transfer-from`.
+
