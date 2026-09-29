@@ -45,5 +45,12 @@ When training models with non-uniform downsampling factors (e.g. `--factor 1 1 2
   - Checkpoints: `checkpoints/{model}_{dim}d_{factor_str}` (e.g. `checkpoints/asdbpn_3d_1x1x2/`)
   - HTML Dashboards: `{model}_{dim}d_{factor_str}_report.html` (e.g. `asdbpn_3d_1x1x2_report.html`)
 - HTML dashboard generators (`render_convergence_dashboard.py` and `visual_convergence_report.py`) must **NEVER** hardcode default paths (`reports/asdbpn_3d/`). All viewport and table `src=` / `href=` links must be dynamically derived relative to `report_dir` and `checkpoint_dir`.
-- Resumption precedence: When resuming a run without `--reset-history`, training scripts must always load existing in-progress checkpoints or refined models before falling back to `--transfer-from`.
+## Factor-Aware & 1D Checkerboard Regularization (Anisotropic Scale Invariant)
+
+When the upsampling factor is anisotropic (e.g. `--factor 1 1 2` or `1 2 2`):
+- Transposed convolutions with stride > 1 only operate along axes where $f_d > 1$.
+- The resulting artifact is a directional Nyquist alternating ripple (e.g. through-plane slice banding along $Z$ for $1 \times 1 \times 2$).
+- The 3D alternating filter ($K_{i,j,k} = \frac{1}{8}(-1)^{i+j+k}$) requires alternating parity across all 3 dimensions and mathematically evaluates to $0.000$ on 1D/2D slice banding.
+- The checkerboard loss filter and `siq.compute_checkerboard_index(y, y_true, factor)` must construct alternating parity differences along only the upsampled axes ($f_d > 1$).
+- **Mathematical Normalization**: The difference block must be divided by $2^{D_{\text{up}}}$ ($2.0$ for 1D, $4.0$ for 2D, $8.0$ for 3D). This guarantees that an artifact of amplitude $A$ produces raw loss $A$ regardless of upsampling dimensionality, maintaining consistent relative weighting (`--cbi-weight 2.0`).
 

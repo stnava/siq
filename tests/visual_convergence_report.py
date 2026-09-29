@@ -449,7 +449,7 @@ class VisualConvergenceReporter:
         val_gmsd = float(compute_gmsd(self.gt_np, sr_np))
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
-        val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np))
+        val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np, factor=getattr(self, "factor", None)))
         
         is_new_best = val_psnr > self.best_psnr
         if is_new_best:
@@ -743,6 +743,7 @@ class VisualConvergenceReporter:
                 <td>{float(r['val_ssim']):.4f}</td>
                 <td>{float(r['val_hfen']):.4f}</td>
                 <td>{float(r['val_gmsd']):.4f}</td>
+                <td>{float(r.get('val_cbi', 0.0)):.4f}</td>
                 <td>{float(r['val_corr']):.4f}</td>
                 <td style="font-family: monospace;">{float(r['train_loss']):.5f}</td>
                 <td>
@@ -1259,6 +1260,7 @@ class VisualConvergenceReporter:
                         <th>SSIM</th>
                         <th>HFEN</th>
                         <th>GMSD</th>
+                        <th>CBI</th>
                         <th>Corr</th>
                         <th>Train Loss</th>
                         <th>Artifacts</th>

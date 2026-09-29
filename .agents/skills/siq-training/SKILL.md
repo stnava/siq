@@ -259,4 +259,6 @@ python -u tests/train_model_refinement.py asdbpn --dim 3 --factor 1 1 2 \
 - **Network weight transfer**: Compatible convolution weights are transferred via `siq.transfer_siq_weights()`, adapting projection kernels to the new anisotropic factor.
 - **Loss weight provenance**: Multi-objective balanced weights (`l1`, `feat`, `tv`, `gms`, `cbi`) are extracted from the companion `_config.json` via `siq.extract_siq_loss_weights()`.
 - **Dynamic report routing**: Output files and HTML dashboards are routed to `reports/asdbpn_3d_1x1x2/` and `asdbpn_3d_1x1x2_report.html`.
+- **1D / Factor-aware CBI**: When only one or two axes are upsampled (e.g. $1 \times 1 \times 2$), training applies a factor-matched alternating filter along upsampled axes (normalized by $2.0$ for 1D, $4.0$ for 2D, $8.0$ for 3D), actively suppressing through-plane slice ripples while preserving relative weighting (`--cbi-weight 2.0`).
+- **Dynamic Resumption Precedence**: When resuming without `--reset-history`, `train_model_refinement.py` reads `last_iteration` directly from `convergence_history.csv` and skips stages 1 & 2 dynamically once `last_iteration >= stage2_max`.
 

@@ -592,6 +592,9 @@ def main():
     html_name = f"{model_type}_{dim}d_report.html" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_report.html"
     reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name, reset_history=args.reset_history)
     reporter.setup_validation_patches(lr_patch, hr_patch, factor=factor_tuple)
+    if not args.reset_history and len(reporter.history) > 0:
+        last_iteration = max(last_iteration, int(reporter.history[-1].get("iteration", 0)))
+        print(f"Detected last logged convergence iteration from history: {last_iteration}")
     
     # 2. Cache disabled by default (generating raw volumes on-the-fly)
     print("Cache disabled by default. Training volumes will be generated raw on the fly.")
@@ -625,7 +628,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined CA-ESPCN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline CA-ESPCN model from {best_model_path}...")
@@ -662,7 +665,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined L-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline L-DBPN model from {best_model_path}...")
@@ -697,7 +700,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined WDSR model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline WDSR model from {best_model_path}...")
@@ -736,7 +739,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined RCAN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline RCAN model from {best_model_path}...")
@@ -775,7 +778,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined CARN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline CARN model from {best_model_path}...")
@@ -810,7 +813,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined ESPCN Resize Conv model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline ESPCN Resize Conv model from {best_model_path}...")
@@ -836,7 +839,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined WDSR Resize Conv model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline WDSR Resize Conv model from {best_model_path}...")
@@ -863,7 +866,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined SRFBN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline SRFBN model from {best_model_path}...")
@@ -904,12 +907,12 @@ def main():
         if os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(ckpt_best_path) and not args.reset_history:
             print(f"Resuming training: loading best checkpoint from {ckpt_best_path}...")
             model = keras.models.load_model(ckpt_best_path, custom_objects=custom_objects, compile=False, safe_mode=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif source_transfer_path and os.path.exists(source_transfer_path):
             print(f"[Transfer Learning] Initializing AS-DBPN {dim}D with factor={factor_tuple} (projection_kernel_size={proj_k})...")
@@ -974,7 +977,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined SAN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline SAN model from {best_model_path}...")
@@ -1011,7 +1014,7 @@ def main():
         if os.path.exists(output_model_path):
             print(f"Resuming training: loading existing refined Reference DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
-            if last_iteration >= 2000:
+            if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline Reference DBPN model from {best_model_path}...")
@@ -1246,6 +1249,61 @@ def main():
         def _call_fe(tensor):
             return feature_extractor(tensor)
 
+    def _compute_cbi_block(target, dim, factor_tuple):
+        up_axes = [i for i, f in enumerate(factor_tuple) if f > 1]
+        if len(up_axes) == 0:
+            up_axes = list(range(dim))
+
+        if len(up_axes) == 1:
+            ax = up_axes[0]
+            if dim == 2:
+                if ax == 0:
+                    return (target[:, 1:, :, :] - target[:, :-1, :, :]) / 2.0
+                else:
+                    return (target[:, :, 1:, :] - target[:, :, :-1, :]) / 2.0
+            else: # dim == 3
+                if ax == 0:
+                    return (target[:, 1:, :, :, :] - target[:, :-1, :, :, :]) / 2.0
+                elif ax == 1:
+                    return (target[:, :, 1:, :, :] - target[:, :, :-1, :, :]) / 2.0
+                else:
+                    return (target[:, :, :, 1:, :] - target[:, :, :, :-1, :]) / 2.0
+        elif len(up_axes) == 2:
+            if dim == 2:
+                c00 = target[:, :-1, :-1, :]
+                c10 = target[:, 1:,  :-1, :]
+                c01 = target[:, :-1, 1:,  :]
+                c11 = target[:, 1:,  1:,  :]
+                return (c00 - c10 - c01 + c11) / 4.0
+            else: # dim == 3
+                ax0, ax1 = up_axes[0], up_axes[1]
+                if ax0 == 0 and ax1 == 1:
+                    c00 = target[:, :-1, :-1, :, :]
+                    c10 = target[:, 1:,  :-1, :, :]
+                    c01 = target[:, :-1, 1:,  :, :]
+                    c11 = target[:, 1:,  1:,  :, :]
+                elif ax0 == 0 and ax1 == 2:
+                    c00 = target[:, :-1, :, :-1, :]
+                    c10 = target[:, 1:,  :, :-1, :]
+                    c01 = target[:, :-1, :, 1:,  :]
+                    c11 = target[:, 1:,  :, 1:,  :]
+                else: # ax0 == 1 and ax1 == 2
+                    c00 = target[:, :, :-1, :-1, :]
+                    c10 = target[:, :, 1:,  :-1, :]
+                    c01 = target[:, :, :-1, 1:,  :]
+                    c11 = target[:, :, 1:,  1:,  :]
+                return (c00 - c10 - c01 + c11) / 4.0
+        else: # 3 axes (isotropic 3D)
+            c000 = target[:, :-1, :-1, :-1, :]
+            c100 = target[:, 1:,  :-1, :-1, :]
+            c010 = target[:, :-1, 1:,  :-1, :]
+            c110 = target[:, 1:,  1:,  :-1, :]
+            c001 = target[:, :-1, :-1, 1:,  :]
+            c101 = target[:, 1:,  :-1, 1:,  :]
+            c011 = target[:, :-1, 1:,  1:,  :]
+            c111 = target[:, 1:,  1:,  1:,  :]
+            return (c000 - c100 - c010 + c110 - c001 + c101 + c011 - c111) / 8.0
+
     def hybrid_loss(y_true, y_pred):
         # L2 Loss (MSE)
         squared_diff = ops.square(y_true - y_pred)
@@ -1321,26 +1379,11 @@ def main():
         else:
             gms_term = ops.zeros_like(l1_term)
         # Differentiable Alternating Parity Filter (Checkerboard Penalty)
-        # K[i, j, k] = (-1)^(i+j+k) / 8
+        # Factor-aware: 1D (-1)^i/2, 2D (-1)^(i+j)/4, 3D (-1)^(i+j+k)/8 along upsampled axes
         # Penalises the Nyquist (+1, -1) deconvolution ringing artifact directly during backprop
         if args.checkerboard_weight > 1e-8:
             _cb_target = y_pred - y_true
-            if dim == 2:
-                c00 = _cb_target[:, :-1, :-1, :]
-                c10 = _cb_target[:, 1:,  :-1, :]
-                c01 = _cb_target[:, :-1, 1:,  :]
-                c11 = _cb_target[:, 1:,  1:,  :]
-                cbi_block = (c00 - c10 - c01 + c11) / 4.0
-            else:
-                c000 = _cb_target[:, :-1, :-1, :-1, :]
-                c100 = _cb_target[:, 1:,  :-1, :-1, :]
-                c010 = _cb_target[:, :-1, 1:,  :-1, :]
-                c110 = _cb_target[:, 1:,  1:,  :-1, :]
-                c001 = _cb_target[:, :-1, :-1, 1:,  :]
-                c101 = _cb_target[:, 1:,  :-1, 1:,  :]
-                c011 = _cb_target[:, :-1, 1:,  1:,  :]
-                c111 = _cb_target[:, 1:,  1:,  1:,  :]
-                cbi_block = (c000 - c100 - c010 + c110 - c001 + c101 + c011 - c111) / 8.0
+            cbi_block = _compute_cbi_block(_cb_target, dim, factor_tuple)
             cbi_term = ops.mean(ops.abs(cbi_block), axis=list(range(1, len(y_pred.shape))))
         else:
             cbi_term = ops.zeros_like(l1_term)
@@ -1484,22 +1527,7 @@ def main():
         cbi_weight_val = float(ops.convert_to_numpy(cbi_weight_var))
         if cbi_weight_val > 1e-8:
             _cb_target = y_pred_batch - y_true_tensor
-            if dim == 2:
-                _c00 = _cb_target[:, :-1, :-1, :]
-                _c10 = _cb_target[:, 1:,  :-1, :]
-                _c01 = _cb_target[:, :-1, 1:,  :]
-                _c11 = _cb_target[:, 1:,  1:,  :]
-                _cbi_block = (_c00 - _c10 - _c01 + _c11) / 4.0
-            else:
-                _c000 = _cb_target[:, :-1, :-1, :-1, :]
-                _c100 = _cb_target[:, 1:,  :-1, :-1, :]
-                _c010 = _cb_target[:, :-1, 1:,  :-1, :]
-                _c110 = _cb_target[:, 1:,  1:,  :-1, :]
-                _c001 = _cb_target[:, :-1, :-1, 1:,  :]
-                _c101 = _cb_target[:, 1:,  :-1, 1:,  :]
-                _c011 = _cb_target[:, :-1, 1:,  1:,  :]
-                _c111 = _cb_target[:, 1:,  1:,  1:,  :]
-                _cbi_block = (_c000 - _c100 - _c010 + _c110 - _c001 + _c101 + _c011 - _c111) / 8.0
+            _cbi_block = _compute_cbi_block(_cb_target, dim, factor_tuple)
             cbi_raw = float(ops.mean(ops.abs(_cbi_block)))
         else:
             cbi_raw = 0.0
@@ -1523,7 +1551,7 @@ def main():
         print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, GMS={gms_weight_val:.4f}, CBI={cbi_weight_val:.4f}, Edge={args.edge_weight:.4f}")
         
         # Log to CSV
-        csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
+        csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv" if is_default_factor else f"loss_contributions_{model_type}_{dim}d_{factor_str}.csv")
         try:
             with open(csv_log_path, "a") as f:
                 f.write(f"{stage_name},{iteration},{loss:.6f},{l2_val:.6f},{l1_val:.6f},{feat_val:.6f},{tv_val:.6f},"
@@ -1541,7 +1569,7 @@ def main():
     
     # Initialize loss contributions CSV file and history tracker
     tracker = LossHistoryTracker(window_size=args.smooth_window)
-    csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
+    csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv" if is_default_factor else f"loss_contributions_{model_type}_{dim}d_{factor_str}.csv")
     if last_iteration == 0:
         with open(csv_log_path, "w") as f:
             f.write("stage,iteration,loss,l2_raw,l1_raw,feat_raw,tv_raw,w_l2,w_l1,w_feat,w_tv,pct_l2,pct_l1,pct_feat,pct_tv\n")

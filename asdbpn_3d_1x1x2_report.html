@@ -354,7 +354,7 @@
             <h1>3D AS-DBPN Super-Resolution Convergence</h1>
             <div class="badge-live">
                 <span class="pulse-dot"></span>
-                <span>TRAINING ACTIVE &bull; STAGE 1 ADAPTATION</span>
+                <span>TRAINING ACTIVE &bull; STAGE 3 REFINEMENT</span>
             </div>
         </div>
         <p style="color: var(--text-secondary); font-size: 0.95rem;">
@@ -367,32 +367,32 @@
         <section class="grid-stats">
             <div class="glass-card">
                 <div class="stat-label">Global Step / Progress</div>
-                <div class="stat-value">654 <span style="font-size: 1rem; color: #64748b;">(Iter 75)</span></div>
-                <div class="stat-diff" style="color: #38bdf8;">Stage 1 Adaptation</div>
+                <div class="stat-value">1850 <span style="font-size: 1rem; color: #64748b;">(Iter 1700)</span></div>
+                <div class="stat-diff" style="color: #38bdf8;">Stage 3 Refinement</div>
             </div>
             
             <div class="glass-card">
                 <div class="stat-label">Validation PSNR</div>
-                <div class="stat-value" style="color: #f59e0b;">23.57 <span style="font-size: 1rem;">dB</span></div>
-                <div class="stat-diff" style="color: #f59e0b;">-4.10 dB vs Bilinear (27.10)</div>
+                <div class="stat-value" style="color: #f59e0b;">24.52 <span style="font-size: 1rem;">dB</span></div>
+                <div class="stat-diff" style="color: #f59e0b;">-3.15 dB vs Bilinear (27.10)</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">Validation SSIM</div>
-                <div class="stat-value" style="color: #8b5cf6;">0.9633</div>
+                <div class="stat-value" style="color: #8b5cf6;">0.9706</div>
                 <div class="stat-diff" style="color: #64748b;">Bilinear Ref: 0.9858</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">High-Freq Error (HFEN)</div>
-                <div class="stat-value" style="color: #38bdf8;">0.4168</div>
+                <div class="stat-value" style="color: #38bdf8;">0.3416</div>
                 <div class="stat-diff" style="color: #64748b;">Lower is sharper (Target &lt; 0.50)</div>
             </div>
 
             <div class="glass-card">
                 <div class="stat-label">Peak All-Time PSNR</div>
-                <div class="stat-value" style="color: #10b981;">24.70 <span style="font-size: 1rem;">dB</span></div>
-                <div class="stat-diff" style="color: #10b981;">Achieved at Step 575</div>
+                <div class="stat-value" style="color: #10b981;">25.00 <span style="font-size: 1rem;">dB</span></div>
+                <div class="stat-diff" style="color: #10b981;">Achieved at Step 975</div>
             </div>
         </section>
 
@@ -433,7 +433,7 @@
                 <div class="card-4way">
                     <div class="card-4way-header">
                         <span class="card-4way-title" style="color: #10b981;">4. SR Upsampled Image</span>
-                        <span class="card-4way-badge">3D AS-DBPN (PSNR: 23.57 dB)</span>
+                        <span class="card-4way-badge">3D AS-DBPN (PSNR: 24.52 dB)</span>
                     </div>
                     <img src="reports/asdbpn_3d_1x1x2/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image-4way">
                 </div>
@@ -494,12 +494,12 @@
                 <div id="view-sr" class="view-pane">
                     <img src="reports/asdbpn_3d_1x1x2/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>4. SR Upsampled Image (3D AS-DBPN Latest)</strong> &bull; Step 654 &bull; PSNR: 23.57 dB &bull; SSIM: 0.9633
+                        <strong>4. SR Upsampled Image (3D AS-DBPN Latest)</strong> &bull; Step 1850 &bull; PSNR: 24.52 dB &bull; SSIM: 0.9706
                     </div>
                 </div>
 
                 <div id="view-diff" class="view-pane">
-                    <img src="reports/asdbpn_3d_1x1x2/step_0075_diff.png" alt="Residual Error Map" class="viewport-image">
+                    <img src="reports/asdbpn_3d_1x1x2/step_1700_diff.png" alt="Residual Error Map" class="viewport-image">
                     <div class="view-overlay">
                         <strong>5. Residual Error Map |SR - Original| (Magma Colormap)</strong> &bull; High-frequency residual distribution
                     </div>
@@ -508,7 +508,7 @@
                 <div id="view-best" class="view-pane">
                     <img src="reports/asdbpn_3d_1x1x2/val3d_asdbpn_best.png" alt="Peak Best Model Volume" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>6. Peak All-Time Model (Step 575)</strong> &bull; PSNR: 24.70 dB
+                        <strong>6. Peak All-Time Model (Step 975)</strong> &bull; PSNR: 25.00 dB
                     </div>
                 </div>
             </div>
@@ -532,44 +532,116 @@
   <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">29.57</text>
   <line x1="65" y1="47.1" x2="510" y2="47.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
   <text x="510" y="42.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 27.67</text>
-  <line x1="167.7" y1="35" x2="167.7" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="171.7" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <line x1="235.8" y1="35" x2="235.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="239.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
-  <line x1="508.0" y1="35" x2="508.0" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="512.0" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <polyline points="65.0,167.9 167.7,119.3 184.1,81.1 201.1,80.4 218.1,72.4 235.1,70.5 235.8,74.1 252.1,71.2 269.1,68.0 286.1,68.6 303.1,70.1 320.2,68.3 337.2,68.7 354.2,69.7 371.2,74.7 388.2,66.5 405.2,66.7 422.2,70.7 439.2,67.0 456.2,65.9 473.3,69.7 490.3,67.9 507.3,68.3 508.0,82.1 508.6,68.5 509.3,69.4 510.0,73.2" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="101.3" y1="35" x2="101.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="105.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="125.4" y1="35" x2="125.4" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.4" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="221.6" y1="35" x2="221.6" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="225.6" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="222.8" y1="35" x2="222.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="226.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="462.1" y1="35" x2="462.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="466.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 101.3,119.3 107.1,81.1 113.1,80.4 119.1,72.4 125.1,70.5 125.4,74.1 131.1,71.2 137.2,68.0 143.2,68.6 149.2,70.1 155.2,68.3 161.2,68.7 167.2,69.7 173.2,74.7 179.3,66.5 185.3,66.7 191.3,70.7 197.3,67.0 203.3,65.9 209.3,69.7 215.3,67.9 221.4,68.3 221.6,82.1 221.8,68.5 222.1,69.4 222.3,73.2 222.6,65.6 222.8,67.9 223.0,71.4 223.3,64.9 223.5,67.1 223.8,70.1 224.0,66.6 224.2,67.4 224.5,69.8 224.7,73.8 225.0,67.4 225.2,68.1 225.4,71.6 225.7,67.4 225.9,68.8 226.2,69.2 226.4,66.2 226.6,68.4 227.4,66.9 233.4,70.0 239.4,66.9 245.4,71.1 251.4,66.9 257.4,66.0 263.4,69.2 269.5,66.5 275.5,64.3 281.5,69.8 287.5,69.8 293.5,70.4 299.5,64.1 305.5,67.0 311.6,64.6 317.6,68.8 323.6,68.1 329.6,68.0 335.6,70.2 341.6,66.6 347.6,69.8 353.6,66.4 359.7,64.6 365.7,66.4 371.7,65.7 377.7,67.4 383.7,69.8 389.7,68.0 395.7,68.5 401.8,68.2 407.8,70.6 413.8,73.0 419.8,64.9 425.8,69.3 431.8,69.9 437.8,70.0 443.9,71.3 449.9,68.1 455.9,71.3 461.9,71.5 462.1,70.2 467.9,70.6 473.9,69.1 474.2,68.8 479.9,68.6 485.9,66.9 492.0,69.0 498.0,69.1 504.0,66.5 510.0,67.1" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
   <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="167.7" cy="119.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="184.1" cy="81.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="201.1" cy="80.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="218.1" cy="72.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="235.1" cy="70.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="235.8" cy="74.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="252.1" cy="71.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="269.1" cy="68.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="286.1" cy="68.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="303.1" cy="70.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="320.2" cy="68.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="337.2" cy="68.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="354.2" cy="69.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="371.2" cy="74.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="388.2" cy="66.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="405.2" cy="66.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="422.2" cy="70.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="439.2" cy="67.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="456.2" cy="65.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="473.3" cy="69.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="490.3" cy="67.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="507.3" cy="68.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="508.0" cy="82.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="508.6" cy="68.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="509.3" cy="69.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="510.0" cy="73.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-  <circle cx="510.0" cy="73.2" r="5.5" fill="#10b981" />
-  <text x="510" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 23.57</text>
+  <circle cx="101.3" cy="119.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="107.1" cy="81.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="113.1" cy="80.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="119.1" cy="72.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="125.1" cy="70.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="125.4" cy="74.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="131.1" cy="71.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="137.2" cy="68.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="143.2" cy="68.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="149.2" cy="70.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="155.2" cy="68.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="161.2" cy="68.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="167.2" cy="69.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="173.2" cy="74.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="179.3" cy="66.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="185.3" cy="66.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="191.3" cy="70.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="197.3" cy="67.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="203.3" cy="65.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="209.3" cy="69.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="215.3" cy="67.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="221.4" cy="68.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="221.6" cy="82.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="221.8" cy="68.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="222.1" cy="69.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="222.3" cy="73.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="222.6" cy="65.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="222.8" cy="67.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="223.0" cy="71.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="223.3" cy="64.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="223.5" cy="67.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="223.8" cy="70.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="224.0" cy="66.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="224.2" cy="67.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="224.5" cy="69.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="224.7" cy="73.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="225.0" cy="67.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="225.2" cy="68.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="225.4" cy="71.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="225.7" cy="67.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="225.9" cy="68.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="226.2" cy="69.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="226.4" cy="66.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="226.6" cy="68.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="227.4" cy="66.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="233.4" cy="70.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="239.4" cy="66.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="245.4" cy="71.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="251.4" cy="66.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="257.4" cy="66.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="263.4" cy="69.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="269.5" cy="66.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="275.5" cy="64.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="281.5" cy="69.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="287.5" cy="69.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="293.5" cy="70.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="299.5" cy="64.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="305.5" cy="67.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="311.6" cy="64.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="317.6" cy="68.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="323.6" cy="68.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="329.6" cy="68.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="335.6" cy="70.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="341.6" cy="66.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="347.6" cy="69.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="353.6" cy="66.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="359.7" cy="64.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="365.7" cy="66.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="371.7" cy="65.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="377.7" cy="67.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="383.7" cy="69.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="389.7" cy="68.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="395.7" cy="68.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="401.8" cy="68.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="407.8" cy="70.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="413.8" cy="73.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="419.8" cy="64.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="425.8" cy="69.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="431.8" cy="69.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="437.8" cy="70.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="443.9" cy="71.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="449.9" cy="68.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="455.9" cy="71.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="461.9" cy="71.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="462.1" cy="70.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="467.9" cy="70.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="473.9" cy="69.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="474.2" cy="68.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="479.9" cy="68.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="485.9" cy="66.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="492.0" cy="69.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="498.0" cy="69.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="504.0" cy="66.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="67.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="67.1" r="5.5" fill="#10b981" />
+  <text x="510" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 24.52</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 654</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1850</text>
 </svg>
 
             </div>
@@ -589,44 +661,116 @@
   <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">1.05</text>
   <line x1="65" y1="47.1" x2="510" y2="47.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
   <text x="510" y="42.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 0.99</text>
-  <line x1="167.7" y1="35" x2="167.7" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="171.7" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <line x1="235.8" y1="35" x2="235.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="239.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
-  <line x1="508.0" y1="35" x2="508.0" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="512.0" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <polyline points="65.0,167.9 167.7,80.2 184.1,53.5 201.1,53.3 218.1,51.0 235.1,50.6 235.8,51.5 252.1,50.8 269.1,50.1 286.1,50.2 303.1,50.5 320.2,50.1 337.2,50.2 354.2,50.4 371.2,51.6 388.2,49.8 405.2,49.8 422.2,50.7 439.2,49.9 456.2,49.7 473.3,50.4 490.3,50.0 507.3,50.1 508.0,53.6 508.6,50.2 509.3,50.4 510.0,51.2" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="101.3" y1="35" x2="101.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="105.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="125.4" y1="35" x2="125.4" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.4" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="221.6" y1="35" x2="221.6" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="225.6" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="222.8" y1="35" x2="222.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="226.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="462.1" y1="35" x2="462.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="466.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 101.3,80.2 107.1,53.5 113.1,53.3 119.1,51.0 125.1,50.6 125.4,51.5 131.1,50.8 137.2,50.1 143.2,50.2 149.2,50.5 155.2,50.1 161.2,50.2 167.2,50.4 173.2,51.6 179.3,49.8 185.3,49.8 191.3,50.7 197.3,49.9 203.3,49.7 209.3,50.4 215.3,50.0 221.4,50.1 221.6,53.6 221.8,50.2 222.1,50.4 222.3,51.2 222.6,49.6 222.8,50.1 223.0,50.8 223.3,49.5 223.5,49.9 223.8,50.5 224.0,49.8 224.2,50.0 224.5,50.4 224.7,51.4 225.0,50.0 225.2,50.1 225.4,50.9 225.7,49.9 225.9,50.2 226.2,50.3 226.4,49.7 226.6,50.1 227.4,49.9 233.4,50.5 239.4,49.8 245.4,50.7 251.4,49.9 257.4,49.7 263.4,50.3 269.5,49.8 275.5,49.4 281.5,50.4 287.5,50.5 293.5,50.6 299.5,49.3 305.5,49.9 311.6,49.4 317.6,50.2 323.6,50.1 329.6,50.1 335.6,50.5 341.6,49.8 347.6,50.5 353.6,49.7 359.7,49.4 365.7,49.7 371.7,49.6 377.7,50.0 383.7,50.4 389.7,50.1 395.7,50.2 401.8,50.1 407.8,50.6 413.8,51.2 419.8,49.5 425.8,50.4 431.8,50.5 437.8,50.5 443.9,50.8 449.9,50.1 455.9,50.8 461.9,50.8 462.1,50.5 467.9,50.6 473.9,50.3 474.2,50.2 479.9,50.2 485.9,49.8 492.0,50.3 498.0,50.3 504.0,49.8 510.0,49.9" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
   <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="167.7" cy="80.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="184.1" cy="53.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="201.1" cy="53.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="218.1" cy="51.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="235.1" cy="50.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="235.8" cy="51.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="252.1" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="269.1" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="286.1" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="303.1" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="320.2" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="337.2" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="354.2" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="371.2" cy="51.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="388.2" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="405.2" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="422.2" cy="50.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="439.2" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="456.2" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="473.3" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="490.3" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="507.3" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="508.0" cy="53.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="508.6" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="509.3" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="510.0" cy="51.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="510.0" cy="51.2" r="5.5" fill="#8b5cf6" />
-  <text x="510" y="22" fill="#8b5cf6" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.96</text>
+  <circle cx="101.3" cy="80.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="107.1" cy="53.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="113.1" cy="53.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="119.1" cy="51.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="125.1" cy="50.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="125.4" cy="51.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="131.1" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="137.2" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="143.2" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="149.2" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="155.2" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="161.2" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="167.2" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="173.2" cy="51.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="179.3" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="185.3" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="191.3" cy="50.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="197.3" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="203.3" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="209.3" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="215.3" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="221.4" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="221.6" cy="53.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="221.8" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="222.1" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="222.3" cy="51.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="222.6" cy="49.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="222.8" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="223.0" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="223.3" cy="49.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="223.5" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="223.8" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="224.0" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="224.2" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="224.5" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="224.7" cy="51.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="225.0" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="225.2" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="225.4" cy="50.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="225.7" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="225.9" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="226.2" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="226.4" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="226.6" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="227.4" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="233.4" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="239.4" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="245.4" cy="50.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="251.4" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="257.4" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="263.4" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="269.5" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="275.5" cy="49.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="281.5" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="287.5" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="293.5" cy="50.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="299.5" cy="49.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="305.5" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="311.6" cy="49.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="317.6" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="323.6" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="329.6" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="335.6" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="341.6" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="347.6" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="353.6" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="359.7" cy="49.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="365.7" cy="49.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="371.7" cy="49.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="377.7" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="383.7" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="389.7" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="395.7" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="401.8" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="407.8" cy="50.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="413.8" cy="51.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="419.8" cy="49.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="425.8" cy="50.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="431.8" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="437.8" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="443.9" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="449.9" cy="50.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="455.9" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="461.9" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="462.1" cy="50.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="467.9" cy="50.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="473.9" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="474.2" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="479.9" cy="50.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="485.9" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="492.0" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="498.0" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="504.0" cy="49.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="49.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="49.9" r="5.5" fill="#8b5cf6" />
+  <text x="510" y="22" fill="#8b5cf6" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.97</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 654</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1850</text>
 </svg>
 
             </div>
@@ -644,44 +788,116 @@
   <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">19.69</text>
   <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
   <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">27.07</text>
-  <line x1="167.7" y1="35" x2="167.7" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="171.7" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <line x1="235.8" y1="35" x2="235.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="239.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
-  <line x1="508.0" y1="35" x2="508.0" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
-  <text x="512.0" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
-  <polyline points="65.0,167.9 167.7,47.1 184.1,142.2 201.1,149.2 218.1,151.1 235.1,153.2 235.8,161.1 252.1,158.2 269.1,158.7 286.1,159.1 303.1,159.5 320.2,159.9 337.2,160.1 354.2,160.3 371.2,160.4 388.2,160.6 405.2,160.6 422.2,160.6 439.2,160.7 456.2,160.8 473.3,160.8 490.3,160.9 507.3,160.9 508.0,166.5 508.6,160.3 509.3,161.1 510.0,160.5" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="101.3" y1="35" x2="101.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="105.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="125.4" y1="35" x2="125.4" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.4" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="221.6" y1="35" x2="221.6" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="225.6" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="222.8" y1="35" x2="222.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="226.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="462.1" y1="35" x2="462.1" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="466.1" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 101.3,47.1 107.1,142.2 113.1,149.2 119.1,151.1 125.1,153.2 125.4,161.1 131.1,158.2 137.2,158.7 143.2,159.1 149.2,159.5 155.2,159.9 161.2,160.1 167.2,160.3 173.2,160.4 179.3,160.6 185.3,160.6 191.3,160.6 197.3,160.7 203.3,160.8 209.3,160.8 215.3,160.9 221.4,160.9 221.6,166.5 221.8,160.3 222.1,161.1 222.3,160.5 222.6,160.8 222.8,161.7 223.0,160.4 223.3,160.6 223.5,160.8 223.8,161.1 224.0,161.3 224.2,161.5 224.5,161.7 224.7,161.7 225.0,161.8 225.2,161.8 225.4,161.7 225.7,161.7 225.9,161.8 226.2,161.8 226.4,161.8 226.6,161.8 227.4,161.8 233.4,161.9 239.4,161.9 245.4,161.9 251.4,161.9 257.4,161.9 263.4,161.9 269.5,161.9 275.5,161.9 281.5,161.9 287.5,161.9 293.5,161.9 299.5,162.0 305.5,161.9 311.6,162.0 317.6,162.0 323.6,162.0 329.6,162.0 335.6,162.0 341.6,162.0 347.6,162.0 353.6,162.0 359.7,162.0 365.7,162.1 371.7,162.1 377.7,162.1 383.7,162.1 389.7,162.1 395.7,162.1 401.8,162.1 407.8,162.1 413.8,162.1 419.8,162.1 425.8,162.1 431.8,162.1 437.8,162.1 443.9,162.1 449.9,162.1 455.9,162.1 461.9,162.2 462.1,160.5 467.9,162.7 473.9,162.8 474.2,166.0 479.9,162.9 485.9,162.8 492.0,162.5 498.0,162.6 504.0,162.8 510.0,163.0" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
   <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="167.7" cy="47.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="184.1" cy="142.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="201.1" cy="149.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="218.1" cy="151.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="235.1" cy="153.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="235.8" cy="161.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="252.1" cy="158.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="269.1" cy="158.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="286.1" cy="159.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="303.1" cy="159.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="320.2" cy="159.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="337.2" cy="160.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="354.2" cy="160.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="371.2" cy="160.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="388.2" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="405.2" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="422.2" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="439.2" cy="160.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="456.2" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="473.3" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="490.3" cy="160.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="507.3" cy="160.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="508.0" cy="166.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="508.6" cy="160.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="509.3" cy="161.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="510.0" cy="160.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
-  <circle cx="510.0" cy="160.5" r="5.5" fill="#38bdf8" />
-  <text x="510" y="22" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 1.52</text>
+  <circle cx="101.3" cy="47.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="107.1" cy="142.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="113.1" cy="149.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="119.1" cy="151.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="125.1" cy="153.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="125.4" cy="161.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="131.1" cy="158.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="137.2" cy="158.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="143.2" cy="159.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="149.2" cy="159.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="155.2" cy="159.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="161.2" cy="160.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="167.2" cy="160.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="173.2" cy="160.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="179.3" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="185.3" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="191.3" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="197.3" cy="160.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="203.3" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="209.3" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="215.3" cy="160.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="221.4" cy="160.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="221.6" cy="166.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="221.8" cy="160.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="222.1" cy="161.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="222.3" cy="160.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="222.6" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="222.8" cy="161.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="223.0" cy="160.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="223.3" cy="160.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="223.5" cy="160.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="223.8" cy="161.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="224.0" cy="161.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="224.2" cy="161.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="224.5" cy="161.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="224.7" cy="161.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="225.0" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="225.2" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="225.4" cy="161.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="225.7" cy="161.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="225.9" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="226.2" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="226.4" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="226.6" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="227.4" cy="161.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="233.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="239.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="245.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="251.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="257.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="263.4" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="269.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="275.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="281.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="287.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="293.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="299.5" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="305.5" cy="161.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="311.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="317.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="323.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="329.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="335.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="341.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="347.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="353.6" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="359.7" cy="162.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="365.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="371.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="377.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="383.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="389.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="395.7" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="401.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="407.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="413.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="419.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="425.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="431.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="437.8" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="443.9" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="449.9" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="455.9" cy="162.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="461.9" cy="162.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="462.1" cy="160.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="467.9" cy="162.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="473.9" cy="162.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="474.2" cy="166.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="479.9" cy="162.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="485.9" cy="162.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="492.0" cy="162.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="498.0" cy="162.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="504.0" cy="162.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="510.0" cy="163.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="510.0" cy="163.0" r="5.5" fill="#38bdf8" />
+  <text x="510" y="22" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 1.02</text>
   <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
-  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 654</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1850</text>
 </svg>
 
             </div>
@@ -709,6 +925,1094 @@
                 </thead>
                 <tbody>
                     
+        <tr>
+            <td><strong>Step 1850</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1700)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.52 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.15)</span></td>
+            <td>0.9706</td>
+            <td>0.3416</td>
+            <td>0.1410</td>
+            <td>0.9705</td>
+            <td style="font-family: monospace;">1.01849</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1700_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1700_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1700.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1825</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1675)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.61 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.06)</span></td>
+            <td>0.9712</td>
+            <td>0.3550</td>
+            <td>0.1411</td>
+            <td>0.9711</td>
+            <td style="font-family: monospace;">1.05542</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1675_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1675_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1675.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1800</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1650)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.21 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.45)</span></td>
+            <td>0.9684</td>
+            <td>0.3669</td>
+            <td>0.1437</td>
+            <td>0.9683</td>
+            <td style="font-family: monospace;">1.09259</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1650_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1650_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1650.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1775</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1625)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.22 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.45)</span></td>
+            <td>0.9685</td>
+            <td>0.3587</td>
+            <td>0.1439</td>
+            <td>0.9684</td>
+            <td style="font-family: monospace;">1.10467</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1625_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1625_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1625.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1750</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1600)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.56 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.11)</span></td>
+            <td>0.9709</td>
+            <td>0.3544</td>
+            <td>0.1413</td>
+            <td>0.9708</td>
+            <td style="font-family: monospace;">1.05449</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1600_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1600_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1600.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1725</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1575)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.28 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.39)</span></td>
+            <td>0.9689</td>
+            <td>0.3540</td>
+            <td>0.1441</td>
+            <td>0.9688</td>
+            <td style="font-family: monospace;">1.02503</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1575_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1575_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1575.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1701</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1551)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.25 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.42)</span></td>
+            <td>0.9687</td>
+            <td>0.3572</td>
+            <td>0.1428</td>
+            <td>0.9686</td>
+            <td style="font-family: monospace;">0.40175</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1551_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1551_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1700</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1550)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.20 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.46)</span></td>
+            <td>0.9684</td>
+            <td>0.3551</td>
+            <td>0.1423</td>
+            <td>0.9682</td>
+            <td style="font-family: monospace;">1.04917</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1550_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1550_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1550.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1675</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1525)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.98 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.69)</span></td>
+            <td>0.9667</td>
+            <td>0.3722</td>
+            <td>0.1466</td>
+            <td>0.9666</td>
+            <td style="font-family: monospace;">1.07291</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1525_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1525_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1525.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1651</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1501)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.03 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.63)</span></td>
+            <td>0.9671</td>
+            <td>0.3737</td>
+            <td>0.1486</td>
+            <td>0.9670</td>
+            <td style="font-family: monospace;">1.51122</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1501_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1501_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1650</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1500)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.83 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.84)</span></td>
+            <td>0.9655</td>
+            <td>0.3738</td>
+            <td>0.1485</td>
+            <td>0.9654</td>
+            <td style="font-family: monospace;">1.18376</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1500_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1500_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1500.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1625</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1475)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.86 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.81)</span></td>
+            <td>0.9658</td>
+            <td>0.3726</td>
+            <td>0.1517</td>
+            <td>0.9656</td>
+            <td style="font-family: monospace;">1.18647</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1475_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1475_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1475.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1600</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1450)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.36 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.31)</span></td>
+            <td>0.9695</td>
+            <td>0.3536</td>
+            <td>0.1453</td>
+            <td>0.9694</td>
+            <td style="font-family: monospace;">1.18822</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1450_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1450_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1450.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1575</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1425)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.86 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.81)</span></td>
+            <td>0.9658</td>
+            <td>0.3718</td>
+            <td>0.1464</td>
+            <td>0.9657</td>
+            <td style="font-family: monospace;">1.19006</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1425_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1425_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1425.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1550</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1400)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.07 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.60)</span></td>
+            <td>0.9674</td>
+            <td>0.3566</td>
+            <td>0.1487</td>
+            <td>0.9672</td>
+            <td style="font-family: monospace;">1.18975</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1400_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1400_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1400.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1525</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1375)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.08 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.59)</span></td>
+            <td>0.9675</td>
+            <td>0.3551</td>
+            <td>0.1475</td>
+            <td>0.9673</td>
+            <td style="font-family: monospace;">1.19276</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1375_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1375_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1375.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1500</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1350)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.17 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.50)</span></td>
+            <td>0.9681</td>
+            <td>0.3558</td>
+            <td>0.1475</td>
+            <td>0.9680</td>
+            <td style="font-family: monospace;">1.19419</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1350_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1350_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1350.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1475</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1325)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.86 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.80)</span></td>
+            <td>0.9728</td>
+            <td>0.3348</td>
+            <td>0.1372</td>
+            <td>0.9727</td>
+            <td style="font-family: monospace;">1.19673</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1325_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1325_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1325.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1450</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1300)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.60 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.07)</span></td>
+            <td>0.9637</td>
+            <td>0.3727</td>
+            <td>0.1546</td>
+            <td>0.9635</td>
+            <td style="font-family: monospace;">1.19695</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1300_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1300_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1300.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1425</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1275)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.97 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.69)</span></td>
+            <td>0.9667</td>
+            <td>0.3693</td>
+            <td>0.1504</td>
+            <td>0.9665</td>
+            <td style="font-family: monospace;">1.19538</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1275_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1275_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1275.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1400</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1250)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.35 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.32)</span></td>
+            <td>0.9694</td>
+            <td>0.3624</td>
+            <td>0.1486</td>
+            <td>0.9693</td>
+            <td style="font-family: monospace;">1.19623</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1250_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1250_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1250.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1375</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1225)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.31 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.36)</span></td>
+            <td>0.9691</td>
+            <td>0.3401</td>
+            <td>0.1412</td>
+            <td>0.9690</td>
+            <td style="font-family: monospace;">1.19483</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1225_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1225_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1225.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1350</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1200)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.39 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.28)</span></td>
+            <td>0.9697</td>
+            <td>0.3323</td>
+            <td>0.1393</td>
+            <td>0.9696</td>
+            <td style="font-family: monospace;">1.19745</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1200_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1200_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1200.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1325</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1175)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.10 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.57)</span></td>
+            <td>0.9676</td>
+            <td>0.3626</td>
+            <td>0.1496</td>
+            <td>0.9675</td>
+            <td style="font-family: monospace;">1.20118</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1175_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1175_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1175.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1300</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1150)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.47 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.19)</span></td>
+            <td>0.9703</td>
+            <td>0.3515</td>
+            <td>0.1447</td>
+            <td>0.9702</td>
+            <td style="font-family: monospace;">1.19743</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1150_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1150_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1150.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1275</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1125)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.74 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.92)</span></td>
+            <td>0.9721</td>
+            <td>0.3382</td>
+            <td>0.1361</td>
+            <td>0.9720</td>
+            <td style="font-family: monospace;">1.19809</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1125_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1125_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1125.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1250</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1100)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.63 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.03)</span></td>
+            <td>0.9714</td>
+            <td>0.3505</td>
+            <td>0.1430</td>
+            <td>0.9713</td>
+            <td style="font-family: monospace;">1.20061</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1100_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1100_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1100.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1225</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1075)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.92 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.75)</span></td>
+            <td>0.9732</td>
+            <td>0.3404</td>
+            <td>0.1395</td>
+            <td>0.9731</td>
+            <td style="font-family: monospace;">1.20509</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1075_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1075_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1075.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1200</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1050)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.64 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.03)</span></td>
+            <td>0.9714</td>
+            <td>0.3452</td>
+            <td>0.1452</td>
+            <td>0.9713</td>
+            <td style="font-family: monospace;">1.20599</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1050_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1050_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1050.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1175</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1025)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.09 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.58)</span></td>
+            <td>0.9675</td>
+            <td>0.3618</td>
+            <td>0.1447</td>
+            <td>0.9674</td>
+            <td style="font-family: monospace;">1.21051</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1025_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1025_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1025.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1150</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1000)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.60 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.06)</span></td>
+            <td>0.9712</td>
+            <td>0.3411</td>
+            <td>0.1382</td>
+            <td>0.9711</td>
+            <td style="font-family: monospace;">1.21474</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_1000_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_1000_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_1000.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1125</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 975)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.03 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.63)</span></td>
+            <td>0.9671</td>
+            <td>0.3760</td>
+            <td>0.1474</td>
+            <td>0.9670</td>
+            <td style="font-family: monospace;">1.21346</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0975_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0975_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0975.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1100</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 950)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.39 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.28)</span></td>
+            <td>0.9697</td>
+            <td>0.3502</td>
+            <td>0.1437</td>
+            <td>0.9696</td>
+            <td style="font-family: monospace;">1.21343</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0950_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0950_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0950.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1075</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 925)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.36 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.30)</span></td>
+            <td>0.9696</td>
+            <td>0.3653</td>
+            <td>0.1458</td>
+            <td>0.9694</td>
+            <td style="font-family: monospace;">1.21841</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0925_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0925_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0925.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1050</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 900)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.25 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.42)</span></td>
+            <td>0.9687</td>
+            <td>0.3642</td>
+            <td>0.1454</td>
+            <td>0.9686</td>
+            <td style="font-family: monospace;">1.21622</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0900_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0900_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0900.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1025</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 875)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.91 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.76)</span></td>
+            <td>0.9731</td>
+            <td>0.3256</td>
+            <td>0.1364</td>
+            <td>0.9730</td>
+            <td style="font-family: monospace;">1.22079</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0875_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0875_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0875.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1000</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 850)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.54 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.12)</span></td>
+            <td>0.9708</td>
+            <td>0.3648</td>
+            <td>0.1430</td>
+            <td>0.9707</td>
+            <td style="font-family: monospace;">1.22465</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0850_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0850_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0850.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 975</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 825)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.00 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.67)</span></td>
+            <td>0.9737</td>
+            <td>0.3331</td>
+            <td>0.1387</td>
+            <td>0.9736</td>
+            <td style="font-family: monospace;">1.22319</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0825_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0825_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0825.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 950</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 800)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.01 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.66)</span></td>
+            <td>0.9669</td>
+            <td>0.3759</td>
+            <td>0.1486</td>
+            <td>0.9668</td>
+            <td style="font-family: monospace;">1.22736</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0800_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0800_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0800.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 925</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 775)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.09 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.57)</span></td>
+            <td>0.9676</td>
+            <td>0.3758</td>
+            <td>0.1464</td>
+            <td>0.9675</td>
+            <td style="font-family: monospace;">1.22511</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0775_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0775_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0775.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 900</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 750)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.10 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.57)</span></td>
+            <td>0.9676</td>
+            <td>0.3651</td>
+            <td>0.1493</td>
+            <td>0.9675</td>
+            <td style="font-family: monospace;">1.22849</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0750_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0750_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0750.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 875</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 725)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.96 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.71)</span></td>
+            <td>0.9734</td>
+            <td>0.3251</td>
+            <td>0.1413</td>
+            <td>0.9734</td>
+            <td style="font-family: monospace;">1.23488</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0725_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0725_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0725.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 850</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 700)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.62 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.05)</span></td>
+            <td>0.9712</td>
+            <td>0.3375</td>
+            <td>0.1406</td>
+            <td>0.9711</td>
+            <td style="font-family: monospace;">1.23257</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0700_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0700_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0700.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 825</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 675)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.19 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.48)</span></td>
+            <td>0.9683</td>
+            <td>0.3572</td>
+            <td>0.1441</td>
+            <td>0.9681</td>
+            <td style="font-family: monospace;">1.23505</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0675_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0675_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0675.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 800</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 650)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.70 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.97)</span></td>
+            <td>0.9718</td>
+            <td>0.3456</td>
+            <td>0.1387</td>
+            <td>0.9717</td>
+            <td style="font-family: monospace;">1.22633</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0650_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0650_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0650.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 775</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 625)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.54 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.12)</span></td>
+            <td>0.9708</td>
+            <td>0.3393</td>
+            <td>0.1398</td>
+            <td>0.9707</td>
+            <td style="font-family: monospace;">1.22780</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0625_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0625_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0625.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 750</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 600)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.89 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.78)</span></td>
+            <td>0.9660</td>
+            <td>0.3724</td>
+            <td>0.1484</td>
+            <td>0.9659</td>
+            <td style="font-family: monospace;">1.23325</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0600_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0600_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0600.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 725</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 575)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.55 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.11)</span></td>
+            <td>0.9709</td>
+            <td>0.3529</td>
+            <td>0.1408</td>
+            <td>0.9707</td>
+            <td style="font-family: monospace;">1.24442</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0575_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0575_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0575.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 700</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 550)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.06 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.60)</span></td>
+            <td>0.9673</td>
+            <td>0.3692</td>
+            <td>0.1486</td>
+            <td>0.9672</td>
+            <td style="font-family: monospace;">1.23904</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0550_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0550_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0550.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 675</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 525)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.55 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.12)</span></td>
+            <td>0.9708</td>
+            <td>0.3527</td>
+            <td>0.1396</td>
+            <td>0.9707</td>
+            <td style="font-family: monospace;">1.24517</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0525_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0525_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0525.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 672</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 500)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.32 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.35)</span></td>
+            <td>0.9692</td>
+            <td>0.3490</td>
+            <td>0.1451</td>
+            <td>0.9691</td>
+            <td style="font-family: monospace;">1.24850</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0500_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0500_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0500.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 671</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 475)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.66 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.01)</span></td>
+            <td>0.9715</td>
+            <td>0.3301</td>
+            <td>0.1402</td>
+            <td>0.9714</td>
+            <td style="font-family: monospace;">1.25116</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0475_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0475_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0475.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 670</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 450)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.19 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.48)</span></td>
+            <td>0.9683</td>
+            <td>0.3475</td>
+            <td>0.1434</td>
+            <td>0.9682</td>
+            <td style="font-family: monospace;">1.25724</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0450_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0450_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0450.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 669</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 425)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.25 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.41)</span></td>
+            <td>0.9687</td>
+            <td>0.3553</td>
+            <td>0.1447</td>
+            <td>0.9686</td>
+            <td style="font-family: monospace;">1.25951</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0425_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0425_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0425.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 668</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 400)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.47 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.20)</span></td>
+            <td>0.9703</td>
+            <td>0.3516</td>
+            <td>0.1487</td>
+            <td>0.9702</td>
+            <td style="font-family: monospace;">1.26641</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0400_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0400_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0400.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 667</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 375)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.81 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.85)</span></td>
+            <td>0.9654</td>
+            <td>0.3717</td>
+            <td>0.1533</td>
+            <td>0.9653</td>
+            <td style="font-family: monospace;">1.26969</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0375_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0375_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0375.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 666</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 350)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.36 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.31)</span></td>
+            <td>0.9695</td>
+            <td>0.3648</td>
+            <td>0.1420</td>
+            <td>0.9693</td>
+            <td style="font-family: monospace;">1.26292</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0350_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0350_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0350.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 665</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 325)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.47 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.20)</span></td>
+            <td>0.9702</td>
+            <td>0.3366</td>
+            <td>0.1410</td>
+            <td>0.9701</td>
+            <td style="font-family: monospace;">1.26431</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0325_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0325_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0325.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 664</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 300)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.46 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.20)</span></td>
+            <td>0.9625</td>
+            <td>0.4015</td>
+            <td>0.1601</td>
+            <td>0.9624</td>
+            <td style="font-family: monospace;">1.28567</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0300_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0300_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0300.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 663</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 275)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.10 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.56)</span></td>
+            <td>0.9677</td>
+            <td>0.3590</td>
+            <td>0.1444</td>
+            <td>0.9675</td>
+            <td style="font-family: monospace;">1.28497</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0275_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0275_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0275.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 662</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 250)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.47 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.20)</span></td>
+            <td>0.9703</td>
+            <td>0.3588</td>
+            <td>0.1437</td>
+            <td>0.9702</td>
+            <td style="font-family: monospace;">1.31515</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0250_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0250_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0250.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 661</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 225)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.59 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.08)</span></td>
+            <td>0.9711</td>
+            <td>0.3545</td>
+            <td>0.1422</td>
+            <td>0.9710</td>
+            <td style="font-family: monospace;">1.34764</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0225_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0225_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0225.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 660</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 200)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.05 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.61)</span></td>
+            <td>0.9672</td>
+            <td>0.3667</td>
+            <td>0.1498</td>
+            <td>0.9671</td>
+            <td style="font-family: monospace;">1.39856</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0200_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0200_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0200.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 659</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 175)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.52 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.15)</span></td>
+            <td>0.9706</td>
+            <td>0.3503</td>
+            <td>0.1467</td>
+            <td>0.9705</td>
+            <td style="font-family: monospace;">1.44916</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0175_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0175_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0175.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 658</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 150)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.87 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.80)</span></td>
+            <td>0.9729</td>
+            <td>0.3384</td>
+            <td>0.1404</td>
+            <td>0.9728</td>
+            <td style="font-family: monospace;">1.50026</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0150_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0150_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0150.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 657</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 125)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.85 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.82)</span></td>
+            <td>0.9657</td>
+            <td>0.3606</td>
+            <td>0.1602</td>
+            <td>0.9656</td>
+            <td style="font-family: monospace;">1.54775</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0125_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0125_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0125.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 656</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 101)</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.39 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.28)</span></td>
+            <td>0.9697</td>
+            <td>0.3450</td>
+            <td>0.1395</td>
+            <td>0.9696</td>
+            <td style="font-family: monospace;">1.27659</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0101_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0101_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 655</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 100)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.76 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.90)</span></td>
+            <td>0.9722</td>
+            <td>0.3488</td>
+            <td>0.1395</td>
+            <td>0.9721</td>
+            <td style="font-family: monospace;">1.44875</td>
+            <td>
+                <a href="reports/asdbpn_3d_1x1x2/step_0100_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/asdbpn_3d_1x1x2/step_0100_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/asdbpn_3d_1x1x2/asdbpn_3d_step_0100.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
         <tr>
             <td><strong>Step 654</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 75)</span></td>
             <td><span class="stage-badge">Stage 1 Adaptation</span></td>
@@ -1147,7 +2451,7 @@
     </main>
 
     <footer>
-        <p>siq 3D Deep Back-Projection Network (AS-DBPN) Super-Resolution Suite &bull; 2026-09-29 11:42:04</p>
+        <p>siq 3D Deep Back-Projection Network (AS-DBPN) Super-Resolution Suite &bull; 2026-09-29 12:22:34</p>
     </footer>
 
     <script>

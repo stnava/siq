@@ -98,12 +98,15 @@ def compute_hfen(y_true, y_pred, sigma=1.5):
     return float(np.mean(hfen_list))
 
 
-def compute_checkerboard_index(y, y_true=None):
+def compute_checkerboard_index(y, y_true=None, factor=None):
     """
     Computes the Checkerboard Index (CBI) using an alternating parity matched filter.
 
+    In 1D: Alternating 2-tap kernel K[i] = (-1)^i / 2.
     In 2D: Alternating 2x2 kernel K[i, j] = (-1)^(i+j) / 4.
     In 3D: Alternating 2x2x2 kernel K[i, j, k] = (-1)^(i+j+k) / 8.
+    For anisotropic factors (e.g. (1, 1, 2)), constructs a matched directional
+    alternating kernel along the upsampled axes only.
 
     Parameters
     ----------
@@ -113,6 +116,9 @@ def compute_checkerboard_index(y, y_true=None):
         Ground truth reference. If provided, measures the residual checkerboard
         error: std((y - y_true) * K) / std(y_true). If None, measures no-reference
         high-frequency checkerboard energy: std(y * K) / std(y).
+    factor : int, tuple, or list, optional
+        Upsampling factor per axis. If provided, the alternating filter is applied
+        only across dimensions where factor > 1.
 
     Returns
     -------
@@ -131,23 +137,30 @@ def compute_checkerboard_index(y, y_true=None):
     else:
         y_true_channels = [None] * len(y_channels)
 
+    if factor is not None:
+        if isinstance(factor, (int, float)):
+            f_tuple = tuple([factor] * spatial_dim)
+        elif len(factor) == 1:
+            f_tuple = tuple([factor[0]] * spatial_dim)
+        else:
+            f_tuple = tuple(factor)
+        up_axes = [i for i, f in enumerate(f_tuple) if f > 1]
+        if len(up_axes) == 0:
+            up_axes = list(range(spatial_dim))
+    else:
+        up_axes = list(range(spatial_dim))
+
+    k_shape = [2 if i in up_axes else 1 for i in range(spatial_dim)]
+    norm = float(2 ** len(up_axes))
+    k = np.zeros(k_shape, dtype=np.float32)
+    for idx in np.ndindex(*k_shape):
+        k[idx] = ((-1.0) ** sum(idx)) / norm
+
     cbi_list = []
     for yc, ytc in zip(y_channels, y_true_channels):
         target = (yc - ytc) if ytc is not None else yc
         ref = ytc if ytc is not None else yc
         ref_std = float(np.std(ref)) + 1e-8
-
-        if spatial_dim == 2:
-            k = np.array([[1.0, -1.0], [-1.0, 1.0]], dtype=np.float32) / 4.0
-        elif spatial_dim == 3:
-            k = np.zeros((2, 2, 2), dtype=np.float32)
-            for i in range(2):
-                for j in range(2):
-                    for m in range(2):
-                        k[i, j, m] = (-1.0) ** (i + j + m)
-            k /= 8.0
-        else:
-            k = np.array([-0.5, 0.5], dtype=np.float32)
 
         resp = convolve(target.astype(np.float32), k, mode='reflect')
         cbi_list.append(float(np.std(resp) / ref_std))
