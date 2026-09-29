@@ -458,6 +458,11 @@ def main():
              "(std(GMS) = GMSD metric) and (b) encouraging GMS values toward 1.0 "
              "everywhere (perfect gradient match). Directly optimises the GMSD "
              "evaluation metric. 0.0=disabled (default). Try 5.0-20.0.")
+    parser.add_argument(
+        "--checkerboard-weight", "--cbi-weight", dest="checkerboard_weight", type=float, default=0.0,
+        help="Weight for differentiable 3D/2D alternating parity checkerboard loss (CBI). "
+             "Directly penalises Nyquist-frequency (+1, -1) transposed-convolution ringing "
+             "artifacts during training. 0.0=disabled (default). Try 1.0-5.0.")
     args = parser.parse_args()
     
     try:
@@ -982,6 +987,7 @@ def main():
     l1_weight_var = keras.Variable(0.0, dtype="float32")
     edge_weight_var = keras.Variable(args.edge_weight, dtype="float32")  # gradient-magnitude edge loss
     gms_weight_var = keras.Variable(args.gms_weight, dtype="float32")    # differentiable GMSD loss
+    cbi_weight_var = keras.Variable(args.checkerboard_weight, dtype="float32")  # differentiable checkerboard loss
     
     wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv")
     wts_loaded = False
@@ -1204,15 +1210,37 @@ def main():
             gms_map = (2.0 * m_t * m_p + gms_c) / (ops.square(m_t) + ops.square(m_p) + gms_c)
             gms_mean = ops.mean(gms_map, keepdims=True)
             gms_term = ops.mean(ops.square(gms_map - gms_mean)) + ops.mean(ops.square(1.0 - gms_map))
+        # Differentiable Alternating Parity Filter (Checkerboard Penalty)
+        # K[i, j, k] = (-1)^(i+j+k) / 8
+        # Penalises the Nyquist (+1, -1) deconvolution ringing artifact directly during backprop
+        if float(ops.convert_to_numpy(cbi_weight_var)) > 1e-8:
+            if dim == 2:
+                c00 = y_pred[:, :-1, :-1, :]
+                c10 = y_pred[:, 1:,  :-1, :]
+                c01 = y_pred[:, :-1, 1:,  :]
+                c11 = y_pred[:, 1:,  1:,  :]
+                cbi_block = (c00 - c10 - c01 + c11) / 4.0
+            else:
+                c000 = y_pred[:, :-1, :-1, :-1, :]
+                c100 = y_pred[:, 1:,  :-1, :-1, :]
+                c010 = y_pred[:, :-1, 1:,  :-1, :]
+                c110 = y_pred[:, 1:,  1:,  :-1, :]
+                c001 = y_pred[:, :-1, :-1, 1:,  :]
+                c101 = y_pred[:, 1:,  :-1, 1:,  :]
+                c011 = y_pred[:, :-1, 1:,  1:,  :]
+                c111 = y_pred[:, 1:,  1:,  1:,  :]
+                cbi_block = (c000 - c100 - c010 + c110 - c001 + c101 + c011 - c111) / 8.0
+            cbi_term = ops.mean(ops.abs(cbi_block), axis=list(range(1, len(y_pred.shape))))
         else:
-            gms_term = ops.zeros_like(l1_term)
+            cbi_term = ops.zeros_like(l1_term)
 
         return (l2_term * msq_weight_var + 
                 l1_term * l1_weight_var + 
                 feat_term * feat_weight_var + 
                 tv_term * tv_weight_var +
                 edge_term * edge_weight_var +
-                gms_term * gms_weight_var)
+                gms_term * gms_weight_var +
+                cbi_term * cbi_weight_var)
 
 
     def check_stage_convergence(history_deque, stage_name, patience):
@@ -1331,7 +1359,31 @@ def main():
             gms_raw = 0.0
         w_gms = gms_raw * gms_weight_val
 
-        total_calculated = w_l2 + w_l1 + w_feat + w_tv + w_edge + w_gms
+        # CBI (Checkerboard) loss raw calculation
+        cbi_weight_val = float(ops.convert_to_numpy(cbi_weight_var))
+        if cbi_weight_val > 1e-8:
+            if dim == 2:
+                _c00 = y_pred_batch[:, :-1, :-1, :]
+                _c10 = y_pred_batch[:, 1:,  :-1, :]
+                _c01 = y_pred_batch[:, :-1, 1:,  :]
+                _c11 = y_pred_batch[:, 1:,  1:,  :]
+                _cbi_block = (_c00 - _c10 - _c01 + _c11) / 4.0
+            else:
+                _c000 = y_pred_batch[:, :-1, :-1, :-1, :]
+                _c100 = y_pred_batch[:, 1:,  :-1, :-1, :]
+                _c010 = y_pred_batch[:, :-1, 1:,  :-1, :]
+                _c110 = y_pred_batch[:, 1:,  1:,  :-1, :]
+                _c001 = y_pred_batch[:, :-1, :-1, 1:,  :]
+                _c101 = y_pred_batch[:, 1:,  :-1, 1:,  :]
+                _c011 = y_pred_batch[:, :-1, 1:,  1:,  :]
+                _c111 = y_pred_batch[:, 1:,  1:,  1:,  :]
+                _cbi_block = (_c000 - _c100 - _c010 + _c110 - _c001 + _c101 + _c011 - _c111) / 8.0
+            cbi_raw = float(ops.mean(ops.abs(_cbi_block)))
+        else:
+            cbi_raw = 0.0
+        w_cbi = cbi_raw * cbi_weight_val
+
+        total_calculated = w_l2 + w_l1 + w_feat + w_tv + w_edge + w_gms + w_cbi
         # Avoid division by zero
         denom = total_calculated if total_calculated > 1e-8 else 1.0
 
@@ -1341,11 +1393,12 @@ def main():
         pct_tv = w_tv / denom * 100
         pct_edge = w_edge / denom * 100
         pct_gms = w_gms / denom * 100
+        pct_cbi = w_cbi / denom * 100
 
         print(f"{stage_name} Iter {iteration:03d}/{max_iter} - Loss: {loss:.6f}")
-        print(f"  [Loss Components] Raw: L2={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}, GMS={gms_raw:.6f}, Edge={edge_val:.6f}")
-        print(f"  [Loss Contributions] MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%), GMS={w_gms:.4f} ({pct_gms:.1f}%), Edge={w_edge:.4f} ({pct_edge:.1f}%)")
-        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, GMS={gms_weight_val:.4f}, Edge={args.edge_weight:.4f}")
+        print(f"  [Loss Components] Raw: L2={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}, GMS={gms_raw:.6f}, CBI={cbi_raw:.6f}, Edge={edge_val:.6f}")
+        print(f"  [Loss Contributions] MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%), GMS={w_gms:.4f} ({pct_gms:.1f}%), CBI={w_cbi:.4f} ({pct_cbi:.1f}%), Edge={w_edge:.4f} ({pct_edge:.1f}%)")
+        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, GMS={gms_weight_val:.4f}, CBI={cbi_weight_val:.4f}, Edge={args.edge_weight:.4f}")
         
         # Log to CSV
         csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")

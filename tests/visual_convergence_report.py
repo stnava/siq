@@ -421,6 +421,7 @@ class VisualConvergenceReporter:
         val_gmsd = float(compute_gmsd(self.gt_np, sr_np))
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
+        val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np))
         
         is_new_best = val_psnr > self.best_psnr
         if is_new_best:
@@ -488,6 +489,7 @@ class VisualConvergenceReporter:
                 "val_psnr": float(val_psnr),
                 "val_ssim": float(val_ssim),
                 "val_gmsd": float(val_gmsd),
+                "val_cbi": float(val_cbi),
                 "val_hfen": float(val_hfen),
             }
         }
@@ -560,6 +562,7 @@ class VisualConvergenceReporter:
             "val_psnr": val_psnr,
             "val_ssim": val_ssim,
             "val_gmsd": val_gmsd,
+            "val_cbi": val_cbi,
             "val_hfen": val_hfen,
             "val_corr": val_corr,
             "is_best": 1 if is_new_best else 0,
@@ -580,7 +583,7 @@ class VisualConvergenceReporter:
         psnr_delta = val_psnr - self.bilinear_metrics.get("psnr", 27.10)
         sign = "+" if psnr_delta >= 0 else ""
         print(f"\n[Convergence Checkpoint] Iter {iteration:04d} ({stage_name}) - Loss: {train_loss:.6f}")
-        print(f"  --> PSNR: {val_psnr:.2f} dB ({sign}{psnr_delta:.2f} dB vs Bilinear) | SSIM: {val_ssim:.4f} | HFEN: {val_hfen:.4f} | Corr: {val_corr:.4f}")
+        print(f"  --> PSNR: {val_psnr:.2f} dB ({sign}{psnr_delta:.2f} dB vs Bilinear) | SSIM: {val_ssim:.4f} | GMSD: {val_gmsd:.4f} | CBI: {val_cbi:.4f} | HFEN: {val_hfen:.4f} | Corr: {val_corr:.4f}")
         if is_new_best:
             print(f"  ★ NEW PEAK VALIDATION PSNR! ({val_psnr:.2f} dB) -> Saved best model checkpoints")
         print(f"  --> Convergence report refreshed: {self.html_path} (eval took {elapsed_eval:.2f}s)\n")

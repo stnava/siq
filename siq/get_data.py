@@ -97,6 +97,64 @@ def compute_hfen(y_true, y_pred, sigma=1.5):
             hfen_list.append(0.0)
     return float(np.mean(hfen_list))
 
+
+def compute_checkerboard_index(y, y_true=None):
+    """
+    Computes the Checkerboard Index (CBI) using an alternating parity matched filter.
+
+    In 2D: Alternating 2x2 kernel K[i, j] = (-1)^(i+j) / 4.
+    In 3D: Alternating 2x2x2 kernel K[i, j, k] = (-1)^(i+j+k) / 8.
+
+    Parameters
+    ----------
+    y : np.ndarray or ANTsImage
+        Super-resolved image/volume to evaluate.
+    y_true : np.ndarray or ANTsImage, optional
+        Ground truth reference. If provided, measures the residual checkerboard
+        error: std((y - y_true) * K) / std(y_true). If None, measures no-reference
+        high-frequency checkerboard energy: std(y * K) / std(y).
+
+    Returns
+    -------
+    float
+        Checkerboard Index (lower is better, 0 is no checkerboard pattern).
+    """
+    from scipy.ndimage import convolve
+    if hasattr(y, 'numpy'):
+        y = y.numpy()
+    if y_true is not None and hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+
+    y_channels, spatial_dim = _extract_spatial_and_channels(y)
+    if y_true is not None:
+        y_true_channels, _ = _extract_spatial_and_channels(y_true)
+    else:
+        y_true_channels = [None] * len(y_channels)
+
+    cbi_list = []
+    for yc, ytc in zip(y_channels, y_true_channels):
+        target = (yc - ytc) if ytc is not None else yc
+        ref = ytc if ytc is not None else yc
+        ref_std = float(np.std(ref)) + 1e-8
+
+        if spatial_dim == 2:
+            k = np.array([[1.0, -1.0], [-1.0, 1.0]], dtype=np.float32) / 4.0
+        elif spatial_dim == 3:
+            k = np.zeros((2, 2, 2), dtype=np.float32)
+            for i in range(2):
+                for j in range(2):
+                    for m in range(2):
+                        k[i, j, m] = (-1.0) ** (i + j + m)
+            k /= 8.0
+        else:
+            k = np.array([-0.5, 0.5], dtype=np.float32)
+
+        resp = convolve(target.astype(np.float32), k, mode='reflect')
+        cbi_list.append(float(np.std(resp) / ref_std))
+
+    return float(np.mean(cbi_list))
+
+
 def dbpn(input_image_size,
                                                  number_of_outputs=1,
                                                  number_of_base_filters=64,
@@ -2215,6 +2273,8 @@ def default_siq_config(model=None):  # pragma: no cover
             "patch_overlap": 16,
             "output_clip": [0.0, 1.0],
             "antspynet_wrapper": False,
+            "anti_checkerboard": True,
+            "anti_checkerboard_sigma": 0.45,
         },
     }
     if model is not None:
@@ -3260,7 +3320,9 @@ def inference( # pragma: no cover
     patch_size=(64, 64, 64),
     patch_overlap=16,
     batch_size=1,
-    verbose=False):
+    verbose=False,
+    anti_checkerboard=True,
+    anti_checkerboard_sigma=0.45):
 
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
@@ -3275,6 +3337,18 @@ def inference( # pragma: no cover
 
     mdl : keras.Model
         Trained super-resolution model, typically from ANTsPyNet.
+
+    config : dict, optional
+        Provenance config dictionary loaded via ``siq.load_siq_model()``.
+        Contains normalization parameters, patch sizes, and inference flags.
+
+    anti_checkerboard : bool, optional
+        If True (default), applies a subtle sub-voxel notch filter to attenuate
+        Nyquist-frequency transposed-convolution checkerboard artifacts while
+        preserving anatomical structures. Default is True.
+
+    anti_checkerboard_sigma : float, optional
+        Standard deviation in voxels for the anti-checkerboard filter. Default is 0.45.
 
     truncation : tuple or list of float, optional
         Percentile values (e.g., [0.01, 0.99]) for intensity truncation before model input.
@@ -3356,6 +3430,8 @@ def inference( # pragma: no cover
         _patch_overlap = patch_overlap
         _model_patch = list(mdl.input_shape[1:-1])
         _output_clip = True
+        _anti_cb = anti_checkerboard
+        _anti_cb_sigma = anti_checkerboard_sigma
     else:
         _norm = config.get('normalization', {})
         _trunc_q = _norm.get('truncate_quantiles', [0.001, 0.999])
@@ -3363,6 +3439,8 @@ def inference( # pragma: no cover
         _patch_overlap = _infer.get('patch_overlap', patch_overlap)
         _model_patch = config.get('input_patch_shape', list(mdl.input_shape[1:]))[:-1]  # drop channel
         _output_clip = True  # always clip to [0,1] with siq models
+        _anti_cb = _infer.get('anti_checkerboard', anti_checkerboard)
+        _anti_cb_sigma = _infer.get('anti_checkerboard_sigma', anti_checkerboard_sigma)
 
     def apply_intensity_match(sr_image, reference_image, order, verbose=False):
         if order is None:
@@ -3482,6 +3560,18 @@ def inference( # pragma: no cover
         ants.set_spacing(imgsr, new_spacing)
         ants.set_direction(imgsr, pimg_norm.direction)
         ants.set_origin(imgsr, pimg_norm.origin)
+
+    # ── Step 3: Anti-Checkerboard Sub-Voxel Notch Filter ────────────────────
+    if _anti_cb and _anti_cb_sigma > 0:
+        if verbose:
+            print(f"[siq] Applying anti-checkerboard sub-voxel notch filter (sigma={_anti_cb_sigma})")
+        from scipy.ndimage import gaussian_filter
+        imgsr_np = gaussian_filter(imgsr.numpy().astype(np.float32), sigma=_anti_cb_sigma)
+        if _output_clip:
+            imgsr_np = np.clip(imgsr_np, 0.0, 1.0)
+        imgsr_cleaned = ants.from_numpy(imgsr_np)
+        ants.copy_image_info(imgsr, imgsr_cleaned)
+        imgsr = imgsr_cleaned
 
     ref = ants.resample_image_to_target(pimg, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
