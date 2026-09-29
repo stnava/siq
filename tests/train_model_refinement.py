@@ -295,13 +295,14 @@ def get_smoothed_losses_and_weights(tracker, target_pcts, current_iteration, arg
     w_percep_tgt = (p_percep * target_total_loss) / smooth_percep
     w_tv_tgt = (p_tv * target_total_loss) / smooth_tv
     
-    # Introduce a linear fall-off of dynamic balancing over 3000 iterations to guarantee stationary convergence
-    decay_factor = max(0.0, 1.0 - current_iteration / 3000.0)
-    effective_step = (1.0 - beta_damp) * decay_factor
+    # Exponentially damped step toward LOWESS target (beta_damp controls inertia).
+    # No soft decay over iterations — the hard freeze in step_dynamic_balancer
+    # is the sole mechanism for locking weights at convergence.
+    effective_step = 1.0 - beta_damp
     
-    new_mae = (1.0 - effective_step) * current_weights['mae'] + effective_step * w_mae_tgt
+    new_mae   = (1.0 - effective_step) * current_weights['mae']   + effective_step * w_mae_tgt
     new_percep = (1.0 - effective_step) * current_weights['percep'] + effective_step * w_percep_tgt
-    new_tv = (1.0 - effective_step) * current_weights['tv'] + effective_step * w_tv_tgt
+    new_tv    = (1.0 - effective_step) * current_weights['tv']    + effective_step * w_tv_tgt
     
     return {'mae': new_mae, 'percep': new_percep, 'tv': new_tv}, smoothed
 
@@ -1370,6 +1371,9 @@ def main():
         ``--update-freq`` steps, using the last known raw component values.
         This amortises ~3.6 s of per-step overhead by a factor of N.
         """
+        # ── Short-circuit entirely once frozen — no wasted compute ─────────
+        if args.balancer_anneal_iters > 0 and iteration > args.balancer_anneal_iters:
+            return
         # ── Expensive diagnostic path (model + feature forward) ──────────
         if iteration % args.balancer_freq == 0:
             y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
