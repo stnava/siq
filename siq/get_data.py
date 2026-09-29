@@ -3483,7 +3483,7 @@ def inference( # pragma: no cover
         ants.set_direction(imgsr, pimg_norm.direction)
         ants.set_origin(imgsr, pimg_norm.origin)
 
-    ref = ants.resample_image_to_target(pimg_norm, imgsr)
+    ref = ants.resample_image_to_target(pimg, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
 
 
