@@ -379,9 +379,13 @@ def main():
     parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
     parser.add_argument(
         "--stage-patience", type=int, default=0,
-        help="Early-stopping patience per stage (Stages 1 & 2): number of checkpoint intervals "
-             "with <0.02 dB PSNR improvement before advancing to the next stage. "
-             "0 = disabled, run to max iters (default). Recommended: 3-5.")
+        help="Early convergence detection per stage (Stages 1 & 2). "
+             "Tracks a rolling window of the last N checkpoints across ALL metrics "
+             "(PSNR, SSIM, GMSD, HFEN, corr). Computes the linear slope of each metric "
+             "normalised by its window mean (unitless relative slope per checkpoint). "
+             "A stage is declared converged when ALL metric slopes are below a small "
+             "threshold (neither improving nor deteriorating). "
+             "0 = disabled (default). Recommended: 5.")
     # ---------------------------------------------------------------
     # Speed optimisation flags (see faster_training_plan.md)
     # ---------------------------------------------------------------
@@ -1201,6 +1205,47 @@ def main():
                 edge_term * edge_weight_var +
                 gms_term * gms_weight_var)
 
+
+    def check_stage_convergence(history_deque, stage_name, patience):
+        """
+        Multi-metric slope convergence check.
+
+        Fits a linear slope to the last `patience` checkpoint entries for each
+        of PSNR, SSIM, GMSD, HFEN, corr.  Each slope is normalised by the
+        window mean of that metric (unitless relative slope per checkpoint).
+
+        Convergence = ALL |normalised_slope| < 0.005  (0.5 % per checkpoint).
+        This is direction-agnostic: it fires when the model has genuinely
+        stabilised, even if PSNR is drifting slightly while GMSD improves.
+
+        Returns (converged: bool, slope_summary: str).
+        """
+        if len(history_deque) < patience:
+            return False, "insufficient history"
+        window = list(history_deque)[-patience:]
+        xs = np.arange(len(window), dtype=np.float32)
+        metrics = {
+            "PSNR":  [e.get("val_psnr",  0.0) for e in window],
+            "SSIM":  [e.get("val_ssim",  0.0) for e in window],
+            "GMSD":  [e.get("val_gmsd",  1.0) for e in window],
+            "HFEN":  [e.get("val_hfen",  1.0) for e in window],
+            "Corr":  [e.get("val_corr",  0.0) for e in window],
+        }
+        slopes = {}
+        for name, vals in metrics.items():
+            ys = np.array(vals, dtype=np.float32)
+            mean_y = np.mean(np.abs(ys))
+            if mean_y < 1e-6:
+                slopes[name] = 0.0
+                continue
+            # linear regression slope via least-squares
+            slope = float(np.polyfit(xs, ys, 1)[0])
+            slopes[name] = slope / mean_y   # normalised: change-per-ckpt / mean
+        summary = "  ".join(f"{k}:{v:+.4f}" for k, v in slopes.items())
+        threshold = 0.005   # 0.5% per checkpoint — all must be below this
+        converged = all(abs(v) < threshold for v in slopes.values())
+        return converged, summary
+
     def print_loss_components(stage_name, iteration, max_iter, x_batch, y_batch, loss):
         # Convert y_batch to a Keras tensor to prevent PyTorch/numpy subtraction errors
         y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
@@ -1536,23 +1581,19 @@ def main():
                     best_val_loss = loss
                     model.save(output_model_path)
                 
-                # Early convergence detection for Stage 1
+                # Early convergence detection for Stage 1 — multi-metric slope check
                 if args.stage_patience > 0 and is_ckpt and entry is not None:
-                    s1_psnr = entry.get("val_psnr", 0.0)
-                    if not hasattr(reporter, "_s1_best_psnr"):
-                        reporter._s1_best_psnr = s1_psnr
-                        reporter._s1_no_improve = 0
-                    elif s1_psnr > reporter._s1_best_psnr + 0.02:
-                        reporter._s1_best_psnr = s1_psnr
-                        reporter._s1_no_improve = 0
-                    else:
-                        reporter._s1_no_improve += 1
-                        if reporter._s1_no_improve >= args.stage_patience:
-                            print(f"\n[Stage 1 Early Stop] PSNR plateaued at {s1_psnr:.2f} dB "
-                                  f"(best: {reporter._s1_best_psnr:.2f} dB, "
-                                  f"no >{0.02:.2f} dB gain in {reporter._s1_no_improve} checkpoints). "
-                                  f"Advancing to Stage 2.")
-                            break
+                    if not hasattr(reporter, "_s1_ckpt_history"):
+                        reporter._s1_ckpt_history = []
+                    reporter._s1_ckpt_history.append(entry)
+                    converged, slope_summary = check_stage_convergence(
+                        reporter._s1_ckpt_history, "Stage 1", args.stage_patience)
+                    print(f"  [Stage 1 Convergence] slopes: {slope_summary}")
+                    if converged:
+                        print(f"\n[Stage 1 Early Stop] All metric slopes flat over "
+                              f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
+                              f"Advancing to Stage 2.")
+                        break
 
         # ==============================================================
         # Stage 2: Joint Fine-Tuning with Rician Noise (Iter 101-2000)
@@ -1634,23 +1675,19 @@ def main():
                     best_val_loss = loss
                     model.save(output_model_path)
                 
-                # Early convergence detection for Stage 2
+                # Early convergence detection for Stage 2 — multi-metric slope check
                 if args.stage_patience > 0 and is_ckpt and entry is not None:
-                    s2_psnr = entry.get("val_psnr", 0.0)
-                    if not hasattr(reporter, "_s2_best_psnr"):
-                        reporter._s2_best_psnr = s2_psnr
-                        reporter._s2_no_improve = 0
-                    elif s2_psnr > reporter._s2_best_psnr + 0.02:
-                        reporter._s2_best_psnr = s2_psnr
-                        reporter._s2_no_improve = 0
-                    else:
-                        reporter._s2_no_improve += 1
-                        if reporter._s2_no_improve >= args.stage_patience:
-                            print(f"\n[Stage 2 Early Stop] PSNR plateaued at {s2_psnr:.2f} dB "
-                                  f"(best: {reporter._s2_best_psnr:.2f} dB, "
-                                  f"no >{0.02:.2f} dB gain in {reporter._s2_no_improve} checkpoints). "
-                                  f"Advancing to Stage 3.")
-                            break
+                    if not hasattr(reporter, "_s2_ckpt_history"):
+                        reporter._s2_ckpt_history = []
+                    reporter._s2_ckpt_history.append(entry)
+                    converged, slope_summary = check_stage_convergence(
+                        reporter._s2_ckpt_history, "Stage 2", args.stage_patience)
+                    print(f"  [Stage 2 Convergence] slopes: {slope_summary}")
+                    if converged:
+                        print(f"\n[Stage 2 Early Stop] All metric slopes flat over "
+                              f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
+                              f"Advancing to Stage 3.")
+                        break
     else:
         print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
