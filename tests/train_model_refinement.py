@@ -472,6 +472,9 @@ def main():
     parser.add_argument(
         "--val-shift", nargs="+", type=int, default=None,
         help="Voxel shift from image center for validation crop (e.g. 40 0 40).")
+    parser.add_argument(
+        "--start-stage", type=int, choices=[1, 2, 3], default=None,
+        help="Explicitly begin training from the specified stage (e.g. 3 to skip Stage 1 & 2).")
     args = parser.parse_args()
     
     try:
@@ -614,7 +617,7 @@ def main():
     }
     
     # 4. Instantiate Model
-    skip_stages_1_2 = False
+    skip_stages_1_2 = True if (args.start_stage and args.start_stage >= 3) else False
     if model_type == "espcn":
         if dim == 2:
             output_model_path = os.path.join(workspace_dir, "espcn_2d_attention_refined.keras")
@@ -906,15 +909,20 @@ def main():
         ckpt_best_cqs = os.path.join(ckpt_dir, "asdbpn_3d_best_cqs.keras")
         ckpt_best_psnr = os.path.join(ckpt_dir, "asdbpn_3d_best_psnr.keras")
         ckpt_best_path = ckpt_best_cqs if os.path.exists(ckpt_best_cqs) else ckpt_best_psnr
-        if os.path.exists(output_model_path) and not args.reset_history:
+        if args.load_model and os.path.exists(args.load_model):
+            print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
+            model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
+            if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
+                skip_stages_1_2 = True
+        elif os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
-            if last_iteration >= stage2_max:
+            if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(ckpt_best_path) and not args.reset_history:
             print(f"Resuming training: loading best champion checkpoint from {ckpt_best_path}...")
             model = keras.models.load_model(ckpt_best_path, custom_objects=custom_objects, compile=False, safe_mode=False)
-            if last_iteration >= stage2_max:
+            if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif source_transfer_path and os.path.exists(source_transfer_path):
             print(f"[Transfer Learning] Initializing AS-DBPN {dim}D with factor={factor_tuple} (projection_kernel_size={proj_k})...")
@@ -939,9 +947,6 @@ def main():
             print(f"[Transfer Learning] Transferring compatible weights from: {source_transfer_path}...")
             src_m, _ = siq.load_siq_model(source_transfer_path)
             siq.transfer_siq_weights(src_m, model, verbose=True)
-        elif args.load_model and os.path.exists(args.load_model):
-            print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
-            model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
         elif os.path.exists(best_model_path):
             print(f"Starting fresh: loading baseline AS-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
@@ -1763,14 +1768,18 @@ def main():
         if not warmup_completed:
             print(f"\n[Warmup Gate] Finished max warmup iterations ({warmup_max_iter}) without reaching target PSNR. Proceeding to normal stages.")
             model.save(output_model_path)
-    elif args.skip_warmup and not any(r.get("iteration") == 0 for r in reporter.history):
-        try:
-            reporter.record_checkpoint(model, 0, "Initial (Warm-Started)", 0.01, is_convergence_step=True, loss_weights=get_current_loss_weights())
-            print("[Convergence Checkpoint] Recorded warm-started baseline at Step 0.")
-        except Exception as e:
-            print(f"[Warning] Failed to record warm-started baseline: {e}")
+    elif args.skip_warmup:
+        base_iter = stage2_max if (skip_stages_1_2 and stage2_max > 0) else 0
+        if not any(r.get("iteration") == base_iter for r in reporter.history):
+            try:
+                base_stage = "Stage 2 Completion" if (skip_stages_1_2 and stage2_max > 0) else "Initial (Warm-Started)"
+                reporter.record_checkpoint(model, base_iter, base_stage, 0.01, is_convergence_step=True, loss_weights=get_current_loss_weights())
+                print(f"[Convergence Checkpoint] Recorded warm-started baseline at Step {base_iter} ({base_stage}).")
+            except Exception as e:
+                print(f"[Warning] Failed to record warm-started baseline: {e}")
 
-    if not skip_stages_1_2:
+    skip_stage_1 = (args.start_stage and args.start_stage >= 2) or last_iteration >= stage1_max
+    if not skip_stages_1_2 and not skip_stage_1:
         # ==============================================================
         # Stage 1: Warmup & Adaptation on Clean Mixed Classes (Iter 1-100)
         print("\n=======================================================")
@@ -1975,7 +1984,8 @@ def main():
     print("=======================================================")
     
     if skip_stages_1_2:
-        model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
+        if model is None:
+            model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False)
         if model_type in ["espcn", "espcn-rc"]:
             set_core_trainable(model, trainable=True)
     else:
@@ -2030,7 +2040,10 @@ def main():
     best_val_loss = float("inf")
 
 
-    start_iter = max(stage2_max + 1, last_iteration + 1)
+    if skip_stages_1_2 and last_iteration < stage2_max:
+        start_iter = stage2_max + 1
+    else:
+        start_iter = max(stage2_max + 1, last_iteration + 1)
     for iteration in range(start_iter, stage3_max + 1):
         x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
