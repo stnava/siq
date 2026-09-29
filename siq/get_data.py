@@ -155,6 +155,50 @@ def compute_checkerboard_index(y, y_true=None):
     return float(np.mean(cbi_list))
 
 
+def estimate_anti_checkerboard_sigma(vol, max_sigma=0.60):
+    """
+    Empirically calculates the optimal sub-voxel smoothing sigma to attenuate
+    transposed-convolution checkerboard artifacts based on the measured Nyquist
+    frequency spectral excess.
+
+    Parameters
+    ----------
+    vol : np.ndarray or ANTsImage
+        Input image/volume.
+    max_sigma : float, optional
+        Maximum allowed smoothing sigma in voxels. Default is 0.60.
+
+    Returns
+    -------
+    float
+        Calculated sigma in voxels (0.0 if no artifact is detected).
+    """
+    if hasattr(vol, 'numpy'):
+        vol = vol.numpy()
+    vol = np.asarray(vol, dtype=np.float32)
+    sigmas = []
+    ndim = vol.ndim
+    for ax in range(ndim):
+        fft_1d = np.fft.rfft(vol, axis=ax)
+        axes_to_mean = tuple(i for i in range(ndim) if i != ax)
+        mean_power = np.mean(np.abs(fft_1d) ** 2, axis=axes_to_mean)
+        if len(mean_power) < 4:
+            continue
+        p_nyquist = mean_power[-1]
+        idx_start = max(1, int(len(mean_power) * 0.70))
+        idx_end = max(idx_start + 1, int(len(mean_power) * 0.95))
+        p_baseline = np.mean(mean_power[idx_start:idx_end]) + 1e-12
+        excess_ratio = p_nyquist / p_baseline
+        if excess_ratio > 1.2:
+            sigma_ax = np.sqrt(np.log(excess_ratio)) / np.pi
+            sigmas.append(float(sigma_ax))
+        else:
+            sigmas.append(0.0)
+
+    optimal_sigma = float(np.max(sigmas)) if sigmas else 0.0
+    return min(max_sigma, optimal_sigma)
+
+
 def dbpn(input_image_size,
                                                  number_of_outputs=1,
                                                  number_of_base_filters=64,
@@ -2273,8 +2317,8 @@ def default_siq_config(model=None):  # pragma: no cover
             "patch_overlap": 16,
             "output_clip": [0.0, 1.0],
             "antspynet_wrapper": False,
-            "anti_checkerboard": True,
-            "anti_checkerboard_sigma": 0.45,
+            "anti_checkerboard": "auto",
+            "anti_checkerboard_sigma": "auto",
         },
     }
     if model is not None:
@@ -3321,8 +3365,8 @@ def inference( # pragma: no cover
     patch_overlap=16,
     batch_size=1,
     verbose=False,
-    anti_checkerboard=True,
-    anti_checkerboard_sigma=0.45):
+    anti_checkerboard='auto',
+    anti_checkerboard_sigma=None):
 
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
@@ -3342,13 +3386,17 @@ def inference( # pragma: no cover
         Provenance config dictionary loaded via ``siq.load_siq_model()``.
         Contains normalization parameters, patch sizes, and inference flags.
 
-    anti_checkerboard : bool, optional
-        If True (default), applies a subtle sub-voxel notch filter to attenuate
-        Nyquist-frequency transposed-convolution checkerboard artifacts while
-        preserving anatomical structures. Default is True.
+    anti_checkerboard : bool or str, optional
+        If True or 'auto' (default), automatically measures the volume's high-frequency
+        Nyquist spectral excess and applies the data-driven empirical smoothing sigma
+        needed to eliminate the transposed-convolution checkerboard artifact.
+        If False, no anti-checkerboard filtering is performed. Default is 'auto'.
 
-    anti_checkerboard_sigma : float, optional
-        Standard deviation in voxels for the anti-checkerboard filter. Default is 0.45.
+    anti_checkerboard_sigma : float or str, optional
+        Explicit standard deviation in voxels for the anti-checkerboard filter.
+        If None or 'auto' (default), automatically calculated from the volume's
+        empirical Nyquist spectral power via :func:`estimate_anti_checkerboard_sigma`.
+
 
     truncation : tuple or list of float, optional
         Percentile values (e.g., [0.01, 0.99]) for intensity truncation before model input.
@@ -3562,16 +3610,27 @@ def inference( # pragma: no cover
         ants.set_origin(imgsr, pimg_norm.origin)
 
     # ── Step 3: Anti-Checkerboard Sub-Voxel Notch Filter ────────────────────
-    if _anti_cb and _anti_cb_sigma > 0:
-        if verbose:
-            print(f"[siq] Applying anti-checkerboard sub-voxel notch filter (sigma={_anti_cb_sigma})")
-        from scipy.ndimage import gaussian_filter
-        imgsr_np = gaussian_filter(imgsr.numpy().astype(np.float32), sigma=_anti_cb_sigma)
-        if _output_clip:
-            imgsr_np = np.clip(imgsr_np, 0.0, 1.0)
-        imgsr_cleaned = ants.from_numpy(imgsr_np)
-        ants.copy_image_info(imgsr, imgsr_cleaned)
-        imgsr = imgsr_cleaned
+    if _anti_cb and _anti_cb not in [False, 0, 'none', 'false', 'False']:
+        if _anti_cb_sigma is None or _anti_cb_sigma in ['auto', 'Auto']:
+            # Empirically determine optimal sigma from the volume's Nyquist spectral excess
+            effective_sigma = estimate_anti_checkerboard_sigma(imgsr.numpy())
+            if verbose:
+                print(f"[siq] Empirically calculated anti-checkerboard sigma={effective_sigma:.3f} (data-driven Nyquist attenuation)")
+        else:
+            effective_sigma = float(_anti_cb_sigma)
+
+        if effective_sigma > 0.05:
+            if verbose and (_anti_cb_sigma is not None and _anti_cb_sigma not in ['auto', 'Auto']):
+                print(f"[siq] Applying anti-checkerboard sub-voxel notch filter (sigma={effective_sigma:.3f})")
+            from scipy.ndimage import gaussian_filter
+            imgsr_np = gaussian_filter(imgsr.numpy().astype(np.float32), sigma=effective_sigma)
+            if _output_clip:
+                imgsr_np = np.clip(imgsr_np, 0.0, 1.0)
+            imgsr_cleaned = ants.from_numpy(imgsr_np)
+            ants.copy_image_info(imgsr, imgsr_cleaned)
+            imgsr = imgsr_cleaned
+        elif verbose:
+            print("[siq] No checkerboard artifact detected (excess <= 1.2x); zero anti-checkerboard filtering applied.")
 
     ref = ants.resample_image_to_target(pimg, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)

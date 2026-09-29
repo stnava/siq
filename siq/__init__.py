@@ -29,6 +29,7 @@ from .get_data import save_siq_model
 from .get_data import default_siq_config
 from .get_data import overlapping_patch_inference
 from .get_data import compute_checkerboard_index
+from .get_data import estimate_anti_checkerboard_sigma
 from .get_data import compute_gmsd
 from .get_data import compute_hfen
 from .get_data import (simulate_image, simulate_image_multi_scale, 
