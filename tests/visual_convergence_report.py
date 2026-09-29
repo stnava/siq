@@ -429,19 +429,79 @@ class VisualConvergenceReporter:
         # 2. Checkpoint filenames
         ckpt_filename = f"asdbpn_3d_step_{iteration:04d}.keras"
         ckpt_path = os.path.join(self.checkpoint_dir, ckpt_filename)
-        
+
+        # Build provenance config — saved alongside every .keras file so
+        # any reader knows exactly how to run inference correctly.
+        import json, datetime
+        try:
+            import siq as _siq
+            _siq_ver = getattr(_siq, '__version__', 'unknown')
+        except Exception:
+            _siq_ver = 'unknown'
+        _input_patch  = list(model.input_shape[1:])   # e.g. [64,64,64,1]
+        _output_patch = list(model.output_shape[1:])  # e.g. [128,128,128,1]
+        _upfactor = int(round(_output_patch[0] / _input_patch[0]))
+        provenance_config = {
+            "model_type": "asdbpn_3d",
+            "siq_version": _siq_ver,
+            "saved_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "stage": stage_name,
+            "iteration": iteration,
+            "input_patch_shape": _input_patch,
+            "output_patch_shape": _output_patch,
+            "upsample_factor": _upfactor,
+            "normalization": {
+                "method": "volume",
+                "truncate_quantiles": [0.001, 0.999],
+                "output_range": [0.0, 1.0],
+                "note": (
+                    "Apply ants.iMath(vol,'TruncateIntensity',0.001,0.999) then "
+                    "ants.iMath(vol,'Normalize') to the WHOLE volume before any patching. "
+                    "Do NOT normalize per-patch — that is inconsistent with training."
+                )
+            },
+            "inference": {
+                "preferred_method": "direct_single_patch_if_fits",
+                "patch_overlap": 16,
+                "output_clip": [0.0, 1.0],
+                "antspynet_wrapper": False,
+                "note": (
+                    "Use siq.inference(img, model) which dispatches: "
+                    "single model.predict() if input==patch_size, else "
+                    "Gaussian-blended overlapping patches with volume_normalized=True. "
+                    "Never use antspynet.apply_super_resolution_model_to_image() — "
+                    "it applies per-patch min-max renormalization incompatible with siq training."
+                )
+            },
+            "val_metrics": {
+                "val_psnr": float(val_psnr),
+                "val_ssim": float(val_ssim),
+                "val_gmsd": float(val_gmsd),
+                "val_hfen": float(val_hfen),
+            }
+        }
+
+        def _save_config(keras_path, cfg):
+            cfg_path = keras_path.replace('.keras', '_config.json')
+            with open(cfg_path, 'w') as _f:
+                json.dump(cfg, _f, indent=2)
+
         if is_convergence_step:
             model.save(ckpt_path)
+            _save_config(ckpt_path, provenance_config)
             
         # Always maintain latest refined model at repo root for generate_summary_images.py
         refined_root_path = os.path.join(self.workspace_dir, "asdbpn_3d_refined.keras")
         model.save(refined_root_path)
+        _save_config(refined_root_path, provenance_config)
         
         if is_new_best:
             best_psnr_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_psnr.keras")
             model.save(best_psnr_ckpt)
+            _save_config(best_psnr_ckpt, provenance_config)
             best_root_path = os.path.join(self.workspace_dir, "asdbpn_3d_best_mdl.keras")
             model.save(best_root_path)
+            _save_config(best_root_path, provenance_config)
             
         # 3. Render Visual Images
         step_img_name = f"step_{iteration:04d}_ortho.png"

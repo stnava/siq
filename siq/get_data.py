@@ -2885,7 +2885,19 @@ def overlapping_patch_inference(
     overlap=16,
     batch_size=1,
     verbose=False,
+    volume_normalized=False,
 ):
+    """Overlapping patch inference with Gaussian-weighted blending.
+
+    Parameters
+    ----------
+    volume_normalized : bool
+        If True, the image is already in [0,1] from volume-level normalization
+        (siq standard: TruncateIntensity + Normalize on the whole volume).
+        Per-patch/per-batch renormalization is skipped; output is clipped [0,1].
+        If False (legacy), the volume is rescaled to target_range before
+        patching and rescaled back to input intensity range afterward.
+    """
     import ants
     import numpy as np
     import time
@@ -2953,12 +2965,19 @@ def overlapping_patch_inference(
     padded_shape = padded.shape
 
     # Scale intensities
-    img_min = image_patches.min()
-    img_max = image_patches.max()
-    if img_max > img_min:
-        image_patches = (image_patches - img_min) / (img_max - img_min) * (target_range[1] - target_range[0]) + target_range[0]
+    if volume_normalized:
+        # Image was already normalized to [0,1] at volume level before calling
+        # this function — consistent with siq training normalization.
+        # Do NOT renormalize per-patch or per-batch; pass through as-is.
+        pass
     else:
-        image_patches = image_patches - img_min + target_range[0]
+        # Legacy path: linearly rescale volume to target_range before inference.
+        img_min = image_patches.min()
+        img_max = image_patches.max()
+        if img_max > img_min:
+            image_patches = (image_patches - img_min) / (img_max - img_min) * (target_range[1] - target_range[0]) + target_range[0]
+        else:
+            image_patches = image_patches - img_min + target_range[0]
 
     # 2. Batch Inference
     if verbose:
@@ -2993,13 +3012,20 @@ def overlapping_patch_inference(
         print("Reconstruct intensities and blend")
 
     # Reconstruct intensities
-    intensity_range = image.range()
-    pred_min = prediction.min()
-    pred_max = prediction.max()
-    if pred_max > pred_min:
-        prediction = (prediction - pred_min) / (pred_max - pred_min) * (intensity_range[1] - intensity_range[0]) + intensity_range[0]
+    if volume_normalized:
+        # Clip output to [0,1] — same range as normalized input.
+        # Do NOT rescale back to original intensity; model output is calibrated
+        # to [0,1] since that is what it was trained to produce.
+        prediction = prediction.clip(0.0, 1.0)
     else:
-        prediction = prediction - pred_min + intensity_range[0]
+        # Legacy path: rescale output back to original intensity range.
+        intensity_range = image.range()
+        pred_min = prediction.min()
+        pred_max = prediction.max()
+        if pred_max > pred_min:
+            prediction = (prediction - pred_min) / (pred_max - pred_min) * (intensity_range[1] - intensity_range[0]) + intensity_range[0]
+        else:
+            prediction = prediction - pred_min + intensity_range[0]
 
     # Calculate expansion factor
     expansion_factor = np.asarray(prediction.shape[1:-1]) / np.asarray(image_patches.shape[1:-1])
@@ -3215,16 +3241,47 @@ def inference( # pragma: no cover
             return temp
 
     # Default path: no segmentation
-    if method == 'patchwise':
+    # ── Step 1: Volume-level normalization (matches siq training pipeline) ──
+    # Always normalize the whole volume to [0,1] BEFORE any patching.
+    # This is consistent with training (TruncateIntensity + Normalize).
+    # antspynet.apply_super_resolution_model_to_image() does per-patch
+    # min-max renormalization which is INCOMPATIBLE with siq-trained models
+    # and must NOT be used here.
+    pimg_norm = ants.iMath(pimg, 'Normalize')   # → [0,1] volume-level
+
+    # ── Step 2: Dispatch based on input size vs model patch size ────────────
+    model_patch = list(mdl.input_shape[1:-1])   # e.g. [64, 64, 64]
+    input_shape = list(pimg_norm.shape)
+
+    if method == 'patchwise' or input_shape != model_patch:
+        # Whole-brain / oversized input: Gaussian-blended overlapping patches.
+        # volume_normalized=True tells the function NOT to re-normalize patches.
+        if verbose:
+            print(f"overlapping_patch_inference: input {input_shape} != patch {model_patch}; "
+                  f"using Gaussian-blended patches (overlap={patch_overlap})")
         imgsr = overlapping_patch_inference(
-            pimg, mdl, target_range=target_range, patch_size=patch_size, 
-            overlap=patch_overlap, batch_size=batch_size, verbose=verbose
+            pimg_norm, mdl,
+            patch_size=tuple(model_patch),
+            overlap=patch_overlap,
+            batch_size=batch_size,
+            verbose=verbose,
+            volume_normalized=True,   # skip per-patch renorm
         )
     else:
-        imgsr = antspynet.apply_super_resolution_model_to_image(
-            pimg, mdl, target_range=target_range, regression_order=None, verbose=verbose
-        )
-    ref = ants.resample_image_to_target(pimg, imgsr)
+        # Input exactly matches model patch size: single forward pass, no stitching.
+        if verbose:
+            print(f"direct single-patch inference: input {input_shape} == model patch {model_patch}")
+        import numpy as np
+        arr = pimg_norm.numpy()[np.newaxis, ..., np.newaxis].astype('float32')
+        out = mdl.predict(arr, verbose=0)[0, ..., 0]
+        out = np.clip(out, 0.0, 1.0)
+        new_spacing = tuple(float(s) / 2.0 for s in pimg_norm.spacing)
+        imgsr = ants.from_numpy(out)
+        ants.set_spacing(imgsr, new_spacing)
+        ants.set_direction(imgsr, pimg_norm.direction)
+        ants.set_origin(imgsr, pimg_norm.origin)
+
+    ref = ants.resample_image_to_target(pimg_norm, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
 
 
