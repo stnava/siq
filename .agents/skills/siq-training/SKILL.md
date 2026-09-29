@@ -178,7 +178,14 @@ For legacy checkpoints or unregularized models, `siq.inference()` applies an ana
 ```python
 sigma = siq.estimate_anti_checkerboard_sigma(vol)  # sigma = sqrt(ln(excess)) / pi
 ```
-If Nyquist spectral excess $\le 1.2\times$, $\sigma = 0.0$ (no blur applied to clean inputs).
+- **Amplitude Spectrum Calibration**: Always compute `excess` on the 1D **amplitude spectrum** ($|F|$), never power ($|F|^2$). Power ratio squares the excess, inflating $\sigma$ by $\sqrt{2}\approx 1.41\times$ and causing over-blurring. Amplitude spectrum calibration reliably yields $\sigma \approx 0.25 - 0.35$.
+- If Nyquist spectral excess $\le 1.2\times$, $\sigma = 0.0$ (no blur applied to clean inputs). Capped at $\sigma \le 0.40$ to preserve $>96\%$ anatomical edge gradient magnitude.
+
+### 3. Visual Display Normalization (Histogram Equalization vs. Rank Normalization)
+When rendering comparative visual reports, montages, or slice plots:
+- Use `ants.histogram_equalize_image(img, number_of_histogram_bins=256)` for display contrast.
+- **Never use `ants.rank_intensity` for full-brain visual displays**: Background and CSF voxels skew the rank distribution, blowing out the gray/white matter parenchyma into saturated white.
+- **Invariant**: Contrast enhancement is strictly for visual display buffers. Never modify tensors used for quantitative metric evaluation (PSNR, SSIM, GMSD, CBI).
 
 ## Model I/O & Provenance Standards
 

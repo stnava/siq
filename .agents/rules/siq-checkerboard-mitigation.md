@@ -23,3 +23,14 @@ where `excess` is the measured 1D Nyquist spectral energy ratio relative to low 
 ## Provenance I/O Invariant
 
 Always use `siq.load_siq_model(path)` (returning `model, config`) and `siq.save_siq_model(path, model, config)`. Companion `_config.json` files must always travel with `.keras` files so inference callers never guess normalization quantile bounds or patching schemes.
+
+## Visual Display Normalization (Histogram Equalization vs. Rank Normalization)
+
+When generating visual reports, montages, or diagnostic slice plots:
+- Use `ants.histogram_equalize_image(img, number_of_histogram_bins=256)` for display contrast.
+- Never use `ants.rank_intensity` for full-brain visual displays; it skews midtones across background/CSF voxels and blows out gray/white matter parenchyma.
+- Display contrast normalization must strictly be applied to the display arrays only — never alter the underlying tensors used for loss calculation or quantitative metrics (PSNR, SSIM, GMSD, CBI).
+
+## Amplitude-Based Sub-Voxel Notch Calibration
+
+`siq.estimate_anti_checkerboard_sigma(vol)` must solve for $\sigma$ using the 1D **amplitude spectrum** ($|F|$), never power ($|F|^2$). Power ratio squares the excess, artificially inflating $\sigma$ by $\sqrt{2}\times$ and causing over-blurring. Cap maximum bandwidth at $\sigma \le 0.40$ to guarantee $>96\%$ anatomical edge gradient preservation.
