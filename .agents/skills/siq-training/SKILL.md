@@ -169,3 +169,32 @@ In Run F, this configuration ran through all 3,000 steps with **zero collapse**,
 | `asdbpn_3d_report.html` | Convergence dashboard |
 | `tests/watch_report.py` | Live dashboard watcher |
 | `~/.antspyt1w/resnet_grader.h5` | ResNet grader weights |
+
+## Release Workflow: Bump Version → Tag → Commit → Push
+
+### Step 1 — Decide the bump level
+| Change type | Bump |
+|-------------|------|
+| Training script improvements, loss terms, diagnostics | **patch** (0.10.6 → 0.10.7) |
+| New public siq API function or changed function signature | **minor** (0.10.x → 0.11.0) |
+| Breaking change to siq API | **major** (0.x.y → 1.0.0) |
+
+### Step 2 — Confirm current state
+```bash
+grep "^version" pyproject.toml          # current version
+git tag --sort=-creatordate | head -3   # latest tag
+git log --oneline <last-tag>..HEAD      # commits since tag
+```
+
+### Step 3 — One-liner bump, tag, and push (replace OLD and NEW)
+```bash
+OLD=0.10.6; NEW=0.10.7
+sed -i '' "s/version = \"$OLD\"/version = \"$NEW\"/" pyproject.toml
+git add pyproject.toml && git commit -m "chore: bump version to $NEW"
+git tag v$NEW && git push origin main && git push origin v$NEW
+```
+
+> [!NOTE]
+> Version string lives in `pyproject.toml` under `[project]`.
+> Always push both the branch (`main`) and the tag separately.
+> Patch bumps cover training script changes; minor bumps for new public API.
