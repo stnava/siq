@@ -177,8 +177,30 @@
                     <td>-</td>
                 </tr>
                 <tr>
-                    <td>Bilinear Interpolation</td>
+                    <td>AS-DBPN</td>
                     <td><strong>1.00</strong></td>
+                    <td>22.71 dB</td>
+                    <td>0.9499</td>
+                    <td>0.1950</td>
+                    <td>0.4767</td>
+                    <td>0.9499</td>
+                    <td>1,836,706</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>LDBPN</td>
+                    <td><strong>2.40</strong></td>
+                    <td>18.13 dB</td>
+                    <td>0.8480</td>
+                    <td>0.2730</td>
+                    <td>0.8152</td>
+                    <td>0.8470</td>
+                    <td>8,220,801</td>
+                    <td>TBD</td>
+                </tr>
+                <tr>
+                    <td>Bilinear Interpolation</td>
+                    <td><strong>2.80</strong></td>
                     <td>16.55 dB</td>
                     <td>0.8006</td>
                     <td>0.2234</td>
@@ -189,7 +211,7 @@
                 </tr>
                 <tr>
                     <td>Nearest Neighbor</td>
-                    <td><strong>2.00</strong></td>
+                    <td><strong>3.80</strong></td>
                     <td>15.87 dB</td>
                     <td>0.7720</td>
                     <td>0.2418</td>
@@ -197,17 +219,6 @@
                     <td>0.7769</td>
                     <td>-</td>
                     <td>-</td>
-                </tr>
-                <tr>
-                    <td>LDBPN</td>
-                    <td><strong>3.00</strong></td>
-                    <td>15.18 dB</td>
-                    <td>0.7455</td>
-                    <td>0.3010</td>
-                    <td>1.1223</td>
-                    <td>0.7529</td>
-                    <td>8,220,801</td>
-                    <td>TBD</td>
                 </tr>
                 <tr>
                     <td>ESPCN <span class="badge">Best Lightweight</span></td>
@@ -277,17 +288,6 @@
                 </tr>
                 <tr>
                     <td>SAN <span class="badge" style="background: linear-gradient(135deg, #10b981, #047857);">New</span></td>
-                    <td><strong>TBD</strong></td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                    <td>TBD</td>
-                </tr>
-                <tr>
-                    <td>AS-DBPN</td>
                     <td><strong>TBD</strong></td>
                     <td>TBD</td>
                     <td>TBD</td>
@@ -545,15 +545,15 @@
                     </tr>
                     <tr>
                         <td style='font-weight: bold; color: #3b82f6;'>AS-DBPN</td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
-                        <td><div class='grid-tbd-cell'>TBD</div></td>
+                        <td><img src='class_grid_3d/class_brain_procedural_as-dbpn.png' alt='AS-DBPN brain_procedural'></td>
+                        <td><img src='class_grid_3d/class_layered_as-dbpn.png' alt='AS-DBPN layered'></td>
+                        <td><img src='class_grid_3d/class_sinewave_as-dbpn.png' alt='AS-DBPN sinewave'></td>
+                        <td><img src='class_grid_3d/class_organic_blobs_as-dbpn.png' alt='AS-DBPN organic_blobs'></td>
+                        <td><img src='class_grid_3d/class_vessel_tubes_as-dbpn.png' alt='AS-DBPN vessel_tubes'></td>
+                        <td><img src='class_grid_3d/class_cellular_voronoi_as-dbpn.png' alt='AS-DBPN cellular_voronoi'></td>
+                        <td><img src='class_grid_3d/class_geometric_phantoms_as-dbpn.png' alt='AS-DBPN geometric_phantoms'></td>
+                        <td><img src='class_grid_3d/class_grid_patterns_as-dbpn.png' alt='AS-DBPN grid_patterns'></td>
+                        <td><img src='class_grid_3d/class_fractal_noise_as-dbpn.png' alt='AS-DBPN fractal_noise'></td>
                     </tr>
                 </tbody>
             </table>
@@ -622,7 +622,7 @@
                 <img src="val3d_ldbpn.png" alt="LDBPN">
                 <div class="card-content">
                     <div class="card-title">LDBPN</div>
-                    <div class="card-metrics">PSNR: 15.18 dB | SSIM: 0.7455 | GMSD: 0.3010</div>
+                    <div class="card-metrics">PSNR: 18.13 dB | SSIM: 0.8480 | GMSD: 0.2730</div>
                 </div>
             </div>
             <div class="card" style="opacity: 0.55; border-style: dashed;">
@@ -652,13 +652,11 @@
                     <div class="card-metrics">Metrics will populate post-training</div>
                 </div>
             </div>
-            <div class="card" style="opacity: 0.55; border-style: dashed;">
-                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #0c1017; color: #8b949e; font-weight: bold; font-family: monospace; text-align: center;">
-                    AS-DBPN<br>(Training TBD)
-                </div>
+            <div class="card">
+                <img src="val3d_as-dbpn.png" alt="AS-DBPN">
                 <div class="card-content">
-                    <div class="card-title" style="color: #8b949e;">AS-DBPN</div>
-                    <div class="card-metrics">Metrics will populate post-training</div>
+                    <div class="card-title">AS-DBPN</div>
+                    <div class="card-metrics">PSNR: 22.71 dB | SSIM: 0.9499 | GMSD: 0.1950</div>
                 </div>
             </div>
         </div>

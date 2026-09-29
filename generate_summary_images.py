@@ -106,6 +106,8 @@ def get_dim_config(dim, artifact_dir):
         spacing_lr = [2.0, 2.0]
         spacing_hr = [1.0, 1.0]
     else:
+        asdbpn_iso_ckpt = os.path.join(artifact_dir, "checkpoints", "asdbpn_3d", "asdbpn_3d_best_psnr.keras")
+        asdbpn_default = asdbpn_iso_ckpt if os.path.exists(asdbpn_iso_ckpt) else os.path.join(artifact_dir, "asdbpn_3d_refined.keras")
         model_files = {
             "ESPCN": os.path.join(artifact_dir, "espcn_3d_attention_refined.keras"),
             "WDSR": os.path.join(artifact_dir, "wdsr_3d_refined.keras"),
@@ -115,7 +117,7 @@ def get_dim_config(dim, artifact_dir):
             "REF-DBPN": os.path.join(artifact_dir, "ref_dbpn_3d_refined.keras"),
             "SRFBN": os.path.join(artifact_dir, "srfbn_3d_refined.keras"),
             "SAN": os.path.join(artifact_dir, "san_3d_refined.keras"),
-            "AS-DBPN": os.path.join(artifact_dir, "asdbpn_3d_refined.keras"),
+            "AS-DBPN": asdbpn_default,
         }
         custom_objects = {
             "PixelShuffle3D": siq.PixelShuffle3D,
@@ -228,10 +230,15 @@ def main():
     model_results = []
     for model_name, m_path in model_files.items():
         if os.path.exists(m_path):
-            print(f"Running inference for {model_name}...")
+            print(f"Running inference for {model_name} from {m_path}...")
             try:
-                model = keras.models.load_model(m_path, custom_objects=custom_objects, compile=False, safe_mode=False)
-                sr_img = siq.inference(lr_patch, model, method="antspynet", verbose=False)
+                cfg_path = m_path.replace(".keras", "_config.json")
+                if os.path.exists(cfg_path):
+                    model, cfg_m = siq.load_siq_model(m_path)
+                    sr_img = siq.inference(lr_patch, model, config=cfg_m, verbose=False)
+                else:
+                    model = keras.models.load_model(m_path, custom_objects=custom_objects, compile=False, safe_mode=False)
+                    sr_img = siq.inference(lr_patch, model, verbose=False)
                 ants.copy_image_info(hr_patch, sr_img)
 
                 sr_np = sr_img.numpy()
