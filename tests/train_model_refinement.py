@@ -1303,21 +1303,49 @@ def main():
         w_feat = feat_val * float(ops.convert_to_numpy(feat_weight_var))
         w_tv = tv_val * float(ops.convert_to_numpy(tv_weight_var))
         w_edge = edge_val * float(ops.convert_to_numpy(edge_weight_var))
-        
-        total_calculated = w_l2 + w_l1 + w_feat + w_tv + w_edge
+
+        # GMS term — compute inline (mirrors hybrid_loss GMS block)
+        gms_weight_val = float(ops.convert_to_numpy(gms_weight_var))
+        if gms_weight_val > 1e-8:
+            gms_c = 0.0026
+            if dim == 2:
+                _gd_t = ops.pad(ops.abs(y_true_tensor[:, 1:, :, :] - y_true_tensor[:, :-1, :, :]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh_t = ops.pad(ops.abs(y_true_tensor[:, :, 1:, :] - y_true_tensor[:, :, :-1, :]), [[0,0],[0,0],[0,1],[0,0]])
+                _gd_p = ops.pad(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh_p = ops.pad(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]), [[0,0],[0,0],[0,1],[0,0]])
+                m_t = ops.sqrt(ops.square(_gd_t) + ops.square(_gh_t) + 1e-8)
+                m_p = ops.sqrt(ops.square(_gd_p) + ops.square(_gh_p) + 1e-8)
+            else:
+                _gd_t = ops.pad(ops.abs(y_true_tensor[:, 1:, :, :, :] - y_true_tensor[:, :-1, :, :, :]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh_t = ops.pad(ops.abs(y_true_tensor[:, :, 1:, :, :] - y_true_tensor[:, :, :-1, :, :]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw_t = ops.pad(ops.abs(y_true_tensor[:, :, :, 1:, :] - y_true_tensor[:, :, :, :-1, :]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                _gd_p = ops.pad(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh_p = ops.pad(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw_p = ops.pad(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                m_t = ops.sqrt(ops.square(_gd_t) + ops.square(_gh_t) + ops.square(_gw_t) + 1e-8)
+                m_p = ops.sqrt(ops.square(_gd_p) + ops.square(_gh_p) + ops.square(_gw_p) + 1e-8)
+            gms_map = (2.0 * m_t * m_p + gms_c) / (ops.square(m_t) + ops.square(m_p) + gms_c)
+            gms_mean = ops.mean(gms_map, keepdims=True)
+            gms_raw = float(ops.mean(ops.square(gms_map - gms_mean)) + ops.mean(ops.square(1.0 - gms_map)))
+        else:
+            gms_raw = 0.0
+        w_gms = gms_raw * gms_weight_val
+
+        total_calculated = w_l2 + w_l1 + w_feat + w_tv + w_edge + w_gms
         # Avoid division by zero
         denom = total_calculated if total_calculated > 1e-8 else 1.0
-        
+
         pct_l2 = w_l2 / denom * 100
         pct_l1 = w_l1 / denom * 100
         pct_feat = w_feat / denom * 100
         pct_tv = w_tv / denom * 100
         pct_edge = w_edge / denom * 100
-        
+        pct_gms = w_gms / denom * 100
+
         print(f"{stage_name} Iter {iteration:03d}/{max_iter} - Loss: {loss:.6f}")
-        print(f"  [Loss Components] Raw: L2={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}, Edge={edge_val:.6f}")
-        print(f"  [Loss Contributions] MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%), Edge={w_edge:.4f} ({pct_edge:.1f}%)")
-        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, Edge={args.edge_weight:.4f}")
+        print(f"  [Loss Components] Raw: L2={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}, GMS={gms_raw:.6f}, Edge={edge_val:.6f}")
+        print(f"  [Loss Contributions] MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%), GMS={w_gms:.4f} ({pct_gms:.1f}%), Edge={w_edge:.4f} ({pct_edge:.1f}%)")
+        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, GMS={gms_weight_val:.4f}, Edge={args.edge_weight:.4f}")
         
         # Log to CSV
         csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
