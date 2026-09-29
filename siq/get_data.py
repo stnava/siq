@@ -2071,6 +2071,161 @@ def read_srmodel( srfilename, custom_objects=None ): # pragma: no cover
         raise RuntimeError(f"Could not infer upsampling factor. Error: {e}")
 
 
+def save_siq_model(model_path, model, config, verbose=True):  # pragma: no cover
+    """Save a siq model and its mandatory provenance config together.
+
+    Always use this instead of ``model.save()`` directly so that the
+    companion ``_config.json`` is always present alongside the weights.
+
+    Parameters
+    ----------
+    model_path : str
+        Destination path, must end in ``.keras``.
+    model : keras.Model
+        Trained model to save.
+    config : dict
+        Provenance dict as returned by :func:`load_siq_model` or built by
+        the training reporter. Must contain at minimum:
+        ``normalization``, ``input_patch_shape``, ``inference``.
+    verbose : bool
+        Print save path.
+    """
+    import json
+    model.save(model_path)
+    config_path = model_path.replace('.keras', '_config.json')
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+    if verbose:
+        print(f"Saved model:  {model_path}")
+        print(f"Saved config: {config_path}")
+
+
+def load_siq_model(model_path, custom_objects=None, verbose=True):  # pragma: no cover
+    """Load a siq model AND its mandatory provenance config.
+
+    This is the canonical read entry point. It raises ``FileNotFoundError``
+    if the companion ``_config.json`` is missing — no silent fallbacks,
+    no guessing about normalization.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to the ``.keras`` file.
+    custom_objects : dict, optional
+        Custom Keras objects required to deserialize the model.
+    verbose : bool
+        Print loaded shapes and normalization method.
+
+    Returns
+    -------
+    model : keras.Model
+        The loaded model, ready for inference.
+    config : dict
+        Provenance dict. Key entries:
+
+        - ``normalization``   — how to prepare inputs (always volume-level [0,1])
+        - ``input_patch_shape``  — spatial + channel shape the model expects
+        - ``output_patch_shape`` — spatial + channel shape the model produces
+        - ``upsample_factor``    — integer upsampling factor per spatial axis
+        - ``inference``          — dispatch rules (single-pass vs overlapping)
+        - ``training``           — training hyperparameters at save time
+        - ``val_metrics``        — validation metrics at save time
+
+    Raises
+    ------
+    FileNotFoundError
+        If no ``_config.json`` companion exists alongside ``model_path``.
+
+    Example
+    -------
+    >>> model, config = siq.load_siq_model('checkpoints/asdbpn_3d_step_1000.keras')
+    >>> sr = siq.inference(image, model, config)
+    """
+    import json, keras
+    model_path = os.path.expanduser(model_path)
+    config_path = model_path.replace('.keras', '_config.json')
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(
+            f"No provenance config found at:\n  {config_path}\n"
+            f"Cannot safely run inference without knowing normalization method.\n"
+            f"Use siq.save_siq_model(path, model, config) to save models with provenance,\n"
+            f"or manually create a _config.json using the siq.default_siq_config() template."
+        )
+
+    with open(config_path) as f:
+        config = json.load(f)
+
+    keras.config.enable_unsafe_deserialization()
+    model = keras.models.load_model(
+        model_path, custom_objects=custom_objects, compile=False, safe_mode=False
+    )
+
+    if verbose:
+        print(f"[siq] Loaded model: {model_path}")
+        print(f"  Input patch:    {config['input_patch_shape']}")
+        print(f"  Output patch:   {config['output_patch_shape']}")
+        print(f"  Upsample:       {config['upsample_factor']}×")
+        print(f"  Normalization:  {config['normalization']['method']} → {config['normalization']['output_range']}")
+        if 'val_metrics' in config:
+            m = config['val_metrics']
+            print(f"  Val metrics:    PSNR={m.get('val_psnr',float('nan')):.3f} "
+                  f"SSIM={m.get('val_ssim',float('nan')):.4f} "
+                  f"GMSD={m.get('val_gmsd',float('nan')):.4f} "
+                  f"HFEN={m.get('val_hfen',float('nan')):.4f}")
+    return model, config
+
+
+def default_siq_config(model=None):  # pragma: no cover
+    """Return a default provenance config dict, optionally populated from a model.
+
+    Use this as a template when manually constructing configs for legacy
+    checkpoints that pre-date automated provenance saving.
+
+    Parameters
+    ----------
+    model : keras.Model, optional
+        If provided, ``input_patch_shape`` and ``output_patch_shape`` are
+        populated from the model's input/output shapes.
+
+    Returns
+    -------
+    dict
+        Config dict with all required keys filled with sensible defaults.
+    """
+    cfg = {
+        "model_type": "asdbpn_3d",
+        "siq_version": "unknown",
+        "saved_at": "unknown",
+        "input_patch_shape": [64, 64, 64, 1],
+        "output_patch_shape": [128, 128, 128, 1],
+        "upsample_factor": 2,
+        "normalization": {
+            "method": "volume",
+            "truncate_quantiles": [0.001, 0.999],
+            "output_range": [0.0, 1.0],
+            "note": (
+                "Apply ants.iMath(vol,'TruncateIntensity',0.001,0.999) then "
+                "ants.iMath(vol,'Normalize') to the WHOLE volume. "
+                "Do NOT normalize per-patch."
+            )
+        },
+        "inference": {
+            "preferred_method": "direct_single_patch_if_fits",
+            "patch_overlap": 16,
+            "output_clip": [0.0, 1.0],
+            "antspynet_wrapper": False,
+        },
+    }
+    if model is not None:
+        cfg["input_patch_shape"] = list(model.input_shape[1:])
+        cfg["output_patch_shape"] = list(model.output_shape[1:])
+        cfg["upsample_factor"] = int(round(
+            model.output_shape[1] / model.input_shape[1]
+        ))
+    return cfg
+
+
 def simulate_image( # pragma: no cover
  shaper=[32,32,32], n_levels=10, multiply=False ):
     """
@@ -3083,6 +3238,7 @@ def overlapping_patch_inference(
 def inference( # pragma: no cover
     image,
     mdl,
+    config=None,
     truncation=None,
     segmentation=None,
     target_range=[1, 0],
@@ -3093,6 +3249,7 @@ def inference( # pragma: no cover
     patch_overlap=16,
     batch_size=1,
     verbose=False):
+
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
 
@@ -3159,11 +3316,11 @@ def inference( # pragma: no cover
     >>> import antspynet
     >>> from siq import inference
     >>> img = ants.image_read("lowres.nii.gz")
-    >>> model = antspynet.get_pretrained_network("dbpn", target_suffix="T1")
-    >>> srimg = inference(img, model, truncation=[0.01, 0.99], verbose=True)
+    >>> model, cfg = siq.load_siq_model("mymodel.keras")
+    >>> srimg = siq.inference(img, model, cfg, verbose=True)
 
     >>> seg = ants.image_read("mask.nii.gz")
-    >>> sr_result = inference(img, model, segmentation=seg)
+    >>> sr_result = inference(img, model, cfg, segmentation=seg)
     >>> srimg = sr_result['super_resolution']
     """
     import ants
@@ -3171,6 +3328,29 @@ def inference( # pragma: no cover
     import antspynet
     import antspyt1w
     from siq import region_wise_super_resolution
+    import warnings
+
+    # ── Provenance / config resolution ──────────────────────────────────────
+    if config is None:
+        warnings.warn(
+            "siq.inference() called without a provenance config. "
+            "This is deprecated and may produce incorrect results due to "
+            "normalization mismatch. Use siq.load_siq_model() to obtain "
+            "both the model and its config, then pass config here.",
+            DeprecationWarning, stacklevel=2
+        )
+        # Fall back to reasonable defaults so old code doesn't break immediately
+        _trunc_q = list(truncation) if truncation is not None else [0.001, 0.999]
+        _patch_overlap = patch_overlap
+        _model_patch = list(mdl.input_shape[1:-1])
+        _output_clip = True
+    else:
+        _norm = config.get('normalization', {})
+        _trunc_q = _norm.get('truncate_quantiles', [0.001, 0.999])
+        _infer = config.get('inference', {})
+        _patch_overlap = _infer.get('patch_overlap', patch_overlap)
+        _model_patch = config.get('input_patch_shape', list(mdl.input_shape[1:]))[:-1]  # drop channel
+        _output_clip = True  # always clip to [0,1] with siq models
 
     def apply_intensity_match(sr_image, reference_image, order, verbose=False):
         if order is None:
@@ -3183,8 +3363,8 @@ def inference( # pragma: no cover
             return ants.regression_match_image(sr_image, reference_image, poly_order=order)
 
     pimg = ants.image_clone(image)
-    if truncation is not None:
-        pimg = ants.iMath(pimg, 'TruncateIntensity', truncation[0], truncation[1])
+    # Apply truncation from provenance config
+    pimg = ants.iMath(pimg, 'TruncateIntensity', _trunc_q[0], _trunc_q[1])
 
     input_shape = mdl.inputs[0].shape
     num_channels = int(input_shape[-1])
@@ -3250,32 +3430,32 @@ def inference( # pragma: no cover
     pimg_norm = ants.iMath(pimg, 'Normalize')   # → [0,1] volume-level
 
     # ── Step 2: Dispatch based on input size vs model patch size ────────────
-    model_patch = list(mdl.input_shape[1:-1])   # e.g. [64, 64, 64]
-    input_shape = list(pimg_norm.shape)
+    # _model_patch and _patch_overlap are resolved from provenance config above
+    input_shape_list = list(pimg_norm.shape)
+    _upfactor = config.get('upsample_factor', 2) if config is not None else 2
 
-    if method == 'patchwise' or input_shape != model_patch:
+    if method == 'patchwise' or input_shape_list != _model_patch:
         # Whole-brain / oversized input: Gaussian-blended overlapping patches.
         # volume_normalized=True tells the function NOT to re-normalize patches.
         if verbose:
-            print(f"overlapping_patch_inference: input {input_shape} != patch {model_patch}; "
-                  f"using Gaussian-blended patches (overlap={patch_overlap})")
+            print(f"[siq] overlapping_patch_inference: input {input_shape_list} != patch {_model_patch}; "
+                  f"Gaussian-blended patches (overlap={_patch_overlap})")
         imgsr = overlapping_patch_inference(
             pimg_norm, mdl,
-            patch_size=tuple(model_patch),
-            overlap=patch_overlap,
+            patch_size=tuple(_model_patch),
+            overlap=_patch_overlap,
             batch_size=batch_size,
             verbose=verbose,
-            volume_normalized=True,   # skip per-patch renorm
+            volume_normalized=True,   # skip per-patch renorm — volume already normalized
         )
     else:
         # Input exactly matches model patch size: single forward pass, no stitching.
         if verbose:
-            print(f"direct single-patch inference: input {input_shape} == model patch {model_patch}")
-        import numpy as np
+            print(f"[siq] direct single-patch inference: input {input_shape_list} == model patch {_model_patch}")
         arr = pimg_norm.numpy()[np.newaxis, ..., np.newaxis].astype('float32')
         out = mdl.predict(arr, verbose=0)[0, ..., 0]
         out = np.clip(out, 0.0, 1.0)
-        new_spacing = tuple(float(s) / 2.0 for s in pimg_norm.spacing)
+        new_spacing = tuple(float(s) / _upfactor for s in pimg_norm.spacing)
         imgsr = ants.from_numpy(out)
         ants.set_spacing(imgsr, new_spacing)
         ants.set_direction(imgsr, pimg_norm.direction)
@@ -3283,6 +3463,7 @@ def inference( # pragma: no cover
 
     ref = ants.resample_image_to_target(pimg_norm, imgsr)
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
+
 
 
 def simulate_vessel_tubes(shape, zoom_range=(0.7, 1.4), use_layer2=False): # pragma: no cover
