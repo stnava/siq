@@ -34,5 +34,41 @@
       "cbi": 2.0
     },
     "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2x2_stage_3_refinement_02525_20260929_221524"
+  },
+  {
+    "entry_id": "asdbpn_3d_1x1x2_stage_3_refinement_01800_20260929_221834",
+    "tag": "v0.10.11_1x1x2_cqs_champion_iter1800",
+    "notes": "1x1x2 champion, Stage 3 iter 1800. Factor-aware 1D CBI loss. NOTE: CBI=0.145 elevated (CBI loss was on y_pred not residual at this version). Preserved as reference baseline for 1x1x2 through-plane SR.",
+    "registered_at": "2026-09-29T22:18:34.350799+00:00",
+    "git_sha": "7ae6a86",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_1x1x2_stage_3_refinement_01800_20260929_221834/asdbpn_3d_1x1x2_best_mdl.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_1x1x2_stage_3_refinement_01800_20260929_221834/asdbpn_3d_1x1x2_best_mdl_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      1,
+      1,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 1800,
+    "siq_version": "0.10.11",
+    "val_metrics": {
+      "val_psnr": 24.744916915893555,
+      "val_ssim": 0.9720993638038635,
+      "val_gmsd": 0.13958905637264252,
+      "val_cbi": 0.14486068487167358,
+      "val_hfen": 0.34193727374076843,
+      "val_cqs": 0.6876496225595474
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 6.853668212890625,
+      "feat": 0.00014622208254877478,
+      "tv": 0.3399437367916107,
+      "edge": 0.0,
+      "gms": 3.0,
+      "cbi": 2.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_1x1x2_stage_3_refinement_01800_20260929_221834"
   }
 ]
