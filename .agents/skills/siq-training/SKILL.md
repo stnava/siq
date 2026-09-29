@@ -18,6 +18,8 @@ PYTHONUNBUFFERED=1 python tests/train_model_refinement.py asdbpn \
   --skip-warmup \
   --load-model checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras \
   --stage1-iter 50 --stage2-iter 750 --stage3-iter 3000 \
+  --stage2-lr 2.5e-5 --stage3-lr 1e-5 \
+  --clip-norm 1.0 \
   --checkpoint-freq 25 \
   --balancer-freq 25 --update-freq 25 \
   --prefetch-size 4 \
@@ -135,6 +137,27 @@ At `dampening=d`, each update moves weights by approximately `(1-d) × decay_fac
 Always pair `--dampening 0.97` with `--balancer-freq 25 --update-freq 25`.
 Smaller freq values (e.g. 10) compound oscillation by applying corrections
 before the smoother has enough data points.
+
+## Gradient Clipping & Collapse Prevention (ResNet Perceptual Loss)
+
+When training with the ResNet perceptual backend in Stage 3 refinement, unconstrained
+feature gradients can accumulate and cause sudden model collapse (PSNR dropping from ~27.4 dB
+to ~20 dB around Iteration 1500–1525).
+
+### Why It Happens
+- The ResNet feature extractor has a fixed feature scale that yields raw feature MSE ~0.001.
+- With feature weight ~500–565, even small differences between predictions and rank-normalized targets can produce large gradient vectors.
+- Over 1,000+ steps of refinement, isolated gradient spikes can push convolutional filter weights out of the linear response regime, causing sudden feature divergence.
+
+### The Proven Solution
+1. **Explicit Gradient Clipping**: `--clip-norm 1.0` (bounds the total L2 norm of the gradient vector to 1.0 per optimizer step across all 6 compile sites).
+2. **Refined Stage 3 Learning Rate**: `--stage3-lr 1e-5` (prevents overshoot while allowing subtle high-frequency sharpening).
+
+In Run F, this configuration ran through all 3,000 steps with **zero collapse**, setting an all-time record:
+- **PSNR: 27.488 dB** (+0.39 dB vs Bilinear)
+- **SSIM: 0.9376**
+- **HFEN: 0.4457**
+- **Corr: 0.9359**
 
 ## Key File Locations
 

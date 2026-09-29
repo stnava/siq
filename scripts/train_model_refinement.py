@@ -417,6 +417,16 @@ def main():
     parser.add_argument(
         "--init-tv-weight", type=float, default=None,
         help="Pre-calibrated total-variation loss weight (see --init-l1-weight).")
+    parser.add_argument(
+        "--clip-norm", type=float, default=None,
+        help="Global gradient clipping norm applied to every optimizer (Stage 1/2/3). "
+             "When the ResNet perceptual backend is used, the feature extractor can "
+             "gradually drive the model into a degenerate high-feature-loss / low-PSNR "
+             "state during long Stage 3 runs — a slow-burn collapse observed consistently "
+             "at Iter ~1500. Gradient clipping (e.g. --clip-norm 1.0) bounds each weight "
+             "update's L2 norm, preventing any single large perceptual gradient from "
+             "destabilising the model. Opt-in only; default=None (no clipping). "
+             "Recommended value for ResNet backend Stage 3: 1.0.")
     args = parser.parse_args()
     
     try:
@@ -1381,9 +1391,13 @@ def main():
         if args.use_onecycle:
             stage1_schedule = OneCycleLR(max_lr=args.onecycle_max_lr, total_steps=stage1_max)
             print(f"[OneCycleLR] Stage 1: max_lr={args.onecycle_max_lr:.2e}, total_steps={stage1_max}")
-            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_schedule), loss=hybrid_loss)
+            _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_schedule, **_opt_kw), loss=hybrid_loss)
         else:
-            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_lr), loss=hybrid_loss)
+            _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage1_lr, **_opt_kw), loss=hybrid_loss)
+        if args.clip_norm is not None:
+            print(f"[Gradient Clipping] Stage 1 optimizer: clipnorm={args.clip_norm}")
         
         for iteration in range(max(1, last_iteration + 1), stage1_max + 1):
             x_batch, y_batch = next(train_gen_clean)
@@ -1456,9 +1470,13 @@ def main():
         if args.use_onecycle:
             stage2_schedule = OneCycleLR(max_lr=args.onecycle_max_lr, total_steps=stage2_steps)
             print(f"[OneCycleLR] Stage 2: max_lr={args.onecycle_max_lr:.2e}, total_steps={stage2_steps}")
-            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_schedule), loss=hybrid_loss)
+            _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_schedule, **_opt_kw), loss=hybrid_loss)
         else:
-            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_lr), loss=hybrid_loss)
+            _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage2_lr, **_opt_kw), loss=hybrid_loss)
+        if args.clip_norm is not None:
+            print(f"[Gradient Clipping] Stage 2 optimizer: clipnorm={args.clip_norm}")
 
         start_iter = max(stage1_max + 1, last_iteration + 1)
         for iteration in range(start_iter, stage2_max + 1):
@@ -1550,9 +1568,14 @@ def main():
     if args.use_onecycle:
         stage3_schedule = OneCycleLR(max_lr=args.onecycle_max_lr * 0.5, total_steps=stage3_steps)
         print(f"[OneCycleLR] Stage 3: max_lr={args.onecycle_max_lr * 0.5:.2e}, total_steps={stage3_steps}")
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_schedule), loss=hybrid_loss)
+        _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_schedule, **_opt_kw), loss=hybrid_loss)
     else:
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_lr), loss=hybrid_loss)
+        _opt_kw = {"clipnorm": args.clip_norm} if args.clip_norm is not None else {}
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=stage3_lr, **_opt_kw), loss=hybrid_loss)
+    if args.clip_norm is not None:
+        print(f"[Gradient Clipping] Stage 3 optimizer: clipnorm={args.clip_norm} "
+              f"(ResNet collapse prevention — Iter ~1500 without clipping)")
     best_val_loss = float("inf")
 
 
