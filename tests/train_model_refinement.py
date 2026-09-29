@@ -1581,19 +1581,26 @@ def main():
                     best_val_loss = loss
                     model.save(output_model_path)
                 
-                # Early convergence detection for Stage 1 — multi-metric slope check
+                # Early convergence detection for Stage 1 — multi-metric slope check.
+                # Guard: skip slope history update on the SAME iteration as a balancer
+                # update, because the weight shift produces a transient metric change
+                # that corrupts the slope signal.
+                _balancer_fired_s1 = (iteration % args.balancer_freq == 0)
                 if args.stage_patience > 0 and is_ckpt and entry is not None:
                     if not hasattr(reporter, "_s1_ckpt_history"):
                         reporter._s1_ckpt_history = []
-                    reporter._s1_ckpt_history.append(entry)
-                    converged, slope_summary = check_stage_convergence(
-                        reporter._s1_ckpt_history, "Stage 1", args.stage_patience)
-                    print(f"  [Stage 1 Convergence] slopes: {slope_summary}")
-                    if converged:
-                        print(f"\n[Stage 1 Early Stop] All metric slopes flat over "
-                              f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
-                              f"Advancing to Stage 2.")
-                        break
+                    if not _balancer_fired_s1:
+                        reporter._s1_ckpt_history.append(entry)
+                        converged, slope_summary = check_stage_convergence(
+                            reporter._s1_ckpt_history, "Stage 1", args.stage_patience)
+                        print(f"  [Stage 1 Convergence] slopes: {slope_summary}")
+                        if converged:
+                            print(f"\n[Stage 1 Early Stop] All metric slopes flat over "
+                                  f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
+                                  f"Advancing to Stage 2.")
+                            break
+                    else:
+                        print(f"  [Stage 1 Convergence] skipped (balancer fired this step)")
 
         # ==============================================================
         # Stage 2: Joint Fine-Tuning with Rician Noise (Iter 101-2000)
@@ -1675,19 +1682,26 @@ def main():
                     best_val_loss = loss
                     model.save(output_model_path)
                 
-                # Early convergence detection for Stage 2 — multi-metric slope check
+                # Early convergence detection for Stage 2 — multi-metric slope check.
+                # Guard: skip slope history update on the SAME iteration as a balancer
+                # update, because the weight shift produces a transient metric change
+                # that corrupts the slope signal.
+                _balancer_fired_s2 = (iteration % args.balancer_freq == 0)
                 if args.stage_patience > 0 and is_ckpt and entry is not None:
                     if not hasattr(reporter, "_s2_ckpt_history"):
                         reporter._s2_ckpt_history = []
-                    reporter._s2_ckpt_history.append(entry)
-                    converged, slope_summary = check_stage_convergence(
-                        reporter._s2_ckpt_history, "Stage 2", args.stage_patience)
-                    print(f"  [Stage 2 Convergence] slopes: {slope_summary}")
-                    if converged:
-                        print(f"\n[Stage 2 Early Stop] All metric slopes flat over "
-                              f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
-                              f"Advancing to Stage 3.")
-                        break
+                    if not _balancer_fired_s2:
+                        reporter._s2_ckpt_history.append(entry)
+                        converged, slope_summary = check_stage_convergence(
+                            reporter._s2_ckpt_history, "Stage 2", args.stage_patience)
+                        print(f"  [Stage 2 Convergence] slopes: {slope_summary}")
+                        if converged:
+                            print(f"\n[Stage 2 Early Stop] All metric slopes flat over "
+                                  f"{args.stage_patience} checkpoints ({args.stage_patience * args.checkpoint_freq} iters). "
+                                  f"Advancing to Stage 3.")
+                            break
+                    else:
+                        print(f"  [Stage 2 Convergence] skipped (balancer fired this step)")
     else:
         print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
