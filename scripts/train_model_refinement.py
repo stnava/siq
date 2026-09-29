@@ -383,7 +383,7 @@ def main():
     parser.add_argument(
         "--perceptual-backend", choices=["vgg", "resnet"], default="vgg",
         help="Perceptual feature extractor backend for 3D. "
-             "'vgg'  = pseudo-3D VGG19 layers [3,6,9] (original, accurate). "
+             "'vgg'  = pseudo-3D VGG19 layer 6 (canonical per Avants et al. medRxiv). "
              "'resnet' = native 3D ResNet grader layer 6 (60x faster, "
              "validated as equal-or-better in Avants et al. 2023). (default: vgg)")
     parser.add_argument(
@@ -952,15 +952,8 @@ def main():
             print(f"  ResNet grader output shape: {feature_extractor.output.shape}")
         else:
             fe_inshape = [hr_patch_size, hr_patch_size, hr_patch_size]
-            print(f"Loading pseudo-3D VGG feature extractors (Layers [3, 6, 9], inshape={fe_inshape})...")
-            fe_3 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=3)
-            fe_6 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
-            fe_9 = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=9)
-            inputs = keras.layers.Input(shape=(hr_patch_size, hr_patch_size, hr_patch_size, 1))
-            o3 = fe_3(inputs)
-            o6 = fe_6(inputs)
-            o9 = fe_9(inputs)
-            feature_extractor = keras.Model(inputs=inputs, outputs=[o3, o6, o9])
+            print(f"Loading pseudo-3D VGG feature extractor (Layer 6, inshape={fe_inshape}) — canonical layer from Avants et al. medRxiv paper...")
+            feature_extractor = siq.pseudo_3d_vgg_features_unbiased(inshape=fe_inshape, layer=6)
 
     feature_extractor.trainable = False
     
