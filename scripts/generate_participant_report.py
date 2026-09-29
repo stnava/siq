@@ -41,8 +41,8 @@ print(f"Done in {time.time()-t0:.2f}s, range: [{sr_raw_np.min():.3f}, {sr_raw_np
 
 # 4. Auto-estimate sigma using data-driven empirical spectral excess
 sigma_auto = siq.estimate_anti_checkerboard_sigma(sr_raw_np)
-sigma = max(sigma_auto, 0.35)  # If minimal artifact remains, test subtle smoothing vs raw
-print(f"Estimated anti-checkerboard sigma: {sigma_auto:.3f} (using sigma={sigma:.3f})...")
+sigma = sigma_auto
+print(f"Estimated anti-checkerboard sigma: {sigma:.3f}...")
 sr_clean_np = gaussian_filter(sr_raw_np, sigma=sigma) if sigma > 0.01 else sr_raw_np.copy()
 sr_clean_np = np.clip(sr_clean_np, 0.0, 1.0)
 sr_clean_img = ants.from_numpy(sr_clean_np)
