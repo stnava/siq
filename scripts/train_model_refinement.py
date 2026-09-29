@@ -427,6 +427,19 @@ def main():
              "update's L2 norm, preventing any single large perceptual gradient from "
              "destabilising the model. Opt-in only; default=None (no clipping). "
              "Recommended value for ResNet backend Stage 3: 1.0.")
+    parser.add_argument(
+        "--edge-weight", type=float, default=0.0,
+        help="Weight for gradient-magnitude edge loss term in hybrid_loss. "
+             "Computes MSE between gradient magnitude maps of y_true and y_pred "
+             "via finite differences, directly penalizing gradient inconsistency "
+             "and improving GMSD metric. 0.0=disabled (default). Try 1.0-5.0.")
+    parser.add_argument(
+        "--gms-weight", type=float, default=0.0,
+        help="Weight for differentiable GMS (Gradient Magnitude Similarity) loss. "
+             "Minimizes GMSD metric directly by: (a) penalising GMS map variance "
+             "(std(GMS) = GMSD metric) and (b) encouraging GMS values toward 1.0 "
+             "everywhere (perfect gradient match). Directly optimises the GMSD "
+             "evaluation metric. 0.0=disabled (default). Try 5.0-20.0.")
     args = parser.parse_args()
     
     try:
@@ -956,6 +969,8 @@ def main():
     feat_weight_var = keras.Variable(0.0, dtype="float32")
     tv_weight_var = keras.Variable(0.0, dtype="float32")
     l1_weight_var = keras.Variable(0.0, dtype="float32")
+    edge_weight_var = keras.Variable(args.edge_weight, dtype="float32")  # gradient-magnitude edge loss
+    gms_weight_var = keras.Variable(args.gms_weight, dtype="float32")    # differentiable GMSD loss
     
     wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv")
     wts_loaded = False
@@ -1110,10 +1125,57 @@ def main():
             diff_w = ops.mean(ops.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]), axis=list(range(1, len(y_pred.shape)-1)))
             tv_term = diff_d + diff_h + diff_w
         
+        # Gradient Magnitude Edge Loss — penalises gradient magnitude mismatch
+        # (directly reduces GMSD by enforcing consistent sharpness everywhere)
+        if dim == 2:
+            gy_true = ops.mean(ops.abs(y_true[:, 1:, :, :] - y_true[:, :-1, :, :]), axis=list(range(1, len(y_true.shape))))
+            gx_true = ops.mean(ops.abs(y_true[:, :, 1:, :] - y_true[:, :, :-1, :]), axis=list(range(1, len(y_true.shape))))
+            gy_pred = ops.mean(ops.abs(y_pred[:, 1:, :, :] - y_pred[:, :-1, :, :]), axis=list(range(1, len(y_pred.shape))))
+            gx_pred = ops.mean(ops.abs(y_pred[:, :, 1:, :] - y_pred[:, :, :-1, :]), axis=list(range(1, len(y_pred.shape))))
+            edge_term = ops.square(gy_true - gy_pred) + ops.square(gx_true - gx_pred)
+        else:
+            gd_true = ops.mean(ops.abs(y_true[:, 1:, :, :, :] - y_true[:, :-1, :, :, :]), axis=list(range(1, len(y_true.shape))))
+            gh_true = ops.mean(ops.abs(y_true[:, :, 1:, :, :] - y_true[:, :, :-1, :, :]), axis=list(range(1, len(y_true.shape))))
+            gw_true = ops.mean(ops.abs(y_true[:, :, :, 1:, :] - y_true[:, :, :, :-1, :]), axis=list(range(1, len(y_true.shape))))
+            gd_pred = ops.mean(ops.abs(y_pred[:, 1:, :, :, :] - y_pred[:, :-1, :, :, :]), axis=list(range(1, len(y_pred.shape))))
+            gh_pred = ops.mean(ops.abs(y_pred[:, :, 1:, :, :] - y_pred[:, :, :-1, :, :]), axis=list(range(1, len(y_pred.shape))))
+            gw_pred = ops.mean(ops.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]), axis=list(range(1, len(y_pred.shape))))
+            edge_term = (ops.square(gd_true - gd_pred) + ops.square(gh_true - gh_pred) +
+                         ops.square(gw_true - gw_pred))
+
+        # Differentiable GMS loss — directly minimises GMSD evaluation metric
+        # GMS(x,y) = (2*|∇x|*|∇y| + c) / (|∇x|² + |∇y|² + c) ∈ [0,1]
+        # We minimise: var(GMS) + MSE(GMS, 1.0) — reduces std and pushes toward perfect match
+        if float(ops.convert_to_numpy(gms_weight_var)) > 1e-8:
+            gms_c = 0.0026
+            if dim == 2:
+                _gd_t = ops.pad(ops.abs(y_true[:, 1:, :, :] - y_true[:, :-1, :, :]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh_t = ops.pad(ops.abs(y_true[:, :, 1:, :] - y_true[:, :, :-1, :]), [[0,0],[0,0],[0,1],[0,0]])
+                _gd_p = ops.pad(ops.abs(y_pred[:, 1:, :, :] - y_pred[:, :-1, :, :]), [[0,0],[0,1],[0,0],[0,0]])
+                _gh_p = ops.pad(ops.abs(y_pred[:, :, 1:, :] - y_pred[:, :, :-1, :]), [[0,0],[0,0],[0,1],[0,0]])
+                m_t = ops.sqrt(ops.square(_gd_t) + ops.square(_gh_t) + 1e-8)
+                m_p = ops.sqrt(ops.square(_gd_p) + ops.square(_gh_p) + 1e-8)
+            else:
+                _gd_t = ops.pad(ops.abs(y_true[:, 1:, :, :, :] - y_true[:, :-1, :, :, :]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh_t = ops.pad(ops.abs(y_true[:, :, 1:, :, :] - y_true[:, :, :-1, :, :]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw_t = ops.pad(ops.abs(y_true[:, :, :, 1:, :] - y_true[:, :, :, :-1, :]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                _gd_p = ops.pad(ops.abs(y_pred[:, 1:, :, :, :] - y_pred[:, :-1, :, :, :]), [[0,0],[0,1],[0,0],[0,0],[0,0]])
+                _gh_p = ops.pad(ops.abs(y_pred[:, :, 1:, :, :] - y_pred[:, :, :-1, :, :]), [[0,0],[0,0],[0,1],[0,0],[0,0]])
+                _gw_p = ops.pad(ops.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]), [[0,0],[0,0],[0,0],[0,1],[0,0]])
+                m_t = ops.sqrt(ops.square(_gd_t) + ops.square(_gh_t) + ops.square(_gw_t) + 1e-8)
+                m_p = ops.sqrt(ops.square(_gd_p) + ops.square(_gh_p) + ops.square(_gw_p) + 1e-8)
+            gms_map = (2.0 * m_t * m_p + gms_c) / (ops.square(m_t) + ops.square(m_p) + gms_c)
+            gms_mean = ops.mean(gms_map, keepdims=True)
+            gms_term = ops.mean(ops.square(gms_map - gms_mean)) + ops.mean(ops.square(1.0 - gms_map))
+        else:
+            gms_term = ops.zeros_like(l1_term)
+
         return (l2_term * msq_weight_var + 
                 l1_term * l1_weight_var + 
                 feat_term * feat_weight_var + 
-                tv_term * tv_weight_var)
+                tv_term * tv_weight_var +
+                edge_term * edge_weight_var +
+                gms_term * gms_weight_var)
 
     def print_loss_components(stage_name, iteration, max_iter, x_batch, y_batch, loss):
         # Convert y_batch to a Keras tensor to prevent PyTorch/numpy subtraction errors
@@ -1137,19 +1199,34 @@ def main():
             diff_h = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
             diff_w = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
             tv_val = float(diff_h + diff_w)
+            # Edge loss: gradient magnitude MSE
+            gy_t = ops.mean(ops.abs(y_true_tensor[:, 1:, :, :] - y_true_tensor[:, :-1, :, :]))
+            gx_t = ops.mean(ops.abs(y_true_tensor[:, :, 1:, :] - y_true_tensor[:, :, :-1, :]))
+            gy_p = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
+            gx_p = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
+            edge_val = float(ops.square(gy_t - gy_p) + ops.square(gx_t - gx_p))
         else:
             diff_d = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
             diff_h = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
             diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
             tv_val = float(diff_d + diff_h + diff_w)
+            # Edge loss: gradient magnitude MSE
+            gd_t = ops.mean(ops.abs(y_true_tensor[:, 1:, :, :, :] - y_true_tensor[:, :-1, :, :, :]))
+            gh_t = ops.mean(ops.abs(y_true_tensor[:, :, 1:, :, :] - y_true_tensor[:, :, :-1, :, :]))
+            gw_t = ops.mean(ops.abs(y_true_tensor[:, :, :, 1:, :] - y_true_tensor[:, :, :, :-1, :]))
+            gd_p = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
+            gh_p = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
+            gw_p = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
+            edge_val = float(ops.square(gd_t - gd_p) + ops.square(gh_t - gh_p) + ops.square(gw_t - gw_p))
         
         # Weighted terms (using ops.convert_to_numpy to avoid PyTorch warnings)
         w_l2 = l2_val * float(ops.convert_to_numpy(msq_weight_var))
         w_l1 = l1_val * float(ops.convert_to_numpy(l1_weight_var))
         w_feat = feat_val * float(ops.convert_to_numpy(feat_weight_var))
         w_tv = tv_val * float(ops.convert_to_numpy(tv_weight_var))
+        w_edge = edge_val * float(ops.convert_to_numpy(edge_weight_var))
         
-        total_calculated = w_l2 + w_l1 + w_feat + w_tv
+        total_calculated = w_l2 + w_l1 + w_feat + w_tv + w_edge
         # Avoid division by zero
         denom = total_calculated if total_calculated > 1e-8 else 1.0
         
@@ -1157,11 +1234,12 @@ def main():
         pct_l1 = w_l1 / denom * 100
         pct_feat = w_feat / denom * 100
         pct_tv = w_tv / denom * 100
+        pct_edge = w_edge / denom * 100
         
         print(f"{stage_name} Iter {iteration:03d}/{max_iter} - Loss: {loss:.6f}")
-        print(f"  [Loss Components] Raw: L2 (MSE)={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}")
-        print(f"  [Loss Contributions] Weighted: MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%)")
-        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}")
+        print(f"  [Loss Components] Raw: L2={l2_val:.6f}, L1={l1_val:.6f}, Feat={feat_val:.6f}, TV={tv_val:.6f}, Edge={edge_val:.6f}")
+        print(f"  [Loss Contributions] MSE={w_l2:.4f} ({pct_l2:.1f}%), L1={w_l1:.4f} ({pct_l1:.1f}%), Feat={w_feat:.4f} ({pct_feat:.1f}%), TV={w_tv:.4f} ({pct_tv:.1f}%), Edge={w_edge:.4f} ({pct_edge:.1f}%)")
+        print(f"  [Loss Weights] L1={w_l1/l1_val if l1_val > 1e-8 else 0.0:.6f}, Feat={w_feat/feat_val if feat_val > 1e-8 else 0.0:.6f}, TV={w_tv/tv_val if tv_val > 1e-8 else 0.0:.6f}, Edge={args.edge_weight:.4f}")
         
         # Log to CSV
         csv_log_path = os.path.join(workspace_dir, f"loss_contributions_{model_type}_{dim}d.csv")
