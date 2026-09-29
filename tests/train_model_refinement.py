@@ -377,6 +377,11 @@ def main():
     parser.add_argument("--skip-warmup", action="store_true", default=False, help="Skip MSE warmup phase (useful when resuming/fine-tuning from an existing trained model)")
     parser.add_argument("--load-model", type=str, default=None, help="Explicit path to pretrained/checkpoint model to load weights from")
     parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
+    parser.add_argument(
+        "--stage-patience", type=int, default=0,
+        help="Early-stopping patience per stage (Stages 1 & 2): number of checkpoint intervals "
+             "with <0.02 dB PSNR improvement before advancing to the next stage. "
+             "0 = disabled, run to max iters (default). Recommended: 3-5.")
     # ---------------------------------------------------------------
     # Speed optimisation flags (see faster_training_plan.md)
     # ---------------------------------------------------------------
@@ -1530,6 +1535,24 @@ def main():
                 if loss < best_val_loss:
                     best_val_loss = loss
                     model.save(output_model_path)
+                
+                # Early convergence detection for Stage 1
+                if args.stage_patience > 0 and is_ckpt and entry is not None:
+                    s1_psnr = entry.get("val_psnr", 0.0)
+                    if not hasattr(reporter, "_s1_best_psnr"):
+                        reporter._s1_best_psnr = s1_psnr
+                        reporter._s1_no_improve = 0
+                    elif s1_psnr > reporter._s1_best_psnr + 0.02:
+                        reporter._s1_best_psnr = s1_psnr
+                        reporter._s1_no_improve = 0
+                    else:
+                        reporter._s1_no_improve += 1
+                        if reporter._s1_no_improve >= args.stage_patience:
+                            print(f"\n[Stage 1 Early Stop] PSNR plateaued at {s1_psnr:.2f} dB "
+                                  f"(best: {reporter._s1_best_psnr:.2f} dB, "
+                                  f"no >{0.02:.2f} dB gain in {reporter._s1_no_improve} checkpoints). "
+                                  f"Advancing to Stage 2.")
+                            break
 
         # ==============================================================
         # Stage 2: Joint Fine-Tuning with Rician Noise (Iter 101-2000)
@@ -1610,6 +1633,24 @@ def main():
                 if loss < best_val_loss:
                     best_val_loss = loss
                     model.save(output_model_path)
+                
+                # Early convergence detection for Stage 2
+                if args.stage_patience > 0 and is_ckpt and entry is not None:
+                    s2_psnr = entry.get("val_psnr", 0.0)
+                    if not hasattr(reporter, "_s2_best_psnr"):
+                        reporter._s2_best_psnr = s2_psnr
+                        reporter._s2_no_improve = 0
+                    elif s2_psnr > reporter._s2_best_psnr + 0.02:
+                        reporter._s2_best_psnr = s2_psnr
+                        reporter._s2_no_improve = 0
+                    else:
+                        reporter._s2_no_improve += 1
+                        if reporter._s2_no_improve >= args.stage_patience:
+                            print(f"\n[Stage 2 Early Stop] PSNR plateaued at {s2_psnr:.2f} dB "
+                                  f"(best: {reporter._s2_best_psnr:.2f} dB, "
+                                  f"no >{0.02:.2f} dB gain in {reporter._s2_no_improve} checkpoints). "
+                                  f"Advancing to Stage 3.")
+                            break
     else:
         print("\nSkipping Stage 1 & Stage 2 (already refined). Proceeding directly to Stage 3 (Dedicated Refinement)...")
 
