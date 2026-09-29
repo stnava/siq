@@ -159,6 +159,41 @@ In Run F, this configuration ran through all 3,000 steps with **zero collapse**,
 - **HFEN: 0.4457**
 - **Corr: 0.9359**
 
+## Checkerboard Artifact Mitigation (3D Transposed-Convolution)
+
+Transposed-convolution layers (`Conv3DTranspose(6, 6, 6, strides=2)`) in AS-DBPN naturally introduce Nyquist-frequency grid resonance when expanding resolution. Without mitigation, raw model output exhibits checkerboard artifacts ($\text{CBI} \approx 0.073$, $3.7\times$ higher than ground truth MRI).
+
+### 1. In-Training Alternating Parity Loss (`--cbi-weight 2.0`)
+- **Residual Error Target Required**: Naive alternating parity filtering on $\hat{y}$ alone penalizes natural anatomical edges (~`0.025-0.28`). Applying it to the **residual error $(\hat{y} - y_{\text{true}})$** zeroes out true anatomy (`0.000`) and isolates 100% pure transposed-convolution artifact error:
+  ```python
+  # In hybrid_loss:
+  _cb_target = y_pred - y_true
+  cbi_block = (c000 - c100 - c010 + c110 - c001 + c101 + c011 - c111) / 8.0
+  cbi_term = ops.mean(ops.abs(cbi_block))
+  ```
+- **Performance**: Setting `--cbi-weight 2.0` in `train_model_refinement.py` permanently unlearns the grid artifact within 25 iterations: raw validation CBI drops from `0.0729` to `0.0189` (matching ground truth `0.0198`), while raw PSNR jumps by **+0.72 dB** (surpassing `27.60 dB`) and SSIM reaches `0.9395`.
+
+### 2. Post-Processing Auto-Notch Filter (`anti_checkerboard='auto'`)
+For legacy checkpoints or unregularized models, `siq.inference()` applies an analytical data-driven notch filter:
+```python
+sigma = siq.estimate_anti_checkerboard_sigma(vol)  # sigma = sqrt(ln(excess)) / pi
+```
+If Nyquist spectral excess $\le 1.2\times$, $\sigma = 0.0$ (no blur applied to clean inputs).
+
+## Model I/O & Provenance Standards
+
+Never guess model input/output configurations or normalization methods. All models must be loaded and saved with companion `_config.json` provenance files:
+```python
+# Save:
+siq.save_siq_model("model.keras", model, config)  # writes model.keras and model_config.json
+
+# Load:
+model, config = siq.load_siq_model("model.keras")  # loads weights and companion _config.json
+
+# Inference:
+sr = siq.inference(img, model, config=config)     # uses provenance config for full-volume prediction
+```
+
 ## Key File Locations
 
 | File | Purpose |
