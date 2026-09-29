@@ -90,24 +90,25 @@ out = 'results/participant_sr'
 os.makedirs(out, exist_ok=True)
 mid = [s//2 for s in sr_raw_np.shape]
 
-# ── Display Preparation: ants.rank_intensity for visual contrast ────────────
-def to_rank_display(vol_np):
+# ── Display Preparation: ants.histogram_equalize_image for clear visual contrast ──────────
+def to_hist_eq_display(vol_np):
     img = ants.from_numpy(vol_np.astype(np.float32))
-    return ants.rank_intensity(img).numpy()
+    eq = ants.histogram_equalize_image(img, number_of_histogram_bins=256)
+    return eq.numpy()
 
-print("Applying ants.rank_intensity to images for display purposes...")
-bi_disp = to_rank_display(bi_np)
-sr_raw_disp = to_rank_display(sr_raw_np)
-sr_clean_disp = to_rank_display(sr_clean_np)
+print("Applying ants.histogram_equalize_image to images for display purposes...")
+bi_disp = to_hist_eq_display(bi_np)
+sr_raw_disp = to_hist_eq_display(sr_raw_np)
+sr_clean_disp = to_hist_eq_display(sr_clean_np)
 
 # ── Figure 1: 3x3 Orthogonal View (Bilinear vs Raw SR vs Cleaned SR) ────────
 fig, axes = plt.subplots(3, 3, figsize=(15, 15))
 fig.patch.set_facecolor('black')
 
 rows = [
-    (bi_disp, 'Bilinear Baseline (0.5mm) [Rank-Normalized]'),
-    (sr_raw_disp, f'Raw AS-DBPN SR ({os.path.basename(model_path)}) [Rank-Normalized]'),
-    (sr_clean_disp, f'Filtered SR (Sub-Voxel Notch σ={sigma:.2f}) [Rank-Normalized]')
+    (bi_disp, 'Bilinear Baseline (0.5mm) [Histogram-Equalized]'),
+    (sr_raw_disp, f'Raw AS-DBPN SR ({os.path.basename(model_path)}) [Histogram-Equalized]'),
+    (sr_clean_disp, f'Filtered SR (Sub-Voxel Notch σ={sigma:.2f}) [Histogram-Equalized]')
 ]
 
 for row_idx, (vol, row_title) in enumerate(rows):
@@ -119,7 +120,7 @@ for row_idx, (vol, row_title) in enumerate(rows):
         ax.set_title(f"{row_title} — {view}", color='white', fontsize=10)
         ax.axis('off')
 
-plt.suptitle(f'Participant T1w (Rank-Intensity Normalized): Bilinear vs Raw SR ({os.path.basename(model_path)}) vs Cleaned SR', color='white', fontsize=14, y=0.99)
+plt.suptitle(f'Participant T1w (Histogram-Equalized Display): Bilinear vs Raw SR ({os.path.basename(model_path)}) vs Cleaned SR', color='white', fontsize=14, y=0.99)
 plt.tight_layout()
 plt.savefig(f'{out}/t1_participant_3way_comparison.png', dpi=150, bbox_inches='tight', facecolor='black')
 plt.close()
@@ -133,24 +134,24 @@ fig, axes = plt.subplots(1, 3, figsize=(16, 6))
 fig.patch.set_facecolor('black')
 
 axes[0].imshow(z_sl_bi.T, cmap='gray', origin='lower', vmin=0, vmax=1)
-axes[0].set_title(f"Bilinear (Zoom - Rank-Norm)\nCBI: {cbi_bi:.4f}", color='white', fontsize=11)
+axes[0].set_title(f"Bilinear (Zoom - Hist-Equalized)\nCBI: {cbi_bi:.4f}", color='white', fontsize=11)
 axes[0].axis('off')
 
 axes[1].imshow(z_sl_raw.T, cmap='gray', origin='lower', vmin=0, vmax=1)
-axes[1].set_title(f"Raw AS-DBPN SR (Zoom - Rank-Norm)\nModel trained w/ CBI loss | CBI: {cbi_raw:.4f}", color='#7eccff', fontsize=11)
+axes[1].set_title(f"Raw AS-DBPN SR (Zoom - Hist-Equalized)\nModel trained w/ CBI loss | CBI: {cbi_raw:.4f}", color='#7eccff', fontsize=11)
 axes[1].axis('off')
 
 axes[2].imshow(z_sl_clean.T, cmap='gray', origin='lower', vmin=0, vmax=1)
 axes[2].set_title(f"Filtered SR (Zoom - σ={sigma:.2f})\nCBI: {cbi_clean:.4f}", color='#7eff7e', fontsize=11)
 axes[2].axis('off')
 
-plt.suptitle('Detail Zoom (Rank-Intensity Normalized): Ventricle & Gray/White Matter Boundary', color='white', fontsize=13)
+plt.suptitle('Detail Zoom (Histogram-Equalized Display): Ventricle & Gray/White Matter Boundary', color='white', fontsize=13)
 plt.tight_layout()
 plt.savefig(f'{out}/t1_participant_zoom_notch_comparison.png', dpi=150, bbox_inches='tight', facecolor='black')
 plt.close()
 
 # ── Figure 3: Isolated Checkerboard Artifact (Raw SR - Filtered SR) ─────────
-removed_artifact = sr_raw_disp - sr_clean_disp
+removed_artifact = sr_raw_np - sr_clean_np
 vmax_art = max(float(np.percentile(np.abs(removed_artifact), 99.5)), 1e-4)
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -159,11 +160,11 @@ views = ['Axial', 'Coronal', 'Sagittal']
 art_slices = [removed_artifact[mid[0], :, :], removed_artifact[:, mid[1], :], removed_artifact[:, :, mid[2]]]
 for i, (ax, sl, view) in enumerate(zip(axes, art_slices, views)):
     im = ax.imshow(sl.T, cmap='RdBu_r', origin='lower', vmin=-vmax_art, vmax=vmax_art)
-    ax.set_title(f"Residual Delta (Rank) — {view}", color='white', fontsize=11)
+    ax.set_title(f"Residual Delta — {view}", color='white', fontsize=11)
     ax.axis('off')
     plt.colorbar(im, ax=ax, fraction=0.046)
 
-plt.suptitle('Residual Difference on Rank-Normalized Scale (Raw SR − Cleaned SR)', color='white', fontsize=13)
+plt.suptitle('Residual Difference (Raw SR − Cleaned SR)', color='white', fontsize=13)
 plt.tight_layout()
 plt.savefig(f'{out}/t1_participant_stripped_checkerboard.png', dpi=150, bbox_inches='tight', facecolor='black')
 plt.close()
@@ -177,11 +178,11 @@ fig.patch.set_facecolor('black')
 diff_slices = [diff_clean[mid[0], :, :], diff_clean[:, mid[1], :], diff_clean[:, :, mid[2]]]
 for i, (ax, sl, view) in enumerate(zip(axes, diff_slices, views)):
     im = ax.imshow(sl.T, cmap='RdBu_r', origin='lower', vmin=-vmax_diff, vmax=vmax_diff)
-    ax.set_title(f"Filtered SR − Bilinear (Rank) — {view}", color='white', fontsize=11)
+    ax.set_title(f"Filtered SR − Bilinear (Equalized) — {view}", color='white', fontsize=11)
     ax.axis('off')
     plt.colorbar(im, ax=ax, fraction=0.046)
 
-plt.suptitle('Structural Detail Added by Cleaned SR vs Bilinear (Rank-Normalized)', color='white', fontsize=13)
+plt.suptitle('Structural Detail Added by Cleaned SR vs Bilinear (Histogram-Equalized)', color='white', fontsize=13)
 plt.tight_layout()
 plt.savefig(f'{out}/t1_participant_clean_sr_diff.png', dpi=150, bbox_inches='tight', facecolor='black')
 plt.close()
@@ -218,7 +219,7 @@ html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
     <li><strong>In-Training CBI Regularization:</strong> The model loaded is <code>{os.path.basename(model_path)}</code>, trained with active $\\mathcal{{L}}_{{\\text{{cbi}}}}$ penalty on alternating parity prediction error.</li>
     <li><strong>Raw Model CBI:</strong> Raw network output achieves $\\text{{CBI}} = \\mathbf{{{cbi_raw:.4f}}}$ (vs Bilinear baseline $\\mathbf{{{cbi_bi:.4f}}}$).</li>
     <li><strong>Fine Anatomy Preserved:</strong> Real anatomical edges, sulcal boundaries, and gray/white matter contrasts are fully retained with sharp, high-fidelity boundary definition.</li>
-    <li><strong>Visual Contrast Normalization:</strong> All comparative image slices and zoom insets below are processed through <code>ants.rank_intensity</code> purely for optimal display contrast across tissue types. (Quantitative metrics in the table above remain evaluated on the native physical intensity arrays).</li>
+    <li><strong>Visual Contrast Enhancement:</strong> Display montages and zoom insets below are processed through histogram equalization (<code>ants.histogram_equalize_image</code>) purely for clear tissue contrast across gray/white matter and ventricles without blowing out midtones. Quantitative metrics remain evaluated on native linear intensity arrays.</li>
   </ul>
 </div>
 

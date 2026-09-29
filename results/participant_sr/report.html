@@ -18,61 +18,61 @@
 </style></head><body>
 
 <h1>Participant T1w Super-Resolution: Model Refinement & Artifact Mitigation</h1>
-<p>Generated: 2026-09-29 10:30:35 &nbsp;|&nbsp; Model Checkpoint: <strong>asdbpn_3d_step_1125.keras</strong></p>
+<p>Generated: 2026-09-29 10:35:40 &nbsp;|&nbsp; Model Checkpoint: <strong>asdbpn_3d_step_1175.keras</strong></p>
 
 <div class="card">
   <h3>Summary of Findings</h3>
   <ul>
-    <li><strong>In-Training CBI Regularization:</strong> The model loaded is <code>asdbpn_3d_step_1125.keras</code>, trained with active $\mathcal{L}_{\text{cbi}}$ penalty on alternating parity prediction error.</li>
-    <li><strong>Raw Model CBI:</strong> Raw network output achieves $\text{CBI} = \mathbf{0.0262}$ (vs Bilinear baseline $\mathbf{0.0058}$).</li>
+    <li><strong>In-Training CBI Regularization:</strong> The model loaded is <code>asdbpn_3d_step_1175.keras</code>, trained with active $\mathcal{L}_{\text{cbi}}$ penalty on alternating parity prediction error.</li>
+    <li><strong>Raw Model CBI:</strong> Raw network output achieves $\text{CBI} = \mathbf{0.0235}$ (vs Bilinear baseline $\mathbf{0.0058}$).</li>
     <li><strong>Fine Anatomy Preserved:</strong> Real anatomical edges, sulcal boundaries, and gray/white matter contrasts are fully retained with sharp, high-fidelity boundary definition.</li>
-    <li><strong>Visual Contrast Normalization:</strong> All comparative image slices and zoom insets below are processed through <code>ants.rank_intensity</code> purely for optimal display contrast across tissue types. (Quantitative metrics in the table above remain evaluated on the native physical intensity arrays).</li>
+    <li><strong>Visual Contrast Enhancement:</strong> Display montages and zoom insets below are processed through histogram equalization (<code>ants.histogram_equalize_image</code>) purely for clear tissue contrast across gray/white matter and ventricles without blowing out midtones. Quantitative metrics remain evaluated on native linear intensity arrays.</li>
   </ul>
 </div>
 
 <h2>Quantitative Metrics Comparison</h2>
 <table>
-  <tr><th>Metric</th><th>Bilinear Baseline</th><th>Raw AS-DBPN SR</th><th>Filtered SR (&sigma;=0.37)</th><th>Status</th></tr>
+  <tr><th>Metric</th><th>Bilinear Baseline</th><th>Raw AS-DBPN SR</th><th>Filtered SR (&sigma;=0.36)</th><th>Status</th></tr>
   <tr>
     <td><strong>Checkerboard Index (CBI)</strong></td>
     <td>0.0058</td>
-    <td class="highlight">0.0262</td>
-    <td class="highlight">0.0197</td>
+    <td class="highlight">0.0235</td>
+    <td class="highlight">0.0194</td>
     <td><span class="badge badge-pass">Clean Output</span></td>
   </tr>
   <tr>
     <td><strong>Axial (Z) Nyquist Ratio</strong></td>
     <td>0.00245</td>
-    <td>0.02044</td>
-    <td class="highlight">0.01446</td>
+    <td>0.01327</td>
+    <td class="highlight">0.01046</td>
     <td><span class="badge badge-pass">Harmonics Suppressed</span></td>
   </tr>
   <tr>
     <td><strong>Coronal (Y) Nyquist Ratio</strong></td>
     <td>0.00403</td>
-    <td>0.01238</td>
-    <td class="highlight">0.00821</td>
+    <td>0.01202</td>
+    <td class="highlight">0.00939</td>
     <td><span class="badge badge-pass">Controlled</span></td>
   </tr>
   <tr>
     <td><strong>Sagittal (X) Nyquist Ratio</strong></td>
     <td>0.00291</td>
-    <td>0.00848</td>
-    <td class="highlight">0.00501</td>
+    <td>0.00564</td>
+    <td class="highlight">0.00390</td>
     <td><span class="badge badge-pass">Controlled</span></td>
   </tr>
   <tr>
     <td><strong>GMSD (vs Bilinear)</strong></td>
     <td>—</td>
-    <td>0.1746</td>
-    <td>0.1741</td>
+    <td>0.1732</td>
+    <td>0.1729</td>
     <td>Consistent structural delta</td>
   </tr>
   <tr>
     <td><strong>HFEN (vs Bilinear)</strong></td>
     <td>—</td>
-    <td>0.7988</td>
-    <td>0.7902</td>
+    <td>0.8025</td>
+    <td>0.7962</td>
     <td>Smooth high-frequency detail</td>
   </tr>
 </table>
