@@ -458,26 +458,47 @@ def transfer_dbpn_weights(src_model, dst_model):
 
 def _adapt_weight_shape(src_w, target_shape):
     """
-    Adapts a weight tensor to the target shape if dimensions differ only spatially
-    (e.g., center-cropping 6x6x6 filters down to 3x3x6 for anisotropic stride-1 projection).
+    Adapts a weight tensor to the target shape if dimensions differ only spatially.
+
+    Two modes:
+    - **Crop-down**: larger src → smaller target (e.g. 6×6×6 → 3×3×6 for anisotropic
+      stride-1 projection). Takes the central slice.
+    - **Pad-up**: smaller src → larger target (e.g. 3×3×6 → 6×6×6 for 1x1x2→2x2x2
+      conv-transpose transfer). Embeds src at the center, zero-padding the surround.
+      This preserves the learned frequency response in each spatial axis while giving
+      the new (larger) kernel a meaningful initialization rather than ICNR noise.
+
+    Only operates on 5-D conv kernels (kD, kH, kW, C_in, C_out) where the last two
+    dimensions (channel counts) are identical between src and target.
     """
     import numpy as np
     src_np = np.asarray(src_w)
     if src_np.shape == target_shape:
         return src_np
+    # 5-D conv/deconv kernel: spatial dims may differ, channel dims must match
     if src_np.ndim == 5 and len(target_shape) == 5 and src_np.shape[3:] == target_shape[3:]:
         out = src_np
         for ax in range(3):
             s = out.shape[ax]
             t = target_shape[ax]
             if s > t:
+                # Crop-down: take center slice
                 start = (s - t) // 2
                 sl = [slice(None)] * 5
                 sl[ax] = slice(start, start + t)
                 out = out[tuple(sl)]
             elif s < t:
-                return None
-        return out
+                # Pad-up: embed at center with zeros
+                pad_shape = list(out.shape)
+                pad_shape[ax] = t
+                padded = np.zeros(pad_shape, dtype=out.dtype)
+                start = (t - s) // 2
+                sl = [slice(None)] * 5
+                sl[ax] = slice(start, start + s)
+                padded[tuple(sl)] = out
+                out = padded
+        if out.shape == tuple(target_shape):
+            return out
     return None
 
 def transfer_siq_weights(src_model, dst_model, verbose=True):
@@ -1530,8 +1551,8 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
-        scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
     outputs = LearnableSharpening3D(name="final_sharpening")(outputs)
