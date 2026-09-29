@@ -292,19 +292,23 @@ class VisualConvergenceReporter:
     Manages regular convergence checkpointing, metric tracking, orthogonal slice
     montage generation, and live HTML report updating during 3D AS-DBPN training.
     """
-    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html", reset_history=False):
+    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html", reset_history=False, selection_metric="cqs"):
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.checkpoint_dir = os.path.join(self.workspace_dir, checkpoint_dir)
         self.report_dir = os.path.join(self.workspace_dir, report_dir)
         self.html_path = os.path.join(self.workspace_dir, html_filename)
+        self.selection_metric = selection_metric
         
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(self.report_dir, exist_ok=True)
         
         self.csv_path = os.path.join(self.checkpoint_dir, "convergence_history.csv")
         self.history = []
+        self.best_score = -float('inf')
+        self.best_cqs = -float('inf')
         self.best_psnr = -1.0
         self.best_iter = 0
+        self.best_stage = None
         self.start_time = time.time()
         
         if reset_history and os.path.exists(self.csv_path):
@@ -322,10 +326,18 @@ class VisualConvergenceReporter:
                 if len(self.history) > 0:
                     for r in self.history:
                         psnr = float(r.get("val_psnr", 0.0))
+                        ssim = float(r.get("val_ssim", 0.0))
+                        gmsd = float(r.get("val_gmsd", 0.0))
+                        cbi = float(r.get("val_cbi", 0.0))
+                        cqs = float(r.get("val_cqs", ssim - gmsd - cbi))
                         if psnr > self.best_psnr:
                             self.best_psnr = psnr
+                        if int(r.get("is_best", 0)) == 1 or cqs > self.best_cqs:
+                            self.best_cqs = cqs
+                            self.best_score = cqs if self.selection_metric == "cqs" else psnr
                             self.best_iter = int(r.get("iteration", 0))
-                print(f"[Convergence Reporter] Loaded {len(self.history)} existing history entries. Best PSNR: {self.best_psnr:.2f} dB at iter {self.best_iter}")
+                            self.best_stage = str(r.get("stage", ""))
+                print(f"[Convergence Reporter] Loaded {len(self.history)} existing history entries. Best CQS: {self.best_cqs:.4f} (PSNR: {self.best_psnr:.2f} dB) at iter {self.best_iter}")
             except Exception as e:
                 print(f"[Convergence Reporter] Warning: Could not read existing convergence history: {e}")
                 
@@ -450,11 +462,42 @@ class VisualConvergenceReporter:
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
         val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np, factor=getattr(self, "factor", None)))
+        val_cqs = float(val_ssim - val_gmsd - val_cbi)
         
-        is_new_best = val_psnr > self.best_psnr
+        # Determine champion model.
+        # Stages are prioritized hierarchically so downstream perceptual refinement (Stage 3)
+        # is never blocked by an artificially high PSNR from an earlier L1/MSE stage (Stage 2).
+        stage_rank_map = {
+            "Warmup Gate": 0, "Initial Warmup": 0, "Warmup": 0,
+            "Stage 1 Adaptation": 1, "Stage 1": 1,
+            "Stage 2 Robustness": 2, "Stage 2": 2,
+            "Stage 3 Refinement": 3, "Stage 3 Joint Fine-Tuning": 3, "Stage 3": 3,
+        }
+        cur_rank = stage_rank_map.get(stage_name, 0)
+        best_rank = stage_rank_map.get(self.best_stage, -1) if self.best_stage is not None else -1
+
+        is_new_best = False
+        if cur_rank > best_rank:
+            is_new_best = True
+        elif cur_rank == best_rank:
+            if self.selection_metric == "cqs":
+                is_new_best = val_cqs > self.best_score
+            elif self.selection_metric == "psnr":
+                is_new_best = val_psnr > self.best_psnr
+            else:
+                is_new_best = val_cqs > self.best_score
+        else:
+            is_new_best = False
+
         if is_new_best:
-            self.best_psnr = val_psnr
+            self.best_score = val_cqs if self.selection_metric == "cqs" else val_psnr
+            self.best_cqs = val_cqs
             self.best_iter = iteration
+            self.best_stage = stage_name
+
+        is_new_peak_psnr = val_psnr > self.best_psnr
+        if is_new_peak_psnr:
+            self.best_psnr = val_psnr
             
         elapsed_eval = time.time() - t0
         
@@ -520,6 +563,7 @@ class VisualConvergenceReporter:
                 "val_ssim": float(val_ssim),
                 "val_gmsd": float(val_gmsd),
                 "val_cbi": float(val_cbi),
+                "val_cqs": float(val_cqs),
                 "val_hfen": float(val_hfen),
             }
         }
@@ -562,12 +606,17 @@ class VisualConvergenceReporter:
         _save_config(refined_root_path, provenance_config)
         
         if is_new_best:
-            best_psnr_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_psnr.keras")
-            model.save(best_psnr_ckpt)
-            _save_config(best_psnr_ckpt, provenance_config)
+            best_cqs_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_cqs.keras")
+            model.save(best_cqs_ckpt)
+            _save_config(best_cqs_ckpt, provenance_config)
             best_root_path = os.path.join(self.workspace_dir, best_fn)
             model.save(best_root_path)
             _save_config(best_root_path, provenance_config)
+
+        if is_new_peak_psnr:
+            best_psnr_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_psnr.keras")
+            model.save(best_psnr_ckpt)
+            _save_config(best_psnr_ckpt, provenance_config)
             
         # 3. Render Visual Images
         step_img_name = f"step_{iteration:04d}_ortho.png"
@@ -602,9 +651,9 @@ class VisualConvergenceReporter:
             
         if is_new_best:
             best_img_path = os.path.join(self.report_dir, "val3d_asdbpn_best.png")
-            save_orthogonal_slice_montage(sr_img, best_img_path, title=f"Best AS-DBPN Output (Iter {iteration}, PSNR: {val_psnr:.2f} dB)")
+            save_orthogonal_slice_montage(sr_img, best_img_path, title=f"Best AS-DBPN Output (Iter {iteration}, CQS: {val_cqs:.4f}, PSNR: {val_psnr:.2f} dB)")
             best_diff_path = os.path.join(self.report_dir, "diff3d_asdbpn_best.png")
-            save_difference_montage(sr_np, self.gt_np, best_diff_path, title=f"Best Residual Error (Iter {iteration})")
+            save_difference_montage(sr_np, self.gt_np, best_diff_path, title=f"Best Residual Error (Iter {iteration}, CQS: {val_cqs:.4f})")
             
         # 4. Append to CSV
         timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -616,6 +665,7 @@ class VisualConvergenceReporter:
             "val_ssim": val_ssim,
             "val_gmsd": val_gmsd,
             "val_cbi": val_cbi,
+            "val_cqs": val_cqs,
             "val_hfen": val_hfen,
             "val_corr": val_corr,
             "is_best": 1 if is_new_best else 0,
@@ -636,9 +686,11 @@ class VisualConvergenceReporter:
         psnr_delta = val_psnr - self.bilinear_metrics.get("psnr", 27.10)
         sign = "+" if psnr_delta >= 0 else ""
         print(f"\n[Convergence Checkpoint] Iter {iteration:04d} ({stage_name}) - Loss: {train_loss:.6f}")
-        print(f"  --> PSNR: {val_psnr:.2f} dB ({sign}{psnr_delta:.2f} dB vs Bilinear) | SSIM: {val_ssim:.4f} | GMSD: {val_gmsd:.4f} | CBI: {val_cbi:.4f} | HFEN: {val_hfen:.4f} | Corr: {val_corr:.4f}")
+        print(f"  --> PSNR: {val_psnr:.2f} dB ({sign}{psnr_delta:.2f} dB vs Bilinear) | SSIM: {val_ssim:.4f} | GMSD: {val_gmsd:.4f} | CBI: {val_cbi:.4f} | CQS: {val_cqs:.4f} | HFEN: {val_hfen:.4f} | Corr: {val_corr:.4f}")
         if is_new_best:
-            print(f"  ★ NEW PEAK VALIDATION PSNR! ({val_psnr:.2f} dB) -> Saved best model checkpoints")
+            print(f"  ★ NEW PEAK VALIDATION CQS! ({val_cqs:.4f}) [PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CBI: {val_cbi:.4f}] -> Saved champion model checkpoints")
+        elif is_new_peak_psnr:
+            print(f"  ★ New peak PSNR ({val_psnr:.2f} dB) -> Saved asdbpn_3d_best_psnr.keras")
         print(f"  --> Convergence report refreshed: {self.html_path} (eval took {elapsed_eval:.2f}s)\n")
         
         return entry
@@ -1134,9 +1186,9 @@ class VisualConvergenceReporter:
             <span class="kpi-subtext">Bilinear Baseline: {lin_hfen:.4f} (lower is sharper)</span>
         </div>
         <div class="kpi-card">
-            <span class="kpi-label">Peak Best PSNR</span>
-            <span class="kpi-value" style="color: #10b981;">{self.best_psnr:.2f} dB</span>
-            <span class="kpi-subtext">Achieved at Iteration {self.best_iter}</span>
+            <span class="kpi-label">Peak Best Model (CQS)</span>
+            <span class="kpi-value" style="color: #10b981;">{self.best_cqs:.4f}</span>
+            <span class="kpi-subtext">Iter {self.best_iter} ({self.best_stage or 'Best'}) &bull; PSNR: {self.best_psnr:.2f} dB</span>
         </div>
         <div class="kpi-card">
             <span class="kpi-label">Parameters & Architecture</span>

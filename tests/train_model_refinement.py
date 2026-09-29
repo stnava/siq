@@ -903,14 +903,16 @@ def main():
         proj_k = args.projection_kernel_size if args.projection_kernel_size is not None else 6
         source_transfer_path = args.transfer_from if args.transfer_from else (args.load_model if (not is_default_factor and args.load_model) else None)
         
-        ckpt_best_path = os.path.join(ckpt_dir, "asdbpn_3d_best_psnr.keras")
+        ckpt_best_cqs = os.path.join(ckpt_dir, "asdbpn_3d_best_cqs.keras")
+        ckpt_best_psnr = os.path.join(ckpt_dir, "asdbpn_3d_best_psnr.keras")
+        ckpt_best_path = ckpt_best_cqs if os.path.exists(ckpt_best_cqs) else ckpt_best_psnr
         if os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
         elif os.path.exists(ckpt_best_path) and not args.reset_history:
-            print(f"Resuming training: loading best checkpoint from {ckpt_best_path}...")
+            print(f"Resuming training: loading best champion checkpoint from {ckpt_best_path}...")
             model = keras.models.load_model(ckpt_best_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if last_iteration >= stage2_max:
                 skip_stages_1_2 = True

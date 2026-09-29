@@ -54,3 +54,17 @@ When the upsampling factor is anisotropic (e.g. `--factor 1 1 2` or `1 2 2`):
 - The checkerboard loss filter and `siq.compute_checkerboard_index(y, y_true, factor)` must construct alternating parity differences along only the upsampled axes ($f_d > 1$).
 - **Mathematical Normalization**: The difference block must be divided by $2^{D_{\text{up}}}$ ($2.0$ for 1D, $4.0$ for 2D, $8.0$ for 3D). This guarantees that an artifact of amplitude $A$ produces raw loss $A$ regardless of upsampling dimensionality, maintaining consistent relative weighting (`--cbi-weight 2.0`).
 
+## Perceptual & Artifact Model Selection Invariant (Never Use PSNR for Best Model)
+
+Never use PSNR alone to select the best model when perceptual or artifact-mitigation objectives are active:
+- **Failure Mode of PSNR**: PSNR mathematically rewards smooth, blurry outputs because under spatial uncertainty of anatomical edges, averaging minimizes expected squared error. Furthermore, high-frequency transposed-convolution ripples (1D/3D CBI) have tiny mean squared error ($0.02^2 = 0.0004$), allowing models with severe through-plane ringing to achieve higher PSNR than clean models.
+- **Premature Checkpoint Freezing**: Pure-PSNR selection freezes the champion model in early $L_1$/MSE pre-training stages (e.g. Stage 2), ignoring all subsequent Stage 3 perceptual fine-tuning and anti-checkerboard suppression.
+- **Composite Quality Score (CQS) Standard**:
+  $$\text{CQS} = \text{val\_ssim} - \text{val\_gmsd} - \text{val\_cbi}$$
+  CQS simultaneously rewards structural fidelity ($\text{SSIM} \in [0, 1]$), gradient edge sharpness ($\text{GMSD} \ge 0$), and artifact cleanliness ($\text{CBI} \ge 0$).
+- **Stage Precedence & Checkpoint Naming**:
+  - Downstream curriculum stages (Stage 3 Refinement) always supersede earlier pre-training stages (Stage 1 / Stage 2) for champion designation.
+  - The champion model must be saved as `asdbpn_3d_best_cqs.keras` (in checkpoints dir) and `asdbpn_3d_{factor_str}_best_mdl.keras` (at repo root).
+  - Legacy `asdbpn_3d_best_psnr.keras` is preserved only as a reference checkpoint.
+
+

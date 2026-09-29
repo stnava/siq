@@ -133,6 +133,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     ldbpn = ldbpn_metrics or {"psnr": 26.50, "ssim": 0.9150, "hfen": 0.4900, "corr": 0.9180}
     
     best_psnr = -1.0
+    best_cqs = -float("inf")
     best_step = 0
     best_entry = history[0]
     
@@ -152,7 +153,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     global_steps = []
     stage_markers = []
     prev_stage = None
-    for r in history:
+    for idx, r in enumerate(history):
         st = str(r.get("stage", "Unknown"))
         it = int(r.get("iteration", 0))
         if "Warmup" in st or "Initial" in st:
@@ -167,9 +168,18 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             stage_markers.append((g_step, short_stage))
         prev_stage = st
         
+        ssim = float(r.get("val_ssim", 0.0))
+        gmsd = float(r.get("val_gmsd", 0.0))
+        cbi = float(r.get("val_cbi", 0.0))
+        cqs = float(r.get("val_cqs", ssim - gmsd - cbi))
+        r["val_cqs"] = cqs
+
         p = float(r.get("val_psnr", 0.0))
         if p > best_psnr:
             best_psnr = p
+
+        if int(r.get("is_best", 0)) == 1 or cqs > best_cqs:
+            best_cqs = cqs
             best_step = g_step
             best_entry = r
 
@@ -180,6 +190,8 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     cur_psnr = float(latest_entry["val_psnr"])
     cur_ssim = float(latest_entry["val_ssim"])
     cur_gmsd = float(latest_entry["val_gmsd"])
+    cur_cbi = float(latest_entry.get("val_cbi", 0.0))
+    cur_cqs = float(latest_entry.get("val_cqs", cur_ssim - cur_gmsd - cur_cbi))
     cur_hfen = float(latest_entry["val_hfen"])
     cur_corr = float(latest_entry["val_corr"])
     cur_loss = float(latest_entry["train_loss"])
@@ -195,20 +207,24 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     psnrs = [float(r["val_psnr"]) for r in history]
     ssims = [float(r["val_ssim"]) for r in history]
     losses = [float(r["train_loss"]) for r in history]
+    cqss = [float(r["val_cqs"]) for r in history]
     
+    svg_cqs = generate_svg_chart(global_steps, cqss, "Composite Quality Score (CQS = SSIM - GMSD - CBI)", "CQS", color="#38bdf8", stage_markers=stage_markers, x_label="Global Step")
     svg_psnr = generate_svg_chart(global_steps, psnrs, "Validation PSNR Trajectory (dB)", "PSNR (dB)", baseline_val=lin_psnr, baseline_label="Bilinear", color="#10b981", stage_markers=stage_markers, x_label="Global Step")
     svg_ssim = generate_svg_chart(global_steps, ssims, "Validation SSIM Progression", "SSIM", baseline_val=lin_ssim, baseline_label="Bilinear", color="#8b5cf6", stage_markers=stage_markers, x_label="Global Step")
-    svg_loss = generate_svg_chart(global_steps, losses, "Hybrid Training Loss", "Loss", color="#38bdf8", stage_markers=stage_markers, x_label="Global Step")
+    svg_loss = generate_svg_chart(global_steps, losses, "Hybrid Training Loss", "Loss", color="#f59e0b", stage_markers=stage_markers, x_label="Global Step")
 
     checkpoint_rows = ""
     for idx, r in enumerate(reversed(history)):
         orig_idx = len(history) - 1 - idx
         g_step = global_steps[orig_idx]
-        best_tag = ' <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Best</span>' if r.get("is_best", 0) else ""
+        best_tag = ' <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span>' if r.get("is_best", 0) else ""
         p_val = float(r["val_psnr"])
         p_diff = p_val - lin_psnr
         p_sign = "+" if p_diff >= 0 else ""
         p_color = "#10b981" if p_diff >= 0 else "#e2e8f0"
+        cqs_val = float(r.get("val_cqs", 0.0))
+        cbi_val = float(r.get("val_cbi", 0.0))
         
         ortho_rel = f"{report_dir}/{r.get('ortho_image', '')}"
         diff_rel = f"{report_dir}/{r.get('diff_image', '')}"
@@ -220,8 +236,10 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             <td><span class="stage-badge">{r['stage']}</span></td>
             <td style="color: {p_color}; font-weight: bold;">{p_val:.2f} dB <span style="font-size: 0.8em; opacity: 0.8;">({p_sign}{p_diff:.2f})</span></td>
             <td>{float(r['val_ssim']):.4f}</td>
-            <td>{float(r['val_hfen']):.4f}</td>
+            <td style="color: #38bdf8; font-weight: 600;">{cqs_val:.4f}</td>
+            <td>{cbi_val:.4f}</td>
             <td>{float(r['val_gmsd']):.4f}</td>
+            <td>{float(r['val_hfen']):.4f}</td>
             <td>{float(r['val_corr']):.4f}</td>
             <td style="font-family: monospace;">{float(r['train_loss']):.5f}</td>
             <td>
@@ -614,6 +632,12 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 <div class="stat-value">{cur_step} <span style="font-size: 1rem; color: #64748b;">(Iter {cur_iter})</span></div>
                 <div class="stat-diff" style="color: #38bdf8;">{cur_stage}</div>
             </div>
+
+            <div class="glass-card">
+                <div class="stat-label">Composite Quality (CQS)</div>
+                <div class="stat-value" style="color: #38bdf8;">{cur_cqs:.4f}</div>
+                <div class="stat-diff" style="color: #64748b;">SSIM - GMSD - CBI (Peak: {best_cqs:.4f})</div>
+            </div>
             
             <div class="glass-card">
                 <div class="stat-label">Validation PSNR</div>
@@ -628,15 +652,9 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             </div>
 
             <div class="glass-card">
-                <div class="stat-label">High-Freq Error (HFEN)</div>
-                <div class="stat-value" style="color: #38bdf8;">{cur_hfen:.4f}</div>
-                <div class="stat-diff" style="color: #64748b;">Lower is sharper (Target &lt; 0.50)</div>
-            </div>
-
-            <div class="glass-card">
-                <div class="stat-label">Peak All-Time PSNR</div>
-                <div class="stat-value" style="color: #10b981;">{best_psnr:.2f} <span style="font-size: 1rem;">dB</span></div>
-                <div class="stat-diff" style="color: #10b981;">Achieved at Step {best_step}</div>
+                <div class="stat-label">Peak Champion (CQS)</div>
+                <div class="stat-value" style="color: #10b981;">{best_cqs:.4f}</div>
+                <div class="stat-diff" style="color: #10b981;">Step {best_step} &bull; {best_entry.get('stage', 'Stage 3')}</div>
             </div>
         </section>
 
@@ -742,9 +760,9 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 </div>
 
                 <div id="view-best" class="view-pane">
-                    <img src="{report_dir}/val3d_asdbpn_best.png" alt="Peak Best Model Volume" class="viewport-image">
+                    <img src="{report_dir}/val3d_asdbpn_best.png" alt="Peak Champion Model Volume" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>6. Peak All-Time Model (Step {best_step})</strong> &bull; PSNR: {best_psnr:.2f} dB
+                        <strong>6. Peak Champion Model (Step {best_step} &bull; Iter {best_entry.get('iteration', 0)})</strong> &bull; CQS: {best_cqs:.4f} &bull; PSNR: {float(best_entry.get('val_psnr', 0.0)):.2f} dB &bull; CBI: {float(best_entry.get('val_cbi', 0.0)):.4f}
                     </div>
                 </div>
             </div>
@@ -752,6 +770,9 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
 
         <!-- SVG Convergence Charts -->
         <section class="grid-charts">
+            <div class="glass-card" style="padding: 1.2rem;">
+                {svg_cqs}
+            </div>
             <div class="glass-card" style="padding: 1.2rem;">
                 {svg_psnr}
             </div>
@@ -776,8 +797,10 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                         <th>Stage</th>
                         <th>Val PSNR (dB)</th>
                         <th>Val SSIM</th>
-                        <th>Val HFEN</th>
+                        <th>CQS (★)</th>
+                        <th>Val CBI</th>
                         <th>Val GMSD</th>
+                        <th>Val HFEN</th>
                         <th>Val Corr</th>
                         <th>Loss</th>
                         <th>Artifacts</th>

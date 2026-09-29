@@ -205,7 +205,9 @@ sr = siq.inference(img, model, config=config)     # uses provenance config for f
 
 | File | Purpose |
 |------|---------|
-| `checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras` | Best PSNR checkpoint |
+| `checkpoints/asdbpn_3d/asdbpn_3d_best_cqs.keras` | Champion checkpoint selected by CQS (SSIM - GMSD - CBI) |
+| `checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras` | Legacy peak PSNR reference checkpoint |
+| `asdbpn_3d_best_mdl.keras` | Repo-root champion model from highest active curriculum stage |
 | `asdbpn_3d_refined_training_weights.csv` | Auto-saved weight state |
 | `loss_contributions_asdbpn_3d.csv` | Per-step loss component log |
 | `asdbpn_3d_report.html` | Convergence dashboard |
@@ -261,4 +263,14 @@ python -u tests/train_model_refinement.py asdbpn --dim 3 --factor 1 1 2 \
 - **Dynamic report routing**: Output files and HTML dashboards are routed to `reports/asdbpn_3d_1x1x2/` and `asdbpn_3d_1x1x2_report.html`.
 - **1D / Factor-aware CBI**: When only one or two axes are upsampled (e.g. $1 \times 1 \times 2$), training applies a factor-matched alternating filter along upsampled axes (normalized by $2.0$ for 1D, $4.0$ for 2D, $8.0$ for 3D), actively suppressing through-plane slice ripples while preserving relative weighting (`--cbi-weight 2.0`).
 - **Dynamic Resumption Precedence**: When resuming without `--reset-history`, `train_model_refinement.py` reads `last_iteration` directly from `convergence_history.csv` and skips stages 1 & 2 dynamically once `last_iteration >= stage2_max`.
+
+## Champion Model Selection: Composite Quality Score (CQS)
+
+Never use PSNR alone to choose the best model in super-resolution pipelines that employ perceptual or artifact regularization:
+- **The PSNR Selector Bug**: PSNR inherently favors blurred outputs over sharp textures because edge uncertainty increases squared error under minute sub-voxel phase differences. Furthermore, high-frequency transposed-convolution ripples have tiny mean squared magnitude ($0.02^2 = 0.0004$), meaning an artifact-ridden model can achieve higher PSNR than a clean model. Pure-PSNR selection freezes the "best" model in early smooth pre-training stages (e.g. Stage 2), ignoring subsequent Stage 3 perceptual refinements.
+- **Composite Quality Score (CQS)**:
+  $$\text{CQS} = \text{val\_ssim} - \text{val\_gmsd} - \text{val\_cbi}$$
+  Higher is better. CQS balances structural preservation ($\text{SSIM} \in [0, 1]$), gradient edge fidelity ($\text{GMSD} \ge 0$), and artifact cleanliness ($\text{CBI} \ge 0$).
+- **Stage Precedence**: Downstream refinement stages (Stage 3 Refinement) always supersede earlier pre-training stages for repo-root `*_best_mdl.keras`. The champion model is saved as `asdbpn_3d_best_cqs.keras` (and mirrored to `asdbpn_3d_{factor_str}_best_mdl.keras`), while `asdbpn_3d_best_psnr.keras` is preserved strictly for legacy reference.
+
 
