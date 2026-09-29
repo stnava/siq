@@ -1,9 +1,9 @@
 {
   "model_type": "asdbpn_3d",
   "siq_version": "0.10.3",
-  "saved_at": "2026-09-29T14:20:08.465603Z",
+  "saved_at": "2026-09-29T14:37:31.464794Z",
   "stage": "Stage 3 Refinement",
-  "iteration": 1025,
+  "iteration": 1200,
   "input_patch_shape": [
     64,
     64,
@@ -40,10 +40,10 @@
     "note": "Use siq.inference(img, model) which dispatches: single model.predict() if input==patch_size, else Gaussian-blended overlapping patches with volume_normalized=True. Never use antspynet.apply_super_resolution_model_to_image() \u2014 it applies per-patch min-max renormalization incompatible with siq training."
   },
   "val_metrics": {
-    "val_psnr": 27.698205947875977,
-    "val_ssim": 0.9406102299690247,
-    "val_gmsd": 0.18482457101345062,
-    "val_cbi": 0.01910720020532608,
-    "val_hfen": 0.44834357500076294
+    "val_psnr": 27.718215942382812,
+    "val_ssim": 0.9409229755401611,
+    "val_gmsd": 0.1834172010421753,
+    "val_cbi": 0.019072428345680237,
+    "val_hfen": 0.45148393511772156
   }
 }
