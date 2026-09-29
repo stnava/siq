@@ -2218,11 +2218,23 @@ def default_siq_config(model=None):  # pragma: no cover
         },
     }
     if model is not None:
-        cfg["input_patch_shape"] = list(model.input_shape[1:])
-        cfg["output_patch_shape"] = list(model.output_shape[1:])
-        cfg["upsample_factor"] = int(round(
-            model.output_shape[1] / model.input_shape[1]
-        ))
+        in_s = list(model.input_shape[1:])
+        out_s = list(model.output_shape[1:])
+        if any(s is None for s in in_s[:-1]):
+            cfg["input_patch_shape"] = [64, 64, 64, in_s[-1] if in_s[-1] is not None else 1]
+        else:
+            cfg["input_patch_shape"] = in_s
+        if any(s is None for s in out_s[:-1]):
+            cfg["output_patch_shape"] = [128, 128, 128, out_s[-1] if out_s[-1] is not None else 1]
+        else:
+            cfg["output_patch_shape"] = out_s
+        try:
+            if model.output_shape[1] is not None and model.input_shape[1] is not None:
+                cfg["upsample_factor"] = int(round(model.output_shape[1] / model.input_shape[1]))
+            else:
+                cfg["upsample_factor"] = 2
+        except Exception:
+            cfg["upsample_factor"] = 2
     return cfg
 
 

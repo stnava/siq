@@ -441,9 +441,17 @@ class VisualConvergenceReporter:
             _siq_ver = getattr(_siq, '__version__', 'unknown')
         except Exception:
             _siq_ver = 'unknown'
-        _input_patch  = list(model.input_shape[1:])   # e.g. [64,64,64,1]
-        _output_patch = list(model.output_shape[1:])  # e.g. [128,128,128,1]
-        _upfactor = int(round(_output_patch[0] / _input_patch[0]))
+        in_s = list(model.input_shape[1:])
+        out_s = list(model.output_shape[1:])
+        _input_patch  = [64, 64, 64, in_s[-1] if in_s[-1] is not None else 1] if any(s is None for s in in_s[:-1]) else in_s
+        _output_patch = [128, 128, 128, out_s[-1] if out_s[-1] is not None else 1] if any(s is None for s in out_s[:-1]) else out_s
+        try:
+            if model.output_shape[1] is not None and model.input_shape[1] is not None:
+                _upfactor = int(round(model.output_shape[1] / model.input_shape[1]))
+            else:
+                _upfactor = 2
+        except Exception:
+            _upfactor = 2
         provenance_config = {
             "model_type": "asdbpn_3d",
             "siq_version": _siq_ver,
