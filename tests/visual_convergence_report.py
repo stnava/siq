@@ -408,8 +408,11 @@ class VisualConvergenceReporter:
         import siq
         t0 = time.time()
         
-        # 1. Run inference
-        sr_img = siq.inference(self.lr_patch, model, method="antspynet", verbose=False)
+        # 1. Run inference with provenance config
+        cfg = getattr(self, "model_config", None)
+        if cfg is None:
+            cfg = siq.default_siq_config(model)
+        sr_img = siq.inference(self.lr_patch, model, config=cfg, verbose=False)
         ants.copy_image_info(self.hr_patch, sr_img)
         sr_np = sr_img.numpy()
         

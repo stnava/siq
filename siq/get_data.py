@@ -3429,32 +3429,42 @@ def inference( # pragma: no cover
     # and must NOT be used here.
     pimg_norm = ants.iMath(pimg, 'Normalize')   # → [0,1] volume-level
 
-    # ── Step 2: Dispatch based on input size vs model patch size ────────────
-    # _model_patch and _patch_overlap are resolved from provenance config above
+    # ── Step 2: Dispatch based on method ────────────────────────────────────
+    # Fully convolutional networks (DBPN, etc.) process 3D volumes in a single pass
+    # without patch stitching artifacts. Only use overlapping patches when
+    # explicitly requested via method='patchwise'.
     input_shape_list = list(pimg_norm.shape)
     _upfactor = config.get('upsample_factor', 2) if config is not None else 2
 
-    if method == 'patchwise' or input_shape_list != _model_patch:
-        # Whole-brain / oversized input: Gaussian-blended overlapping patches.
-        # volume_normalized=True tells the function NOT to re-normalize patches.
+    if method == 'patchwise':
+        # Patchwise mode requested: Gaussian-blended overlapping patches.
+        # Ensure patch size contains valid integers (not None from dynamic shapes).
+        effective_patch = []
+        for i, p in enumerate(_model_patch):
+            if p is None:
+                effective_patch.append(patch_size[i] if i < len(patch_size) else 64)
+            else:
+                effective_patch.append(int(p))
+        effective_patch = tuple(effective_patch)
+
         if verbose:
-            print(f"[siq] overlapping_patch_inference: input {input_shape_list} != patch {_model_patch}; "
-                  f"Gaussian-blended patches (overlap={_patch_overlap})")
+            print(f"[siq] overlapping_patch_inference: Gaussian-blended patches {effective_patch} (overlap={_patch_overlap})")
         imgsr = overlapping_patch_inference(
             pimg_norm, mdl,
-            patch_size=tuple(_model_patch),
+            patch_size=effective_patch,
             overlap=_patch_overlap,
             batch_size=batch_size,
             verbose=verbose,
             volume_normalized=True,   # skip per-patch renorm — volume already normalized
         )
     else:
-        # Input exactly matches model patch size: single forward pass, no stitching.
+        # Default: direct full-volume inference in a single forward pass (no patch stitching)
         if verbose:
-            print(f"[siq] direct single-patch inference: input {input_shape_list} == model patch {_model_patch}")
+            print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[_upfactor * s for s in input_shape_list]}")
         arr = pimg_norm.numpy()[np.newaxis, ..., np.newaxis].astype('float32')
         out = mdl.predict(arr, verbose=0)[0, ..., 0]
-        out = np.clip(out, 0.0, 1.0)
+        if _output_clip:
+            out = np.clip(out, 0.0, 1.0)
         new_spacing = tuple(float(s) / _upfactor for s in pimg_norm.spacing)
         imgsr = ants.from_numpy(out)
         ants.set_spacing(imgsr, new_spacing)
