@@ -14,11 +14,14 @@ import pandas as pd
 
 keras.config.enable_unsafe_deserialization()
 
-# 1. Load latest checkpoint
-best_path = 'checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras'
+# 1. Load freshest checkpoint (or explicit path if passed via CLI)
+import sys
 ckpts = sorted(glob.glob('checkpoints/asdbpn_3d/asdbpn_3d_step_*.keras'), key=os.path.getmtime)
-model_path = best_path if os.path.exists(best_path) else ckpts[-1]
-print(f"Loading model: {model_path} ({os.path.getsize(model_path)/1e6:.1f} MB)")
+if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+    model_path = sys.argv[1]
+else:
+    model_path = ckpts[-1]
+print(f"Loading freshest model: {model_path} ({os.path.getsize(model_path)/1e6:.1f} MB)")
 model, cfg = siq.load_siq_model(model_path)
 
 # 2. Load participant T1w crop
