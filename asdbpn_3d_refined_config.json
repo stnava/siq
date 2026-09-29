@@ -1,0 +1,49 @@
+{
+  "model_type": "asdbpn_3d",
+  "siq_version": "0.10.3",
+  "saved_at": "2026-09-29T14:12:45.156260Z",
+  "stage": "Stage 3 Refinement",
+  "iteration": 950,
+  "input_patch_shape": [
+    64,
+    64,
+    64,
+    1
+  ],
+  "output_patch_shape": [
+    128,
+    128,
+    128,
+    1
+  ],
+  "upsample_factor": 2,
+  "normalization": {
+    "method": "volume",
+    "truncate_quantiles": [
+      0.001,
+      0.999
+    ],
+    "output_range": [
+      0.0,
+      1.0
+    ],
+    "note": "Apply ants.iMath(vol,'TruncateIntensity',0.001,0.999) then ants.iMath(vol,'Normalize') to the WHOLE volume before any patching. Do NOT normalize per-patch \u2014 that is inconsistent with training."
+  },
+  "inference": {
+    "preferred_method": "direct_single_patch_if_fits",
+    "patch_overlap": 16,
+    "output_clip": [
+      0.0,
+      1.0
+    ],
+    "antspynet_wrapper": false,
+    "note": "Use siq.inference(img, model) which dispatches: single model.predict() if input==patch_size, else Gaussian-blended overlapping patches with volume_normalized=True. Never use antspynet.apply_super_resolution_model_to_image() \u2014 it applies per-patch min-max renormalization incompatible with siq training."
+  },
+  "val_metrics": {
+    "val_psnr": 27.6094913482666,
+    "val_ssim": 0.9393296241760254,
+    "val_gmsd": 0.1876509040594101,
+    "val_cbi": 0.01901562511920929,
+    "val_hfen": 0.45143258571624756
+  }
+}

@@ -1214,21 +1214,22 @@ def main():
         # K[i, j, k] = (-1)^(i+j+k) / 8
         # Penalises the Nyquist (+1, -1) deconvolution ringing artifact directly during backprop
         if float(ops.convert_to_numpy(cbi_weight_var)) > 1e-8:
+            _cb_target = y_pred - y_true
             if dim == 2:
-                c00 = y_pred[:, :-1, :-1, :]
-                c10 = y_pred[:, 1:,  :-1, :]
-                c01 = y_pred[:, :-1, 1:,  :]
-                c11 = y_pred[:, 1:,  1:,  :]
+                c00 = _cb_target[:, :-1, :-1, :]
+                c10 = _cb_target[:, 1:,  :-1, :]
+                c01 = _cb_target[:, :-1, 1:,  :]
+                c11 = _cb_target[:, 1:,  1:,  :]
                 cbi_block = (c00 - c10 - c01 + c11) / 4.0
             else:
-                c000 = y_pred[:, :-1, :-1, :-1, :]
-                c100 = y_pred[:, 1:,  :-1, :-1, :]
-                c010 = y_pred[:, :-1, 1:,  :-1, :]
-                c110 = y_pred[:, 1:,  1:,  :-1, :]
-                c001 = y_pred[:, :-1, :-1, 1:,  :]
-                c101 = y_pred[:, 1:,  :-1, 1:,  :]
-                c011 = y_pred[:, :-1, 1:,  1:,  :]
-                c111 = y_pred[:, 1:,  1:,  1:,  :]
+                c000 = _cb_target[:, :-1, :-1, :-1, :]
+                c100 = _cb_target[:, 1:,  :-1, :-1, :]
+                c010 = _cb_target[:, :-1, 1:,  :-1, :]
+                c110 = _cb_target[:, 1:,  1:,  :-1, :]
+                c001 = _cb_target[:, :-1, :-1, 1:,  :]
+                c101 = _cb_target[:, 1:,  :-1, 1:,  :]
+                c011 = _cb_target[:, :-1, 1:,  1:,  :]
+                c111 = _cb_target[:, 1:,  1:,  1:,  :]
                 cbi_block = (c000 - c100 - c010 + c110 - c001 + c101 + c011 - c111) / 8.0
             cbi_term = ops.mean(ops.abs(cbi_block), axis=list(range(1, len(y_pred.shape))))
         else:
@@ -1362,21 +1363,22 @@ def main():
         # CBI (Checkerboard) loss raw calculation
         cbi_weight_val = float(ops.convert_to_numpy(cbi_weight_var))
         if cbi_weight_val > 1e-8:
+            _cb_target = y_pred_batch - y_true_tensor
             if dim == 2:
-                _c00 = y_pred_batch[:, :-1, :-1, :]
-                _c10 = y_pred_batch[:, 1:,  :-1, :]
-                _c01 = y_pred_batch[:, :-1, 1:,  :]
-                _c11 = y_pred_batch[:, 1:,  1:,  :]
+                _c00 = _cb_target[:, :-1, :-1, :]
+                _c10 = _cb_target[:, 1:,  :-1, :]
+                _c01 = _cb_target[:, :-1, 1:,  :]
+                _c11 = _cb_target[:, 1:,  1:,  :]
                 _cbi_block = (_c00 - _c10 - _c01 + _c11) / 4.0
             else:
-                _c000 = y_pred_batch[:, :-1, :-1, :-1, :]
-                _c100 = y_pred_batch[:, 1:,  :-1, :-1, :]
-                _c010 = y_pred_batch[:, :-1, 1:,  :-1, :]
-                _c110 = y_pred_batch[:, 1:,  1:,  :-1, :]
-                _c001 = y_pred_batch[:, :-1, :-1, 1:,  :]
-                _c101 = y_pred_batch[:, 1:,  :-1, 1:,  :]
-                _c011 = y_pred_batch[:, :-1, 1:,  1:,  :]
-                _c111 = y_pred_batch[:, 1:,  1:,  1:,  :]
+                _c000 = _cb_target[:, :-1, :-1, :-1, :]
+                _c100 = _cb_target[:, 1:,  :-1, :-1, :]
+                _c010 = _cb_target[:, :-1, 1:,  :-1, :]
+                _c110 = _cb_target[:, 1:,  1:,  :-1, :]
+                _c001 = _cb_target[:, :-1, :-1, 1:,  :]
+                _c101 = _cb_target[:, 1:,  :-1, 1:,  :]
+                _c011 = _cb_target[:, :-1, 1:,  1:,  :]
+                _c111 = _cb_target[:, 1:,  1:,  1:,  :]
                 _cbi_block = (_c000 - _c100 - _c010 + _c110 - _c001 + _c101 + _c011 - _c111) / 8.0
             cbi_raw = float(ops.mean(ops.abs(_cbi_block)))
         else:
