@@ -186,7 +186,10 @@ def apply_icnr_initialization(model, factor=2):
                 continue
             w = weights[0]
             is_3d = len(w.shape) == 5
-            num_subpixels = factor**3 if is_3d else factor**2
+            if isinstance(factor, (list, tuple)):
+                num_subpixels = math.prod(factor)
+            else:
+                num_subpixels = factor**3 if is_3d else factor**2
             
             # Check if last dimension is divisible by num_subpixels and layer name is an upsampler preceding PixelShuffle
             is_upsampler = ("preshuffle_conv" in layer.name or 
@@ -475,6 +478,9 @@ def main():
     parser.add_argument(
         "--start-stage", type=int, choices=[1, 2, 3], default=None,
         help="Explicitly begin training from the specified stage (e.g. 3 to skip Stage 1 & 2).")
+    parser.add_argument(
+        "--from-scratch", action="store_true", default=False,
+        help="Build a brand new model from scratch and ignore existing refined or baseline weights.")
     args = parser.parse_args()
     
     try:
@@ -901,7 +907,11 @@ def main():
         else:
             output_model_path = os.path.join(workspace_dir, "asdbpn_3d_refined.keras" if is_default_factor else f"asdbpn_3d_{factor_str}_refined.keras")
             best_model_path = os.path.join(workspace_dir, "asdbpn_3d_best_mdl.keras" if is_default_factor else f"asdbpn_3d_{factor_str}_best_mdl.keras")
-            custom_objects = {"LearnableScale": siq.LearnableScale, "LearnableSharpening3D": siq.LearnableSharpening3D}
+            custom_objects = {
+                "LearnableScale": siq.LearnableScale,
+                "LearnableSharpening3D": siq.LearnableSharpening3D,
+                "TrilinearUpSampling3D": siq.TrilinearUpSampling3D
+            }
         
         proj_k = args.projection_kernel_size if args.projection_kernel_size is not None else 6
         source_transfer_path = args.transfer_from if args.transfer_from else (args.load_model if (not is_default_factor and args.load_model) else None)
@@ -909,22 +919,22 @@ def main():
         ckpt_best_cqs = os.path.join(ckpt_dir, "asdbpn_3d_best_cqs.keras")
         ckpt_best_psnr = os.path.join(ckpt_dir, "asdbpn_3d_best_psnr.keras")
         ckpt_best_path = ckpt_best_cqs if os.path.exists(ckpt_best_cqs) else ckpt_best_psnr
-        if args.load_model and os.path.exists(args.load_model):
+        if not args.from_scratch and args.load_model and os.path.exists(args.load_model):
             print(f"Loading AS-DBPN model from explicit path: {args.load_model}...")
             model = keras.models.load_model(args.load_model, custom_objects=custom_objects, compile=False, safe_mode=False)
             if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
                 skip_stages_1_2 = True
-        elif os.path.exists(output_model_path) and not args.reset_history:
+        elif not args.from_scratch and os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined AS-DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
                 skip_stages_1_2 = True
-        elif os.path.exists(ckpt_best_path) and not args.reset_history:
+        elif not args.from_scratch and os.path.exists(ckpt_best_path) and not args.reset_history:
             print(f"Resuming training: loading best champion checkpoint from {ckpt_best_path}...")
             model = keras.models.load_model(ckpt_best_path, custom_objects=custom_objects, compile=False, safe_mode=False)
             if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
                 skip_stages_1_2 = True
-        elif source_transfer_path and os.path.exists(source_transfer_path):
+        elif not args.from_scratch and source_transfer_path and os.path.exists(source_transfer_path):
             print(f"[Transfer Learning] Initializing AS-DBPN {dim}D with factor={factor_tuple} (projection_kernel_size={proj_k})...")
             if dim == 2:
                 model = siq.create_asdbpn_2d(
@@ -947,12 +957,12 @@ def main():
             print(f"[Transfer Learning] Transferring compatible weights from: {source_transfer_path}...")
             src_m, _ = siq.load_siq_model(source_transfer_path)
             siq.transfer_siq_weights(src_m, model, verbose=True)
-        elif os.path.exists(best_model_path):
+        elif not args.from_scratch and os.path.exists(best_model_path) and not args.reset_history:
             print(f"Starting fresh: loading baseline AS-DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, custom_objects=custom_objects, compile=False, safe_mode=False)
         else:
             if dim == 2:
-                print(f"Baseline model not found. Building a new AS-DBPN 2D model (factor={factor_tuple})...")
+                print(f"Building a fresh AS-DBPN 2D model (factor={factor_tuple})...")
                 model = siq.create_asdbpn_2d(
                     input_shape=(None, None, 1),
                     factor=factor_tuple,
@@ -1043,7 +1053,7 @@ def main():
                 )
         
     # Apply ICNR initialization when starting fresh (not resuming or transferring weights)
-    if not os.path.exists(output_model_path) and not source_transfer_path:
+    if (args.from_scratch or not os.path.exists(output_model_path)) and not source_transfer_path:
         apply_icnr_initialization(model, factor=factor_tuple)
         
     # 5. Load feature extractor for perceptual loss (VGG Layers [3, 6, 9])

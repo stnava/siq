@@ -1,0 +1,38 @@
+[
+  {
+    "entry_id": "asdbpn_3d_2x2x2_stage_3_refinement_02525_20260929_221524",
+    "tag": "v0.10.14_2x2x2_cqs_champion_iter2525",
+    "notes": "Original 2x2x2 champion, Stage 3 iter 2525, CBI on y_pred (old bug), nearest-neighbor global skip. Preserved as reference baseline.",
+    "registered_at": "2026-09-29T22:15:24.348124+00:00",
+    "git_sha": "d47557e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2x2_stage_3_refinement_02525_20260929_221524/asdbpn_3d_best_mdl.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2x2_stage_3_refinement_02525_20260929_221524/asdbpn_3d_best_mdl_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 2525,
+    "siq_version": "0.10.13",
+    "val_metrics": {
+      "val_psnr": 23.36780548095703,
+      "val_ssim": 0.9529210925102234,
+      "val_gmsd": 0.17885830998420715,
+      "val_cbi": 0.03489197790622711,
+      "val_cqs": 0.7391708046197891,
+      "val_hfen": 0.5597802996635437
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 6.08603048324585,
+      "feat": 0.00013609399320557714,
+      "tv": 0.42598164081573486,
+      "edge": 0.0,
+      "gms": 3.0,
+      "cbi": 2.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2x2_stage_3_refinement_02525_20260929_221524"
+  }
+]

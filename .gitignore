@@ -16,3 +16,7 @@ checkpoints/
 reports/**/step_*.png
 *.nii.gz
 logs/
+# model_archive/ contains immutable binary copies of champion models.
+# These are large and should not be committed to git (use DVC or similar
+# for binary versioning). model_registry.json (the index) IS tracked.
+model_archive/

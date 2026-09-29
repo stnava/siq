@@ -2189,7 +2189,16 @@ def read_srmodel( srfilename, custom_objects=None ): # pragma: no cover
         raise RuntimeError(f"Could not infer upsampling factor. Error: {e}")
 
 
-def save_siq_model(model_path, model, config, loss_weights=None, verbose=True):  # pragma: no cover
+def save_siq_model(  # pragma: no cover
+    model_path,
+    model,
+    config,
+    loss_weights=None,
+    archive=False,
+    tag="",
+    notes="",
+    verbose=True,
+):
     """Save a siq model and its mandatory provenance config together.
 
     Always use this instead of ``model.save()`` directly so that the
@@ -2207,6 +2216,16 @@ def save_siq_model(model_path, model, config, loss_weights=None, verbose=True): 
         ``normalization``, ``input_patch_shape``, ``inference``.
     loss_weights : dict, optional
         Dictionary of loss weights at save time to store in provenance config.
+    archive : bool
+        If ``True``, also copy the model into the immutable ``model_archive/``
+        directory and register it in ``model_registry.json``. Use this for
+        champion checkpoints (new CQS best). Default ``False``.
+    tag : str
+        Human-readable label for the registry entry (e.g. ``"v0.10.14_cqs"``).
+        Only used when ``archive=True``.
+    notes : str
+        Free-form notes stored in the registry entry.
+        Only used when ``archive=True``.
     verbose : bool
         Print save path.
     """
@@ -2220,6 +2239,9 @@ def save_siq_model(model_path, model, config, loss_weights=None, verbose=True): 
     if verbose:
         print(f"Saved model:  {model_path}")
         print(f"Saved config: {config_path}")
+    if archive:
+        from .model_registry import archive_model as _archive
+        _archive(model_path, config, tag=tag, notes=notes, verbose=verbose)
 
 
 def load_siq_model(model_path, custom_objects=None, verbose=True):  # pragma: no cover
