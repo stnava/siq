@@ -3,7 +3,7 @@
 Generate participant T1w super-resolution visual and quantitative report
 comparing Bilinear baseline, Raw AS-DBPN SR, and Anti-Checkerboard Filtered SR.
 """
-import os, time, glob
+import os, sys, time, glob
 os.environ['KERAS_BACKEND'] = 'torch'
 import ants, numpy as np, keras, siq
 from scipy.ndimage import gaussian_filter, convolve
@@ -14,22 +14,43 @@ import pandas as pd
 
 keras.config.enable_unsafe_deserialization()
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Generate participant T1w SR report")
+parser.add_argument("--image", default="/Users/stnava/.antspymm/t1.nii.gz", help="Path to input T1w image")
+parser.add_argument("--model", default=None, help="Path to model checkpoint (default: freshest)")
+parser.add_argument("--shift", nargs=3, type=int, default=[40, 0, 40], help="Voxel shift from image center (dim0, dim1, dim2)")
+parser.add_argument("--out-dir", default="results/participant_sr", help="Output directory for report and figures")
+args, unknown = parser.parse_known_args()
+
+# Handle positional arguments for backward compatibility
+if len(sys.argv) > 1 and not sys.argv[1].startswith("--") and os.path.exists(sys.argv[1]):
+    if sys.argv[1].endswith(".keras") or sys.argv[1].endswith(".h5"):
+        args.model = sys.argv[1]
+    elif sys.argv[1].endswith(".nii") or sys.argv[1].endswith(".nii.gz"):
+        args.image = sys.argv[1]
+
 # 1. Load freshest checkpoint (or explicit path if passed via CLI)
-import sys
-ckpts = sorted(glob.glob('checkpoints/asdbpn_3d/asdbpn_3d_step_*.keras'), key=os.path.getmtime)
-if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
-    model_path = sys.argv[1]
+if args.model and os.path.exists(args.model):
+    model_path = args.model
 else:
-    model_path = ckpts[-1]
-print(f"Loading freshest model: {model_path} ({os.path.getsize(model_path)/1e6:.1f} MB)")
+    ckpts = sorted(glob.glob('checkpoints/asdbpn_3d/asdbpn_3d_step_*.keras'), key=os.path.getmtime)
+    model_path = ckpts[-1] if ckpts else 'checkpoints/asdbpn_3d/asdbpn_3d_best_psnr.keras'
+
+print(f"Loading model: {model_path} ({os.path.getsize(model_path)/1e6:.1f} MB)")
 model, cfg = siq.load_siq_model(model_path)
 
 # 2. Load participant T1w crop
-t1 = ants.image_read('/Users/stnava/.antspymm/t1.nii.gz')
-center = [136, 128, 168]
-crop = ants.crop_indices(t1, [c-32 for c in center], [c+32 for c in center])
+print(f"Loading participant image: {args.image}")
+t1 = ants.image_read(args.image)
+center = [t1.shape[i] // 2 + args.shift[i] for i in range(3)]
+print(f"Image shape: {t1.shape} | Center shift: {args.shift} -> Crop center: {center}")
+crop_low = [max(0, c - 32) for c in center]
+crop_high = [min(t1.shape[i], c + 32) for i, c in enumerate(center)]
+crop = ants.crop_indices(t1, crop_low, crop_high)
 crop_norm = ants.iMath(ants.iMath(crop, 'TruncateIntensity', 0.001, 0.999), 'Normalize')
-bilinear = ants.resample_image(crop_norm, [0.5, 0.5, 0.5], use_voxels=False, interp_type=0)
+target_spacing = [sp / 2.0 for sp in crop_norm.spacing]
+bilinear = ants.resample_image(crop_norm, target_spacing, use_voxels=False, interp_type=0)
 bi_np = bilinear.numpy()
 
 # 3. Direct single-pass inference (Raw SR)
@@ -86,7 +107,7 @@ hfen_clean = compute_hfen(bi_np, s_clean)
 print(f"CBI Metric: Bilinear={cbi_bi:.4f} | Raw SR={cbi_raw:.4f} | Filtered SR={cbi_clean:.4f}")
 print(f"Axial Nyquist: Bilinear={nyq_bi[0]:.5f} | Raw SR={nyq_raw[0]:.5f} | Filtered SR={nyq_clean[0]:.5f}")
 
-out = 'results/participant_sr'
+out = args.out_dir
 os.makedirs(out, exist_ok=True)
 mid = [s//2 for s in sr_raw_np.shape]
 
@@ -211,11 +232,13 @@ html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 </style></head><body>
 
 <h1>Participant T1w Super-Resolution: Model Refinement & Artifact Mitigation</h1>
-<p>Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} &nbsp;|&nbsp; Model Checkpoint: <strong>{os.path.basename(model_path)}</strong></p>
+<p>Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} &nbsp;|&nbsp; Participant: <strong>{os.path.basename(args.image)}</strong> &nbsp;|&nbsp; Model: <strong>{os.path.basename(model_path)}</strong></p>
+<p style="color: #94a3b8; font-size: 0.9em;">Image: <code>{args.image}</code> &nbsp;|&nbsp; Shape: <code>{t1.shape}</code> &nbsp;|&nbsp; Crop Center: <code>{center}</code> (Shift: <code>{args.shift}</code>)</p>
 
 <div class="card">
   <h3>Summary of Findings</h3>
   <ul>
+    <li><strong>Participant Dataset:</strong> Evaluated on <code>{os.path.basename(args.image)}</code> cropped at center <code>{center}</code> with dimension 64&times;64&times;64.</li>
     <li><strong>In-Training CBI Regularization:</strong> The model loaded is <code>{os.path.basename(model_path)}</code>, trained with active $\\mathcal{{L}}_{{\\text{{cbi}}}}$ penalty on alternating parity prediction error.</li>
     <li><strong>Raw Model CBI:</strong> Raw network output achieves $\\text{{CBI}} = \\mathbf{{{cbi_raw:.4f}}}$ (vs Bilinear baseline $\\mathbf{{{cbi_bi:.4f}}}$).</li>
     <li><strong>Fine Anatomy Preserved:</strong> Real anatomical edges, sulcal boundaries, and gray/white matter contrasts are fully retained with sharp, high-fidelity boundary definition.</li>
