@@ -234,7 +234,13 @@ def blind_sr_generator(
             lr_large = ants.smooth_image(hr_large, sigma) if sigma > 0.1 else ants.image_clone(hr_large)
             
             interp = np.random.choice(interp_types)
-            lr_large = ants.resample_image(lr_large, lr_large_shape, use_voxels=True, interp_type=interp)
+            # Use exact factor spacing (use_voxels=False) so that LR pixel k aligns
+            # exactly with HR pixel k*factor. use_voxels=True gives spacing 191/95≈2.0105
+            # instead of 2.0, causing a systematic 0.5-pixel center offset between every
+            # training (LR, HR) pair — the model learns this shift and applies it at
+            # inference time, producing SR output shifted relative to the GT.
+            lr_target_spacing = tuple(float(f) for f in factor_tuple)  # HR has spacing 1.0
+            lr_large = ants.resample_image(lr_large, lr_target_spacing, use_voxels=False, interp_type=interp)
             
             lr_large_np = lr_large.numpy()
             lr_min, lr_max = lr_large_np.min(), lr_large_np.max()
