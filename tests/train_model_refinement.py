@@ -384,13 +384,9 @@ def main():
     parser.add_argument("--transfer-from", type=str, default=None, help="Explicit path to model to transfer compatible weights from (supports factor mismatch)")
     parser.add_argument("--reset-history", action="store_true", default=False, help="Reset convergence history for new run")
     parser.add_argument(
-        "--balancer-anneal-iters", type=int, default=200,
-        help="Hard freeze the dynamic loss-weight balancer after this many iterations. "
-             "Before freeze: balancer adapts weights each --balancer-freq steps, clamped "
-             "to within 5x of calibration values to prevent explosion. "
-             "After freeze: weights are fixed permanently, giving a stable loss landscape "
-             "that allows genuine convergence. 0 = always frozen (calibration only). "
-             "Default: 200 (covers Stage 1 + early Stage 2).")
+        "--balancer-anneal-iters", type=int, default=0,
+        help="Deprecated no-op. Freeze/clamp/anneal mechanisms have been removed. "
+             "Balancer now runs as pure continuous LOWESS weight tracking. Default: 0.")
     parser.add_argument(
         "--stage-patience", type=int, default=0,
         help="Early convergence detection per stage (Stages 1 & 2). "
@@ -1626,9 +1622,6 @@ def main():
         ``--update-freq`` steps, using the last known raw component values.
         This amortises ~3.6 s of per-step overhead by a factor of N.
         """
-        # ── Short-circuit entirely once frozen — no wasted compute ─────────
-        if args.balancer_anneal_iters > 0 and iteration > args.balancer_anneal_iters:
-            return
         # ── Expensive diagnostic path (model + feature forward) ──────────
         if iteration % args.balancer_freq == 0:
             y_true_tensor = ops.convert_to_tensor(y_batch, dtype="float32")
@@ -1655,51 +1648,20 @@ def main():
             tracker.add(iteration, raw_l1, raw_feat, raw_tv)
 
         # ── Weight-update path (cheap, every update_freq steps) ──────────
+        # Purely updates L1/Feat/TV weights via LOWESS-smoothed target tracking.
+        # No hidden freezes, clamps, or anneals — the caller controls everything
+        # via explicit --init-*-weight and --dampening flags.
         if iteration % args.update_freq == 0:
-            # Hard freeze after balancer_anneal_iters: loss landscape is fixed,
-            # allowing genuine convergence to a stationary solution.
-            balancer_frozen = (args.balancer_anneal_iters > 0 and
-                               iteration > args.balancer_anneal_iters)
-            if balancer_frozen:
-                return  # weights unchanged — frozen for convergence
-
             current_w = {
                 'mae': float(ops.convert_to_numpy(l1_weight_var)),
                 'percep': float(ops.convert_to_numpy(feat_weight_var)),
                 'tv': float(ops.convert_to_numpy(tv_weight_var))
             }
-            # Linearly anneal in perceptual and TV terms over anneal_iter iterations
-            if args.anneal_iter > 0 and iteration <= args.anneal_iter:
-                alpha = min(1.0, max(0.0, float(iteration) / float(args.anneal_iter)))
-                eff_percep = alpha * target_pcts['percep']
-                eff_tv = alpha * target_pcts['tv']
-                eff_mae = 100.0 - eff_percep - eff_tv
-                cur_target_pcts = {'mae': eff_mae, 'percep': eff_percep, 'tv': eff_tv}
-            else:
-                cur_target_pcts = target_pcts
-
             new_w, smoothed_losses = get_smoothed_losses_and_weights(
-                tracker, cur_target_pcts, iteration, current_w, target_total_loss=args.target_total_loss, beta_damp=args.dampening
+                tracker, target_pcts, iteration, current_w,
+                target_total_loss=args.target_total_loss,
+                beta_damp=args.dampening
             )
-            # Safety clamp: weights cannot deviate more than 5× from calibration
-            # values. Prevents LOWESS instability (e.g. VGG batch-to-batch variance)
-            # from producing runaway loss magnitudes.
-            clamp_factor = 5.0
-            new_w['mae']    = float(np.clip(new_w['mae'],
-                                            w_mae_init / clamp_factor,
-                                            w_mae_init * clamp_factor))
-            new_w['percep'] = float(np.clip(new_w['percep'],
-                                            w_percep_init / clamp_factor,
-                                            w_percep_init * clamp_factor))
-            new_w['tv']     = float(np.clip(new_w['tv'],
-                                            w_tv_init / clamp_factor,
-                                            w_tv_init * clamp_factor))
-
-            if iteration == args.balancer_anneal_iters:
-                print(f"\n[Balancer] Annealing complete at iter {iteration}. "
-                      f"Freezing weights: MAE={new_w['mae']:.6f}, "
-                      f"Feat={new_w['percep']:.6e}, TV={new_w['tv']:.6f}")
-
             l1_weight_var.assign(new_w['mae'])
             feat_weight_var.assign(new_w['percep'])
             tv_weight_var.assign(new_w['tv'])
