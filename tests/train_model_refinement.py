@@ -1096,8 +1096,12 @@ def main():
     tv_weight_var = keras.Variable(0.0, dtype="float32")
     l1_weight_var = keras.Variable(0.0, dtype="float32")
     edge_weight_var = keras.Variable(args.edge_weight, dtype="float32")  # gradient-magnitude edge loss
-    gms_weight_var = keras.Variable(args.gms_weight, dtype="float32")    # differentiable GMSD loss
-    cbi_weight_var = keras.Variable(args.checkerboard_weight, dtype="float32")  # differentiable checkerboard loss
+    # GMS and CBI are ZERO during Stages 1 & 2 (perceptual-only curriculum).
+    # They are activated only at Stage 3 start (see stage 3 setup below).
+    # This prevents GMS from overwhelming the VGG perceptual signal in Stage 2
+    # (GMS was 54% vs VGG 0.8% with naive simultaneous activation).
+    gms_weight_var = keras.Variable(0.0, dtype="float32")   # activated at Stage 3
+    cbi_weight_var = keras.Variable(0.0, dtype="float32")   # activated at Stage 3
     
     wts_csv = os.path.join(workspace_dir, f"{model_type}_{dim}d_refined_training_weights.csv" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_refined_training_weights.csv")
     wts_loaded = False
@@ -1143,19 +1147,19 @@ def main():
         w_percep_init = transferred_wts.get("feat", 0.0)
         w_tv_init = transferred_wts.get("tv", 0.0)
         if transferred_wts.get("gms", 0.0) > 0 and args.gms_weight == 0.0:
+            # Store as Stage 3 value — do NOT assign to gms_weight_var yet (Stage 2 = 0)
             args.gms_weight = transferred_wts["gms"]
-            gms_weight_var.assign(args.gms_weight)
         if transferred_wts.get("cbi", 0.0) > 0 and args.checkerboard_weight == 0.0:
+            # Store as Stage 3 value — do NOT assign to cbi_weight_var yet (Stage 2 = 0)
             args.checkerboard_weight = transferred_wts["cbi"]
-            cbi_weight_var.assign(args.checkerboard_weight)
         if transferred_wts.get("edge", 0.0) > 0 and args.edge_weight == 0.0:
             args.edge_weight = transferred_wts["edge"]
             edge_weight_var.assign(args.edge_weight)
         wts_loaded = True
         print(f"[Transfer Learning] Transferred loss weights from source: "
               f"L1={w_mae_init:.6f}, Feat={w_percep_init:.6e}, TV={w_tv_init:.6f}, "
-              f"GMS={float(ops.convert_to_numpy(gms_weight_var)):.4f}, "
-              f"CBI={float(ops.convert_to_numpy(cbi_weight_var)):.4f}")
+              f"GMS(Stage3)={args.gms_weight:.4f}, "
+              f"CBI(Stage3)={args.checkerboard_weight:.4f}")
 
     if not wts_loaded:
 
@@ -2056,6 +2060,16 @@ def main():
         print(f"[Gradient Clipping] Stage 3 optimizer: clipnorm={args.clip_norm} "
               f"(ResNet collapse prevention — Iter ~1500 without clipping)")
     best_val_loss = float("inf")
+
+    # === Curriculum transition: activate artifact / sharpness regularizers ===
+    # Stage 2 kept GMS=0 and CBI=0 so VGG perceptual (65%) guided spatial learning.
+    # Stage 3 now adds GMS (sharpness) and CBI (checkerboard suppression).
+    # The balancer will re-normalise contributions over the next ~100 steps.
+    gms_weight_var.assign(args.gms_weight)
+    cbi_weight_var.assign(args.checkerboard_weight)
+    print(f"[Stage 3 Curriculum] GMS activated: {args.gms_weight:.4f} | "
+          f"CBI activated: {args.checkerboard_weight:.4f}")
+    print(f"[Stage 3 Curriculum] Loss regime: L1 + VGG-Feat + TV + GMS + CBI")
 
 
     if skip_stages_1_2 and last_iteration < stage2_max:
