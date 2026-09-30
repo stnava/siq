@@ -1203,7 +1203,7 @@ def create_srfbn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_steps
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="nearest", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1385,7 +1385,7 @@ def create_san_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_groups=
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="final_conv")(x)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="nearest", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1476,7 +1476,11 @@ def create_asdbpn_2d(input_shape=(None, None, 1), factor=2, n_filters=64, n_step
     outputs = layers.Conv2D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = layers.UpSampling2D(size=factor_tuple, interpolation="bilinear", name="global_skip")(inputs)
+        # nearest-neighbor: output pixel 2k replicates input pixel k — zero spatial shift.
+        # bilinear (align_corners=False) maps output j → input (j+0.5)/scale-0.5,
+        # giving a systematic -0.5 pixel shift vs the natural SR pixel convention.
+        # Consistent with the 3D ASDBPN which also uses nearest-neighbor skip.
+        skip = layers.UpSampling2D(size=factor_tuple, interpolation="nearest", name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=0.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
