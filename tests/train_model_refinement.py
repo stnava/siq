@@ -2061,15 +2061,18 @@ def main():
               f"(ResNet collapse prevention — Iter ~1500 without clipping)")
     best_val_loss = float("inf")
 
-    # === Curriculum transition: activate artifact / sharpness regularizers ===
-    # Stage 2 kept GMS=0 and CBI=0 so VGG perceptual (65%) guided spatial learning.
-    # Stage 3 now adds GMS (sharpness) and CBI (checkerboard suppression).
-    # The balancer will re-normalise contributions over the next ~100 steps.
-    gms_weight_var.assign(args.gms_weight)
+    # === Curriculum transition: activate CBI for checkerboard suppression ===
+    # Stage 2: GMS=0, CBI=0 — VGG Feat (65%) guides spatial + perceptual learning.
+    # Stage 3: CBI activated only. GMS stays at 0 permanently.
+    # Rationale: GMS (gradient magnitude similarity) is an evaluation METRIC, not a loss.
+    # Used as a loss, it blurs edges: blurred SR edges spanning a sub-pixel displacement
+    # score higher on GMS than sharp edges at the correct position. VGG Feat already
+    # enforces perceptual sharpness without blurring. GMS is reported in metrics but
+    # NEVER used as a training signal. gms_weight_var stays 0.0 throughout all stages.
+
     cbi_weight_var.assign(args.checkerboard_weight)
-    print(f"[Stage 3 Curriculum] GMS activated: {args.gms_weight:.4f} | "
-          f"CBI activated: {args.checkerboard_weight:.4f}")
-    print(f"[Stage 3 Curriculum] Loss regime: L1 + VGG-Feat + TV + GMS + CBI")
+    print(f"[Stage 3 Curriculum] CBI activated: {args.checkerboard_weight:.4f} | GMS=0 (excluded: blurs edges)")
+    print(f"[Stage 3 Curriculum] Loss regime: L1 + VGG-Feat + TV + CBI (GMS is evaluation-only)")
 
 
     if skip_stages_1_2 and last_iteration < stage2_max:
