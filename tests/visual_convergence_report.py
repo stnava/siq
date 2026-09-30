@@ -389,7 +389,13 @@ class VisualConvergenceReporter:
         """
         self.lr_patch = lr_patch
         self.hr_patch = hr_patch
-        self.gt_np = hr_patch.numpy()
+        # Normalize GT to [0,1] so all metrics are on the same scale as SR inference
+        # output (siq.inference always returns [0,1] normalized intensity).
+        # Without this: antspynet.psnr(raw_GT[0-368], SR[0-1]) gives ~10 dB artificial
+        # penalty because antspynet normalizes by the max of both images (368), making
+        # SR appear at 1/368 of GT scale. Same corruption affects GMSD and HFEN.
+        self.hr_patch_norm = ants.iMath(hr_patch, "Normalize")
+        self.gt_np = self.hr_patch_norm.numpy()
         self.factor = factor
         
         # 1. Ground Truth (Original Image) Orthogonal Montage
@@ -416,10 +422,12 @@ class VisualConvergenceReporter:
         # 3. Bilinear Baseline (Linear Upsampled Image)
         bilinear_sr = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=0)
         self.bilinear_sr = bilinear_sr
-        bilinear_np = bilinear_sr.numpy()
+        # Normalize bilinear to [0,1] for fair metric comparison (matches SR inference scale)
+        bilinear_norm = ants.iMath(bilinear_sr, "Normalize")
+        bilinear_np = bilinear_norm.numpy()
         
-        lin_psnr = float(antspynet.psnr(hr_temp, bilinear_sr))
-        lin_ssim = float(antspynet.ssim(hr_temp, bilinear_sr))
+        lin_psnr = float(antspynet.psnr(self.hr_patch_norm, bilinear_norm))
+        lin_ssim = float(antspynet.ssim(self.hr_patch_norm, bilinear_norm))
         lin_gmsd = float(compute_gmsd(self.gt_np, bilinear_np))
         lin_hfen = float(compute_hfen(self.gt_np, bilinear_np))
         lin_corr = float(np.corrcoef(bilinear_np.flatten(), self.gt_np.flatten())[0, 1])
@@ -493,11 +501,12 @@ class VisualConvergenceReporter:
         # in the comparison montage, and contaminate PSNR/SSIM/CBI training metrics.
         sr_img = siq.inference(self.lr_patch, model, config=cfg, verbose=False,
                                poly_order=None, anti_checkerboard=False)
-        ants.copy_image_info(self.hr_patch, sr_img)
+        ants.copy_image_info(self.hr_patch, sr_img)  # spatial metadata only (origin/spacing/direction)
         sr_np = sr_img.numpy()
         
-        val_psnr = float(antspynet.psnr(self.hr_patch, sr_img))
-        val_ssim = float(antspynet.ssim(self.hr_patch, sr_img))
+        # SR inference is [0,1]; hr_patch_norm is also [0,1] — fair, consistent comparison.
+        val_psnr = float(antspynet.psnr(self.hr_patch_norm, sr_img))
+        val_ssim = float(antspynet.ssim(self.hr_patch_norm, sr_img))
         val_gmsd = float(compute_gmsd(self.gt_np, sr_np))
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
