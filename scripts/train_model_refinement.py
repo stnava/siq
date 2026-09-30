@@ -553,7 +553,7 @@ def main():
     default_fpa = "/Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz"
     if args.val_image and os.path.exists(args.val_image):
         val_img_path = args.val_image
-    elif os.path.exists(default_fpa) and dim == 3:
+    elif os.path.exists(default_fpa):
         val_img_path = default_fpa
     else:
         val_img_path = antspynet.get_antsxnet_data("oasis")
@@ -563,7 +563,7 @@ def main():
         if len(val_shift) < dim:
             val_shift = val_shift + [0] * (dim - len(val_shift))
     elif "sub-BLAST" in val_img_path or "FPA" in val_img_path:
-        val_shift = [40, 0, 40] if dim == 3 else [40, 40]
+        val_shift = [40, 0, 40] if dim == 3 else [40, 40, 25]  # Z=+25 drops slice by 15 voxels from +40
     else:
         val_shift = [0] * dim
 
@@ -571,13 +571,22 @@ def main():
     img = ants.image_read(val_img_path)
     img = ants.iMath(ants.iMath(img, 'TruncateIntensity', 0.001, 0.999), 'Normalize')
 
-    # For 2D training with a 3D NIfTI, extract a central axial slice
+    # For 2D training with a 3D NIfTI, extract an axial slice
     if dim == 2 and img.dimension == 3:
-        z_shift = int(round(val_shift[2])) if len(val_shift) > 2 else 0
+        z_shift = int(round(val_shift[2])) if len(val_shift) > 2 else 25
         mid_z = img.shape[2] // 2 + z_shift
         mid_z = max(0, min(img.shape[2] - 1, mid_z))
         img = ants.slice_image(img, axis=2, idx=mid_z)
-        print(f"  [2D mode] Extracted axial slice {mid_z} from 3D volume for 2D validation.")
+        print(f"  [2D mode] Extracted axial slice {mid_z} (z_shift={z_shift}) from 3D volume for 2D validation.")
+
+    if dim == 2:
+        # Crop tightly to head to eliminate excess black background
+        mask = ants.get_mask(img, low_thresh=0.03, cleanup=2)
+        mask_dil = ants.iMath(mask, 'MD', 2)
+        img = ants.crop_image(img, mask_dil)
+        h, w = img.shape
+        img = ants.crop_indices(img, [0, 0], [h - (h % 2), w - (w % 2)])
+        print(f"  [2D mode] Tightly cropped to head: shape={img.shape}")
 
     print(f"Simulating Validation Low Resolution (factor={factor_tuple})...")
     val_target_spacing = [img.spacing[i] * factor_tuple[i] for i in range(dim)]
@@ -595,7 +604,7 @@ def main():
         # 2D default: use the full brain slice so the visual report shows the complete brain
         lr_patch = low_res
         hr_patch = img
-        print(f"  [2D mode] Using FULL axial slice ({img.shape}) for validation report — complete brain visible.")
+        print(f"  [2D mode] Using tightly cropped head slice ({img.shape}) for validation report.")
     else:
         lr_box = args.val_box_size if args.val_box_size is not None else (32 if dim == 3 else 48)
         mid_lr = [low_res.shape[i] // 2 + int(round(val_shift[i] / factor_tuple[i])) for i in range(dim)]
