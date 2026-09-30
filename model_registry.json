@@ -9139,5 +9139,32 @@
       "cbi": 2.0
     },
     "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02125_20260930_120433"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_02125_20260930_130644",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 2125 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:06:44.329676+00:00",
+    "git_sha": "ed64c6d",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02125_20260930_130644/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02125_20260930_130644/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 2125,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 26.997948585117108,
+      "val_ssim": 0.8631952797142668,
+      "val_gmsd": 0.13792987167835236,
+      "val_cbi": 0.05378571152687073,
+      "val_cqs": 0.6714796965090437,
+      "val_hfen": 0.35300853848457336
+    },
+    "loss_weights": {},
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02125_20260930_130644"
   }
 ]

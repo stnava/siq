@@ -3126,7 +3126,6 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
     """
     import ants
     import numpy as np
-    from antspynet import apply_super_resolution_model_to_image
 
     upFactor = []
     input_shape = super_res_model.inputs[0].shape
@@ -3159,8 +3158,8 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
         cropped = ants.crop_image(image, regionmask)
         if cropped.shape[0] == 0:
             continue
-        subimgsr = apply_super_resolution_model_to_image(
-            cropped, super_res_model, target_range=[0, 1], verbose=verbose
+        subimgsr = inference(
+            cropped, super_res_model, verbose=verbose, align_phase=True
         )
         stitched = ants.decrop_image(subimgsr, outimg)
         outimg[upsampled_mask == lab] = stitched[upsampled_mask == lab]
@@ -3200,7 +3199,6 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
     """
     import ants
     import numpy as np
-    from antspynet import apply_super_resolution_model_to_image
     epsilon32 = np.finfo(np.float32).eps
     normalize_weight_maps = True  # Default behavior to normalize weight maps
     # --- Step 1: Determine upsampling factor and prepare initial images ---
@@ -3238,8 +3236,8 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
             continue
             
         # Apply the model to the cropped low-res patch
-        sr_patch = apply_super_resolution_model_to_image(
-            cropped_lowres, super_res_model, target_range=[0, 1]
+        sr_patch = inference(
+            cropped_lowres, super_res_model, verbose=verbose, align_phase=True
         )
         
         # Place the super-resolved patch back onto a full-sized canvas

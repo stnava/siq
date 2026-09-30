@@ -28,8 +28,8 @@ def blind_sr_generator_simple(batch_size=4, patch_size=(32, 32, 32), factor=2, f
             hr_np = hr_img.numpy().astype("float32")
             hr_np = (hr_np - hr_np.min()) / (hr_np.max() - hr_np.min() + 1e-8)
             
-            lr_shape = [s // factor for s in patch_size]
-            lr_img = ants.resample_image(hr_img, lr_shape, use_voxels=True, interp_type=0)
+            lr_target_spacing = tuple(float(s * factor) for s in hr_img.spacing)
+            lr_img = ants.resample_image(hr_img, lr_target_spacing, use_voxels=False, interp_type=0)
             lr_np = lr_img.numpy().astype("float32")
             lr_np = (lr_np - lr_np.min()) / (lr_np.max() - lr_np.min() + 1e-8)
             lr_np = np.clip(lr_np + np.random.normal(0, 0.01, lr_np.shape), 0, 1)
@@ -250,10 +250,10 @@ def blind_sr_generator(
             hr_large_np = hr_large.numpy()
             
             # 3. Central Cropping
-            hr_starts = [(hr_large_shape[i] - hr_patch_shape[i]) // 2 for i in range(dimensionality)]
-            hr_ends = [hr_starts[i] + hr_patch_shape[i] for i in range(dimensionality)]
             lr_starts = [(lr_large_shape[i] - lr_patch_shape[i]) // 2 for i in range(dimensionality)]
             lr_ends = [lr_starts[i] + lr_patch_shape[i] for i in range(dimensionality)]
+            hr_starts = [lr_starts[i] * factor_tuple[i] for i in range(dimensionality)]
+            hr_ends = [hr_starts[i] + hr_patch_shape[i] for i in range(dimensionality)]
             
             if dimensionality == 2:
                 hr_crop = hr_large_np[hr_starts[0]:hr_ends[0], hr_starts[1]:hr_ends[1]]

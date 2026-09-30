@@ -32,6 +32,8 @@ from .get_data import compute_checkerboard_index
 from .get_data import estimate_anti_checkerboard_sigma
 from .get_data import compute_gmsd
 from .get_data import compute_hfen
+from .get_data import compute_psnr
+from .get_data import compute_ssim
 from .get_data import (simulate_image, simulate_image_multi_scale, 
                         simulate_brain_procedural, simulate_sinewave, simulate_layered, 
                         simulate_vessel_tubes, simulate_cellular_voronoi, 

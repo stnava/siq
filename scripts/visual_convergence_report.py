@@ -136,7 +136,7 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
     if title:
         fig.suptitle(title, color="#f8fafc", fontsize=13, fontweight="bold", y=0.98)
 
-    plt.subplots_adjust(wspace=0.04, hspace=0, left=0.01, right=0.90, bottom=0.02, top=0.90 if title else 0.96)
+    plt.subplots_adjust(wspace=0.04, hspace=0, left=0.01, right=0.90, bottom=0.02, top=0.85 if title else 0.95)
     plt.savefig(out_path, dpi=130, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
 

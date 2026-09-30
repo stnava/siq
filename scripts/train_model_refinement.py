@@ -472,6 +472,11 @@ def main():
         "--val-shift", nargs="+", type=int, default=None,
         help="Voxel shift from image center for validation crop (e.g. 40 0 40).")
     parser.add_argument(
+        "--val-box-size", type=int, default=None,
+        help="Half-width in LR voxels of validation patch crop (e.g. 32 -> 64x64 LR / 128x128 HR). "
+             "If None: in 2D, defaults to the FULL brain slice (no cropping), showing the entire brain in reports; "
+             "in 3D, defaults to 32 (64x64x64 LR / 128x128x128 HR).")
+    parser.add_argument(
         "--start-stage", type=int, choices=[1, 2, 3], default=None,
         help="Explicitly begin training from the specified stage (e.g. 3 to skip Stage 1 & 2).")
     parser.add_argument(
@@ -586,16 +591,22 @@ def main():
             val_target_spacing = [img.spacing[i] * factor_tuple[i] for i in range(dim)]
             low_res = ants.resample_image(img, val_target_spacing, use_voxels=False, interp_type=0)
         
-    mid_lr = [low_res.shape[i] // 2 + int(round(val_shift[i] / factor_tuple[i])) for i in range(dim)]
-    mid_hr = [img.shape[i] // 2 + val_shift[i] for i in range(dim)]
-    lr_box = 24
-    lr_patch_low = [mid_lr[i] - lr_box for i in range(dim)]
-    lr_patch_high = [mid_lr[i] + lr_box for i in range(dim)]
-    lr_patch = ants.crop_indices(low_res, lr_patch_low, lr_patch_high)
-    
-    hr_patch_low = [mid_hr[i] - lr_box * factor_tuple[i] for i in range(dim)]
-    hr_patch_high = [mid_hr[i] + lr_box * factor_tuple[i] for i in range(dim)]
-    hr_patch = ants.crop_indices(img, hr_patch_low, hr_patch_high)
+    if dim == 2 and args.val_box_size is None:
+        # 2D default: use the full brain slice so the visual report shows the complete brain
+        lr_patch = low_res
+        hr_patch = img
+        print(f"  [2D mode] Using FULL axial slice ({img.shape}) for validation report — complete brain visible.")
+    else:
+        lr_box = args.val_box_size if args.val_box_size is not None else (32 if dim == 3 else 48)
+        mid_lr = [low_res.shape[i] // 2 + int(round(val_shift[i] / factor_tuple[i])) for i in range(dim)]
+        mid_hr = [img.shape[i] // 2 + val_shift[i] for i in range(dim)]
+        lr_patch_low = [max(0, mid_lr[i] - lr_box) for i in range(dim)]
+        lr_patch_high = [min(low_res.shape[i], mid_lr[i] + lr_box) for i in range(dim)]
+        lr_patch = ants.crop_indices(low_res, lr_patch_low, lr_patch_high)
+        
+        hr_patch_low = [max(0, mid_hr[i] - lr_box * factor_tuple[i]) for i in range(dim)]
+        hr_patch_high = [min(img.shape[i], mid_hr[i] + lr_box * factor_tuple[i]) for i in range(dim)]
+        hr_patch = ants.crop_indices(img, hr_patch_low, hr_patch_high)
     gt_np = hr_patch.numpy()
 
     # Initialize Visual Convergence Reporter

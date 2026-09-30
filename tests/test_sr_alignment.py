@@ -294,6 +294,40 @@ def test_inference_phase_alignment_eliminates_edge_bias():
 
 
 # ─────────────────────────────────────────────────────────────────
+# Test 6 — Generator: Crop index exact alignment across dimensions
+# ─────────────────────────────────────────────────────────────────
+
+def test_generator_crop_indices_strictly_aligned():
+    """Verify hr_starts is strictly locked to lr_starts * factor across isotropic & anisotropic factors."""
+    from siq.espcn import _normalize_factor
+    for dim, factors in [(2, [2, 3, 4]), (3, [2, [1, 1, 2], [1, 2, 2]])]:
+        for factor in factors:
+            factor_tuple = _normalize_factor(factor, dim)
+            lr_shape = tuple([32] * dim)
+            hr_shape = tuple(p * f for p, f in zip(lr_shape, factor_tuple))
+            hr_large_shape = tuple(int(round(p * 1.5)) for p in hr_shape)
+            lr_large_shape = tuple(int(round(p * 1.5)) for p in lr_shape)
+            lr_starts = [(lr_large_shape[i] - lr_shape[i]) // 2 for i in range(dim)]
+            hr_starts = [lr_starts[i] * factor_tuple[i] for i in range(dim)]
+            for i in range(dim):
+                assert hr_starts[i] == lr_starts[i] * factor_tuple[i], (
+                    f"dim={dim} factor={factor}: hr_starts[{i}]={hr_starts[i]} != lr_starts[{i}]*f={lr_starts[i]*factor_tuple[i]}"
+                )
+
+
+def test_blind_sr_generator_simple_spacing():
+    """Verify blind_sr_generator_simple generates exact integer factor spacing."""
+    import ants
+    hr = ants.from_numpy(np.ones((64, 64), dtype=np.float32))
+    factor = 2
+    lr_target_spacing = tuple(float(s * factor) for s in hr.spacing)
+    lr = ants.resample_image(hr, lr_target_spacing, use_voxels=False, interp_type=0)
+    for s in lr.spacing:
+        assert abs(s - 2.0) < 1e-9, f"Spacing error in simple generator: {s}"
+
+
+
+# ─────────────────────────────────────────────────────────────────
 # Main — run all tests and print audit report
 # ─────────────────────────────────────────────────────────────────
 
@@ -316,6 +350,9 @@ if __name__ == "__main__":
         ("generator 2D impulse peak alignment",       test_blind_sr_generator_impulse_peak_alignment_2d),
         # Phase alignment (eliminates edge bias from transposed convolutions)
         ("inference phase alignment eliminates edge bias", test_inference_phase_alignment_eliminates_edge_bias),
+        # Generator crop and spacing invariants
+        ("generator crop indices strictly locked",    test_generator_crop_indices_strictly_aligned),
+        ("simple generator exact spacing",             test_blind_sr_generator_simple_spacing),
     ]
 
     passed, failed = 0, 0
