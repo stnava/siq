@@ -1679,8 +1679,7 @@ def main():
         lr_patch_temp.set_spacing([hr_patch_temp.spacing[i] * factor_tuple[i] for i in range(dim)])
         hr_patch_temp.set_spacing(hr_patch_temp.spacing)
 
-        bilinear_monitor_sr = ants.resample_image_to_target(lr_patch_temp, hr_patch_temp, interp_type=0)
-        target_psnr = float(antspynet.psnr(hr_patch_temp, bilinear_monitor_sr))
+        target_psnr = float(reporter.bilinear_metrics.get("psnr", 25.0))
         print(f"[Warmup Gate] Bilinear baseline target PSNR: {target_psnr:.4f} dB")
         
         # Compile model with pure MSE loss for warmup

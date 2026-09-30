@@ -9,9 +9,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import ants
-import antspynet
+import antspynet  # kept for ldbpn model loading only — NOT used for metrics
 import keras
-from siq.get_data import compute_gmsd, compute_hfen
+from siq.get_data import compute_gmsd, compute_hfen, compute_psnr, compute_ssim
 
 
 def save_orthogonal_slice_montage(img_arr, out_path, title=None, vmin=None, vmax=None, cmap="gray"):
@@ -180,11 +180,11 @@ def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path
     is_2d = (orig_arr.ndim == 2)
 
     if is_2d:
-        h2, w2 = d_shape
+        h, w = d_shape
+        h2, w2 = h // 2, w // 2
         def _slices(a):
-            s = np.rot90(a)
-            return s, s, s
-        col_titles = ["Image (XY)", "Image (XY)", "Image (XY)"]
+            return np.rot90(a), np.rot90(a[:h2, :w2]), np.rot90(a[h2:, w2:])
+        col_titles = ["Full Patch", "Top-Left (2× zoom)", "Bottom-Right (2× zoom)"]
         row_label_sr = "4. SR Upsampled Image (2D AS-DBPN)"
     else:
         d, h2, w2 = d_shape
@@ -402,32 +402,31 @@ class VisualConvergenceReporter:
         gt_path = os.path.join(self.report_dir, "val3d_ground_truth.png")
         orig_path = os.path.join(self.report_dir, "val3d_original.png")
         hr_shape_str = "x".join(str(s) for s in self.hr_patch.shape)
-        save_orthogonal_slice_montage(self.hr_patch, gt_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
-        save_orthogonal_slice_montage(self.hr_patch, orig_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
+        save_orthogonal_slice_montage(self.hr_patch_norm, gt_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
+        save_orthogonal_slice_montage(self.hr_patch_norm, orig_path, title=f"1. Original Image (Ground Truth High Resolution - {hr_shape_str})")
         
         # 2. Downsampled Image (LR Input displayed at identical scale via nearest-neighbor)
         lr_temp = ants.image_clone(lr_patch)
-        hr_temp = ants.image_clone(hr_patch)
+        hr_temp = ants.image_clone(self.hr_patch_norm)
         if factor is not None and isinstance(factor, (list, tuple)):
             lr_temp.set_spacing([hr_temp.spacing[i] * factor[i] for i in range(len(factor))])
         else:
             f = factor if factor is not None else 2.0
             lr_temp.set_spacing([s * f for s in hr_temp.spacing])
         hr_temp.set_spacing(hr_temp.spacing)
-        self.downsampled_img = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=1)
+        downsampled_raw = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=1)
+        self.downsampled_img = ants.iMath(downsampled_raw, "Normalize")
         down_path = os.path.join(self.report_dir, "val3d_downsampled.png")
         f_str = f"{factor}" if factor is not None else "2x"
         save_orthogonal_slice_montage(self.downsampled_img, down_path, title=f"2. Downsampled Image (LR Input - {f_str} Downsampled, Identical Scale)")
 
         # 3. Bilinear Baseline (Linear Upsampled Image)
-        bilinear_sr = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=0)
-        self.bilinear_sr = bilinear_sr
-        # Normalize bilinear to [0,1] for fair metric comparison (matches SR inference scale)
-        bilinear_norm = ants.iMath(bilinear_sr, "Normalize")
-        bilinear_np = bilinear_norm.numpy()
+        bilinear_raw = ants.resample_image_to_target(lr_temp, hr_temp, interp_type=0)
+        self.bilinear_sr = ants.iMath(bilinear_raw, "Normalize")
+        bilinear_np = self.bilinear_sr.numpy()
         
-        lin_psnr = float(antspynet.psnr(self.hr_patch_norm, bilinear_norm))
-        lin_ssim = float(antspynet.ssim(self.hr_patch_norm, bilinear_norm))
+        lin_psnr = float(compute_psnr(self.gt_np, bilinear_np))
+        lin_ssim = float(compute_ssim(self.gt_np, bilinear_np))
         lin_gmsd = float(compute_gmsd(self.gt_np, bilinear_np))
         lin_hfen = float(compute_hfen(self.gt_np, bilinear_np))
         lin_corr = float(np.corrcoef(bilinear_np.flatten(), self.gt_np.flatten())[0, 1])
@@ -442,8 +441,8 @@ class VisualConvergenceReporter:
         
         bilinear_path = os.path.join(self.report_dir, "val3d_bilinear.png")
         lin_path = os.path.join(self.report_dir, "val3d_linear_upsampled.png")
-        save_orthogonal_slice_montage(bilinear_sr, bilinear_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
-        save_orthogonal_slice_montage(bilinear_sr, lin_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
+        save_orthogonal_slice_montage(self.bilinear_sr, bilinear_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
+        save_orthogonal_slice_montage(self.bilinear_sr, lin_path, title=f"3. Linear Upsampled Image (Bilinear Baseline - {lin_psnr:.2f} dB, SSIM: {lin_ssim:.4f})")
         
         diff_bilinear_path = os.path.join(self.report_dir, "diff3d_bilinear.png")
         save_difference_montage(bilinear_np, self.gt_np, diff_bilinear_path, title="Bilinear Residual Error |Bilinear - Ground Truth|")
@@ -456,10 +455,10 @@ class VisualConvergenceReporter:
                 ldbpn_model = keras.models.load_model(ldbpn_path_keras, custom_objects={"PixelShuffle3D": siq.PixelShuffle3D}, compile=False)
                 ldbpn_sr = siq.inference(self.lr_patch, ldbpn_model, method="antspynet", verbose=False)
                 ants.copy_image_info(self.hr_patch, ldbpn_sr)
-                ldbpn_np = ldbpn_sr.numpy()
-                
-                ld_psnr = float(antspynet.psnr(self.hr_patch, ldbpn_sr))
-                ld_ssim = float(antspynet.ssim(self.hr_patch, ldbpn_sr))
+                ldbpn_np = ants.iMath(ldbpn_sr, "Normalize").numpy()
+
+                ld_psnr = float(compute_psnr(self.gt_np, ldbpn_np))
+                ld_ssim = float(compute_ssim(self.gt_np, ldbpn_np))
                 ld_gmsd = float(compute_gmsd(self.gt_np, ldbpn_np))
                 ld_hfen = float(compute_hfen(self.gt_np, ldbpn_np))
                 ld_corr = float(np.corrcoef(ldbpn_np.flatten(), self.gt_np.flatten())[0, 1])
@@ -505,8 +504,8 @@ class VisualConvergenceReporter:
         sr_np = sr_img.numpy()
         
         # SR inference is [0,1]; hr_patch_norm is also [0,1] — fair, consistent comparison.
-        val_psnr = float(antspynet.psnr(self.hr_patch_norm, sr_img))
-        val_ssim = float(antspynet.ssim(self.hr_patch_norm, sr_img))
+        val_psnr = float(compute_psnr(self.gt_np, sr_np))
+        val_ssim = float(compute_ssim(self.gt_np, sr_np))
         val_gmsd = float(compute_gmsd(self.gt_np, sr_np))
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
@@ -619,7 +618,6 @@ class VisualConvergenceReporter:
         if loss_weights is not None:
             provenance_config["loss_weights"] = {k: float(v) for k, v in loss_weights.items()}
             try:
-                import pandas as pd
                 wts_row = {
                     "msq": float(loss_weights.get("msq", 0.0)),
                     "feat": float(loss_weights.get("feat", 0.0)),
@@ -717,7 +715,7 @@ class VisualConvergenceReporter:
         # Maintain 4-Way Unified Comparative Montage
         if hasattr(self, "downsampled_img") and hasattr(self, "bilinear_sr") and self.downsampled_img is not None and self.bilinear_sr is not None:
             comp_path = os.path.join(self.report_dir, "val3d_4way_comparison.png")
-            save_4way_comparison_montage(self.hr_patch, self.downsampled_img, self.bilinear_sr, sr_img, comp_path, title=f"Identical-Scale 4-Way Comparison (Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
+            save_4way_comparison_montage(self.hr_patch_norm, self.downsampled_img, self.bilinear_sr, sr_img, comp_path, title=f"Identical-Scale 4-Way Comparison (Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
             
         if is_new_best:
             best_img_path = os.path.join(self.report_dir, "val3d_asdbpn_best.png")

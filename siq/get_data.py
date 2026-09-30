@@ -98,6 +98,82 @@ def compute_hfen(y_true, y_pred, sigma=1.5):
     return float(np.mean(hfen_list))
 
 
+def compute_psnr(y_true, y_pred, data_range=1.0):
+    """
+    Peak Signal-to-Noise Ratio (pure numpy, no antspynet dependency).
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Both must be normalised to the same scale (default [0, 1]).
+    data_range : float
+        Maximum possible pixel value. Default 1.0 for normalised inputs.
+
+    Returns
+    -------
+    float  (higher is better; inf if images are identical)
+    """
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+    mse = float(np.mean((y_true.astype(np.float64) - y_pred.astype(np.float64)) ** 2))
+    if mse == 0.0:
+        return float('inf')
+    return 10.0 * np.log10(data_range ** 2 / mse)
+
+
+def compute_ssim(y_true, y_pred, data_range=1.0, win_size=11, K1=0.01, K2=0.03):
+    """
+    Structural Similarity Index (pure scipy, no antspynet dependency).
+
+    Implements the Wang et al. (2004) SSIM using a sliding uniform window.
+    Works for 2-D and 3-D arrays; multi-channel inputs are averaged.
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Both must be normalised to the same scale (default [0, 1]).
+    data_range : float
+        Dynamic range of the inputs. Default 1.0.
+    win_size : int
+        Side length of the sliding window (must be odd). Default 11.
+    K1, K2 : float
+        Stability constants (SSIM paper defaults).
+
+    Returns
+    -------
+    float  (1.0 = perfect match, lower is worse)
+    """
+    from scipy.ndimage import uniform_filter
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+
+    y_true_channels, _ = _extract_spatial_and_channels(y_true)
+    y_pred_channels, _ = _extract_spatial_and_channels(y_pred)
+    C1 = (K1 * data_range) ** 2
+    C2 = (K2 * data_range) ** 2
+    pad = win_size // 2
+    ssim_vals = []
+    for yt, yp in zip(y_true_channels, y_pred_channels):
+        yt = yt.astype(np.float64)
+        yp = yp.astype(np.float64)
+        mu_t = uniform_filter(yt, win_size)
+        mu_p = uniform_filter(yp, win_size)
+        sig_t  = uniform_filter(yt * yt, win_size) - mu_t ** 2
+        sig_p  = uniform_filter(yp * yp, win_size) - mu_p ** 2
+        sig_tp = uniform_filter(yt * yp, win_size) - mu_t * mu_p
+        num = (2.0 * mu_t * mu_p + C1) * (2.0 * sig_tp + C2)
+        den = (mu_t ** 2 + mu_p ** 2 + C1) * (sig_t + sig_p + C2)
+        ssim_map = num / (den + 1e-12)
+        # Trim border pixels affected by filter wrap-around
+        sl = tuple(slice(pad, -pad) for _ in range(yt.ndim))
+        ssim_vals.append(float(ssim_map[sl].mean()))
+    return float(np.mean(ssim_vals))
+
+
 def compute_checkerboard_index(y, y_true=None, factor=None):
     """
     Computes the Checkerboard Index (CBI) using an alternating parity matched filter.
@@ -3431,7 +3507,8 @@ def inference( # pragma: no cover
     batch_size=1,
     verbose=False,
     anti_checkerboard='auto',
-    anti_checkerboard_sigma=None):
+    anti_checkerboard_sigma=None,
+    align_phase=True):
 
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
@@ -3545,6 +3622,7 @@ def inference( # pragma: no cover
         _output_clip = True
         _anti_cb = anti_checkerboard
         _anti_cb_sigma = anti_checkerboard_sigma
+        _align_phase = align_phase
     else:
         _norm = config.get('normalization', {})
         _trunc_q = _norm.get('truncate_quantiles', [0.001, 0.999])
@@ -3554,6 +3632,7 @@ def inference( # pragma: no cover
         _output_clip = True  # always clip to [0,1] with siq models
         _anti_cb = _infer.get('anti_checkerboard', anti_checkerboard)
         _anti_cb_sigma = _infer.get('anti_checkerboard_sigma', anti_checkerboard_sigma)
+        _align_phase = _infer.get('align_phase', align_phase)
 
     def apply_intensity_match(sr_image, reference_image, order, verbose=False):
         if order is None:
@@ -3693,6 +3772,23 @@ def inference( # pragma: no cover
 
         if flip_axes:
             out = np.flip(out, axis=flip_axes).copy()
+
+        # ── Half-pixel phase alignment (transposed convolution phase compensation) ──
+        # Transposed convolutions and nearest/bilinear upsamplers have their natural
+        # receptive field center of mass at half-integer coordinates (+ (factor - 1)/2 output voxels).
+        # This creates a systematic phase shift relative to ground truth integer voxel grids,
+        # causing directional edge bias in residual error maps.
+        # Shifting the output by -(factor - 1)/2 voxels along upsampled axes restores exact zero-lag
+        # phase alignment with the input physical coordinates.
+        if _align_phase:
+            from scipy.ndimage import shift as _nd_shift
+            if isinstance(_upfactor, (list, tuple)):
+                f_list = list(_upfactor)
+            else:
+                f_list = [_upfactor] * dim
+            shift_vec = tuple(-float(f - 1) / 2.0 for f in f_list)
+            if any(abs(s) > 1e-4 for s in shift_vec):
+                out = _nd_shift(out, shift_vec, order=3, mode='nearest')
 
         if _output_clip:
             out = np.clip(out, 0.0, 1.0)
