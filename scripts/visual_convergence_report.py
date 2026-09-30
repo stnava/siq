@@ -36,14 +36,21 @@ def save_orthogonal_slice_montage(img_arr, out_path, title=None, vmin=None, vmax
         img_arr = disp_img.numpy()
     except Exception:
         img_arr = raw_arr
-    
+
     img_arr = np.squeeze(img_arr)
-    d, h, w = img_arr.shape
-    
-    slice_z = np.rot90(img_arr[:, :, w // 2])
-    slice_y = np.rot90(img_arr[:, h // 2, :])
-    slice_x = np.rot90(img_arr[d // 2, :, :])
-    
+
+    if img_arr.ndim == 2:
+        # 2D image — show the single slice in all three panels
+        h, w = img_arr.shape
+        slice_z = slice_y = slice_x = np.rot90(img_arr)
+        plane_labels = ["Image (XY)", "Image (XY)", "Image (XY)"]
+    else:
+        d, h, w = img_arr.shape
+        slice_z = np.rot90(img_arr[:, :, w // 2])
+        slice_y = np.rot90(img_arr[:, h // 2, :])
+        slice_x = np.rot90(img_arr[d // 2, :, :])
+        plane_labels = ["Axial (Z-plane)", "Coronal (Y-plane)", "Sagittal (X-plane)"]
+
     if vmin is None:
         vmin = np.percentile(img_arr, 1)
     if vmax is None:
@@ -52,22 +59,22 @@ def save_orthogonal_slice_montage(img_arr, out_path, title=None, vmin=None, vmax
             vmax = vmin + 1.0
 
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), facecolor="#0b0f19")
-    
+
     axes[0].imshow(slice_z, cmap=cmap, vmin=vmin, vmax=vmax)
-    axes[0].set_title("Axial (Z-plane)", color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
+    axes[0].set_title(plane_labels[0], color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
     axes[0].axis("off")
-    
+
     axes[1].imshow(slice_y, cmap=cmap, vmin=vmin, vmax=vmax)
-    axes[1].set_title("Coronal (Y-plane)", color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
+    axes[1].set_title(plane_labels[1], color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
     axes[1].axis("off")
-    
+
     axes[2].imshow(slice_x, cmap=cmap, vmin=vmin, vmax=vmax)
-    axes[2].set_title("Sagittal (X-plane)", color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
+    axes[2].set_title(plane_labels[2], color="#e2e8f0", fontsize=11, fontweight="bold", pad=8)
     axes[2].axis("off")
-    
+
     if title:
         fig.suptitle(title, color="#f8fafc", fontsize=13, fontweight="bold", y=0.98)
-        
+
     plt.subplots_adjust(wspace=0.04, hspace=0, left=0.01, right=0.99, bottom=0.02, top=0.90 if title else 0.96)
     plt.savefig(out_path, dpi=130, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
@@ -85,29 +92,34 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
         gt_arr = gt_arr.numpy()
         
     diff_arr = np.abs(np.squeeze(sr_arr) - np.squeeze(gt_arr))
-    d, h, w = diff_arr.shape
-    
-    slice_z = np.rot90(diff_arr[:, :, w // 2])
-    slice_y = np.rot90(diff_arr[:, h // 2, :])
-    slice_x = np.rot90(diff_arr[d // 2, :, :])
-    
+
+    if diff_arr.ndim == 2:
+        slice_z = slice_y = slice_x = np.rot90(diff_arr)
+        plane_labels = ["Error |SR - GT|", "Error |SR - GT|", "Error |SR - GT|"]
+    else:
+        d, h, w = diff_arr.shape
+        slice_z = np.rot90(diff_arr[:, :, w // 2])
+        slice_y = np.rot90(diff_arr[:, h // 2, :])
+        slice_x = np.rot90(diff_arr[d // 2, :, :])
+        plane_labels = ["Axial Error |SR - GT|", "Coronal Error |SR - GT|", "Sagittal Error |SR - GT|"]
+
     if vmax is None:
         vmax = max(1.0, float(np.percentile(diff_arr, 99.5)))
 
     fig, axes = plt.subplots(1, 3, figsize=(13.2, 4.2), facecolor="#0b0f19")
-    
+
     im0 = axes[0].imshow(slice_z, cmap="magma", vmin=0, vmax=vmax)
-    axes[0].set_title("Axial Error |SR - GT|", color="#f87171", fontsize=11, fontweight="bold", pad=8)
+    axes[0].set_title(plane_labels[0], color="#f87171", fontsize=11, fontweight="bold", pad=8)
     axes[0].axis("off")
-    
+
     im1 = axes[1].imshow(slice_y, cmap="magma", vmin=0, vmax=vmax)
-    axes[1].set_title("Coronal Error |SR - GT|", color="#f87171", fontsize=11, fontweight="bold", pad=8)
+    axes[1].set_title(plane_labels[1], color="#f87171", fontsize=11, fontweight="bold", pad=8)
     axes[1].axis("off")
-    
+
     im2 = axes[2].imshow(slice_x, cmap="magma", vmin=0, vmax=vmax)
-    axes[2].set_title("Sagittal Error |SR - GT|", color="#f87171", fontsize=11, fontweight="bold", pad=8)
+    axes[2].set_title(plane_labels[2], color="#f87171", fontsize=11, fontweight="bold", pad=8)
     axes[2].axis("off")
-    
+
     cbar_ax = fig.add_axes([0.92, 0.12, 0.015, 0.72])
     cbar = fig.colorbar(im2, cax=cbar_ax)
     cbar.ax.yaxis.set_tick_params(color="#94a3b8")
@@ -116,7 +128,7 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
 
     if title:
         fig.suptitle(title, color="#f8fafc", fontsize=13, fontweight="bold", y=0.98)
-        
+
     plt.subplots_adjust(wspace=0.04, hspace=0, left=0.01, right=0.90, bottom=0.02, top=0.90 if title else 0.96)
     plt.savefig(out_path, dpi=130, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
