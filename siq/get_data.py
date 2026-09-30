@@ -3063,8 +3063,12 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
 
     original_size = mask.shape  # e.g., (x, y, z)
     new_size = tuple(int(s * f) for s, f in zip(original_size, upFactor))
-    upsampled_mask = ants.resample_image(mask, new_size, use_voxels=True, interp_type=1)
-    upsampled_image = ants.resample_image(image, new_size, use_voxels=True, interp_type=0)
+    # Use exact SR spacing (use_voxels=False) so canvas aligns pixel-perfectly
+    # with the model SR output. use_voxels=True gives spacing ≈ s*(N-1)/(N*f-1)
+    # instead of s/f, causing sub-pixel blending misalignment.
+    new_spacing = tuple(float(sp) / f for sp, f in zip(mask.spacing, upFactor))
+    upsampled_mask = ants.resample_image(mask, new_spacing, use_voxels=False, interp_type=1)
+    upsampled_image = ants.resample_image(image, new_spacing, use_voxels=False, interp_type=0)
 
     unique_labels = list(np.unique(upsampled_mask.numpy()))
     if 0 in unique_labels:
@@ -3134,9 +3138,11 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
 
     original_size = image.shape
     new_size = tuple(int(s * f) for s, f in zip(original_size, upFactor))
+    # Use exact SR spacing so canvas aligns with model output (same fix as region_wise_super_resolution)
+    new_spacing = tuple(float(sp) / f for sp, f in zip(image.spacing, upFactor))
 
     # The initial upsampled image will serve as our background
-    background_sr_image = ants.resample_image(image, new_size, use_voxels=True, interp_type=0)
+    background_sr_image = ants.resample_image(image, new_spacing, use_voxels=False, interp_type=0)
 
     # --- Step 2: Initialize accumulator and weight sum canvases ---
     # These must be float type for accumulation
@@ -3168,7 +3174,7 @@ image, mask, super_res_model, dilation_amount=4, verbose=False):
         region_mask_original = ants.threshold_image(mask, lab, lab)
         
         # Resample the original region mask to the high-res grid
-        weight_map = ants.resample_image(region_mask_original, new_size, use_voxels=True, interp_type=0)
+        weight_map = ants.resample_image(region_mask_original, new_spacing, use_voxels=False, interp_type=0)
         weight_map = ants.smooth_image(weight_map, sigma=2.0,
                                         sigma_in_physical_coordinates=False)
         if normalize_weight_maps:
