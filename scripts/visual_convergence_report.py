@@ -169,16 +169,29 @@ def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path
     if vmax <= vmin:
         vmax = vmin + 1.0
 
-    d, h, w = orig_arr.shape
-    def _slices(a):
-        return np.rot90(a[:, :, w // 2]), np.rot90(a[:, h // 2, :]), np.rot90(a[d // 2, :, :])
+    d_shape = orig_arr.shape
+    is_2d = (orig_arr.ndim == 2)
+
+    if is_2d:
+        h2, w2 = d_shape
+        def _slices(a):
+            s = np.rot90(a)
+            return s, s, s
+        col_titles = ["Image (XY)", "Image (XY)", "Image (XY)"]
+        row_label_sr = "4. SR Upsampled Image (2D AS-DBPN)"
+    else:
+        d, h2, w2 = d_shape
+        def _slices(a):
+            return np.rot90(a[:, :, w2 // 2]), np.rot90(a[:, h2 // 2, :]), np.rot90(a[d // 2, :, :])
+        col_titles = ["Axial (Z-plane)", "Coronal (Y-plane)", "Sagittal (X-plane)"]
+        row_label_sr = "4. SR Upsampled Image (3D AS-DBPN)"
 
     fig, axes = plt.subplots(4, 3, figsize=(12, 15.5), facecolor="#0b0f19")
     rows_data = [
         ("1. Original Image (Ground Truth HR)", orig_arr, "#38bdf8"),
         ("2. Downsampled Image (LR Input - Same FOV)", down_arr, "#f59e0b"),
         ("3. Linear Upsampled Image (Bilinear)", bilin_arr, "#a855f7"),
-        ("4. SR Upsampled Image (3D AS-DBPN)", sr_arr, "#10b981")
+        (row_label_sr, sr_arr, "#10b981")
     ]
 
     for row_idx, (row_label, arr, col) in enumerate(rows_data):
@@ -190,17 +203,17 @@ def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path
         for spine in axes[row_idx, 0].spines.values():
             spine.set_color("#334155")
             spine.set_linewidth(1.5)
-            
+
         axes[row_idx, 1].imshow(sy, cmap="gray", vmin=vmin, vmax=vmax)
         axes[row_idx, 1].axis("off")
-        
+
         axes[row_idx, 2].imshow(sx, cmap="gray", vmin=vmin, vmax=vmax)
         axes[row_idx, 2].axis("off")
-        
+
         if row_idx == 0:
-            axes[0, 0].set_title("Axial (Z-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
-            axes[0, 1].set_title("Coronal (Y-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
-            axes[0, 2].set_title("Sagittal (X-plane)", color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+            axes[0, 0].set_title(col_titles[0], color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+            axes[0, 1].set_title(col_titles[1], color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
+            axes[0, 2].set_title(col_titles[2], color="#e2e8f0", fontsize=12, fontweight="bold", pad=8)
 
     if title:
         fig.suptitle(title, color="#f8fafc", fontsize=14, fontweight="bold", y=0.99)
