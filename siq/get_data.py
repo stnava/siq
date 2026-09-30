@@ -3667,8 +3667,33 @@ def inference( # pragma: no cover
                 print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[f * s for f, s in zip(_upfactor, input_shape_list)]}")
             else:
                 print(f"[siq] Direct full-volume inference: shape {input_shape_list} -> {[_upfactor * s for s in input_shape_list]}")
-        arr = pimg_norm.numpy()[np.newaxis, ..., np.newaxis].astype('float32')
+        # ── Axis-flip normalization (ANTs ↔ Keras/PyTorch convention) ────────────
+        # ANTs stores data in physical (x, y[, z]) order; the direction matrix
+        # diagonal encodes the sign of each physical axis relative to voxel index.
+        #   direction[i,i] > 0  →  voxel dim i increases in the +physical direction
+        #   direction[i,i] < 0  →  voxel dim i is FLIPPED (increases in − direction)
+        #
+        # Synthetic training data (from ants.from_numpy) always has direction=identity,
+        # so all diagonals are +1.  Real MRI (e.g. LPS/RAS NIfTI) can have negative
+        # diagonals (e.g. BLAST data direction ≈ [[-1,0],[0,-1]]).
+        # Without correction the model receives a mirrored image relative to training.
+        #
+        # Fix: flip negative-diagonal axes → model sees identity-convention data →
+        # flip the output back → SR is in the original ANTs coordinate frame.
+        dim = pimg_norm.dimension
+        diag = [float(pimg_norm.direction[i, i]) for i in range(dim)]
+        flip_axes = tuple(i for i, d in enumerate(diag) if d < 0)
+
+        arr_np = pimg_norm.numpy().astype('float32')
+        if flip_axes:
+            arr_np = np.flip(arr_np, axis=flip_axes).copy()
+
+        arr = arr_np[np.newaxis, ..., np.newaxis]
         out = mdl.predict(arr, verbose=0)[0, ..., 0]
+
+        if flip_axes:
+            out = np.flip(out, axis=flip_axes).copy()
+
         if _output_clip:
             out = np.clip(out, 0.0, 1.0)
         if isinstance(_upfactor, (list, tuple)):
@@ -3679,6 +3704,7 @@ def inference( # pragma: no cover
         ants.set_spacing(imgsr, new_spacing)
         ants.set_direction(imgsr, pimg_norm.direction)
         ants.set_origin(imgsr, pimg_norm.origin)
+
 
     # ── Step 3: Anti-Checkerboard Sub-Voxel Notch Filter ────────────────────
     if _anti_cb and _anti_cb not in [False, 0, 'none', 'false', 'False']:
