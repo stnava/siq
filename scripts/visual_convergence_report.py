@@ -40,10 +40,13 @@ def save_orthogonal_slice_montage(img_arr, out_path, title=None, vmin=None, vmax
     img_arr = np.squeeze(img_arr)
 
     if img_arr.ndim == 2:
-        # 2D image — show the single slice in all three panels
+        # 2D image: show full patch + two zoomed quadrant crops for informative comparison
         h, w = img_arr.shape
-        slice_z = slice_y = slice_x = np.rot90(img_arr)
-        plane_labels = ["Image (XY)", "Image (XY)", "Image (XY)"]
+        h2, w2 = h // 2, w // 2
+        slice_z = np.rot90(img_arr)                    # full patch
+        slice_y = np.rot90(img_arr[:h2, :w2])          # top-left quadrant (2× zoom)
+        slice_x = np.rot90(img_arr[h2:, w2:])          # bottom-right quadrant (2× zoom)
+        plane_labels = ["Full Patch", "Top-Left (2× zoom)", "Bottom-Right (2× zoom)"]
     else:
         d, h, w = img_arr.shape
         slice_z = np.rot90(img_arr[:, :, w // 2])
@@ -94,8 +97,12 @@ def save_difference_montage(sr_arr, gt_arr, out_path, title=None, vmax=None):
     diff_arr = np.abs(np.squeeze(sr_arr) - np.squeeze(gt_arr))
 
     if diff_arr.ndim == 2:
-        slice_z = slice_y = slice_x = np.rot90(diff_arr)
-        plane_labels = ["Error |SR - GT|", "Error |SR - GT|", "Error |SR - GT|"]
+        h, w = diff_arr.shape
+        h2, w2 = h // 2, w // 2
+        slice_z = np.rot90(diff_arr)
+        slice_y = np.rot90(diff_arr[:h2, :w2])
+        slice_x = np.rot90(diff_arr[h2:, w2:])
+        plane_labels = ["Error |SR - GT| (Full)", "Top-Left (2× zoom)", "Bottom-Right (2× zoom)"]
     else:
         d, h, w = diff_arr.shape
         slice_z = np.rot90(diff_arr[:, :, w // 2])
