@@ -569,7 +569,15 @@ def main():
     print(f"Loading Real MRI validation volume from: {val_img_path} (shift={val_shift})...")
     img = ants.image_read(val_img_path)
     img = ants.iMath(ants.iMath(img, 'TruncateIntensity', 0.001, 0.999), 'Normalize')
-    
+
+    # For 2D training with a 3D NIfTI, extract a central axial slice
+    if dim == 2 and img.dimension == 3:
+        z_shift = int(round(val_shift[2])) if len(val_shift) > 2 else 0
+        mid_z = img.shape[2] // 2 + z_shift
+        mid_z = max(0, min(img.shape[2] - 1, mid_z))
+        img = ants.slice_image(img, axis=2, idx=mid_z)
+        print(f"  [2D mode] Extracted axial slice {mid_z} from 3D volume for 2D validation.")
+
     print(f"Simulating Validation Low Resolution (factor={factor_tuple})...")
     val_target_spacing = [img.spacing[i] * factor_tuple[i] for i in range(dim)]
     low_res = ants.resample_image(img, val_target_spacing, use_voxels=False, interp_type=0)
