@@ -243,6 +243,57 @@ def test_blind_sr_generator_impulse_peak_alignment_2d(factor=2):
 
 
 # ─────────────────────────────────────────────────────────────────
+# Test 5 — Inference: Half-pixel phase alignment (edge bias removal)
+# ─────────────────────────────────────────────────────────────────
+
+def test_inference_phase_alignment_eliminates_edge_bias():
+    """
+    Transposed convolution receptive fields naturally output at half-integer coordinates
+    (+0.5 voxels along upsampled axes). When compared with integer voxel grids, this creates
+    a systematic edge bias where residual error correlates strongly with spatial gradients.
+    align_phase=True must reduce this edge gradient correlation by >5x.
+    """
+    import os
+    import ants
+    from scipy.ndimage import sobel
+    import siq
+
+    model_path = "asdbpn_2d_2x2_best_mdl.keras"
+    if not os.path.exists(model_path):
+        return  # skip if model file not in workspace
+
+    model, cfg = siq.load_siq_model(model_path)
+    val_path = "/Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz"
+    if not os.path.exists(val_path):
+        return  # skip if validation subject not present
+
+    img = ants.image_read(val_path)
+    img2d = ants.slice_image(img, axis=2, idx=img.shape[2] // 2 + 40)
+    lr = ants.resample_image(img2d, [2, 2], use_voxels=False, interp_type=0)
+    mid = [s // 2 for s in lr.shape]
+    lr_p = ants.crop_indices(lr, [mid[0] - 24, mid[1] - 24], [mid[0] + 24, mid[1] + 24])
+    hr_p = ants.crop_indices(img2d, [mid[0] * 2 - 48, mid[1] * 2 - 48], [mid[0] * 2 + 48, mid[1] * 2 + 48])
+    gt_np = ants.iMath(hr_p, "Normalize").numpy()
+
+    # Raw unaligned inference vs phase-aligned inference
+    sr_raw = siq.inference(lr_p, model, config=cfg, align_phase=False, poly_order=None, anti_checkerboard=False).numpy()
+    sr_aligned = siq.inference(lr_p, model, config=cfg, align_phase=True, poly_order=None, anti_checkerboard=False).numpy()
+
+    gy = sobel(gt_np, axis=0)
+    diff_raw = sr_raw - gt_np
+    diff_aligned = sr_aligned - gt_np
+
+    corr_y_raw = abs(np.corrcoef(diff_raw.flat, gy.flat)[0, 1])
+    corr_y_aligned = abs(np.corrcoef(diff_aligned.flat, gy.flat)[0, 1])
+
+    print(f"\n[edge bias test] Raw |r_y|={corr_y_raw:.4f}, Aligned |r_y|={corr_y_aligned:.4f}")
+    assert corr_y_aligned < corr_y_raw / 3.0, (
+        f"Phase alignment did not substantially reduce edge bias: "
+        f"raw |r_y|={corr_y_raw:.4f}, aligned |r_y|={corr_y_aligned:.4f}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
 # Main — run all tests and print audit report
 # ─────────────────────────────────────────────────────────────────
 
@@ -263,6 +314,8 @@ if __name__ == "__main__":
         ("generator 3D LR spacing == exact factor",  test_blind_sr_generator_spacing_invariant_3d),
         # Impulse alignment (catches offset with controlled input)
         ("generator 2D impulse peak alignment",       test_blind_sr_generator_impulse_peak_alignment_2d),
+        # Phase alignment (eliminates edge bias from transposed convolutions)
+        ("inference phase alignment eliminates edge bias", test_inference_phase_alignment_eliminates_edge_bias),
     ]
 
     passed, failed = 0, 0

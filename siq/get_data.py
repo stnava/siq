@@ -3298,6 +3298,7 @@ def overlapping_patch_inference(
     batch_size=1,
     verbose=False,
     volume_normalized=False,
+    align_phase=True,
 ):
     """Overlapping patch inference with Gaussian-weighted blending.
 
@@ -3329,7 +3330,13 @@ def overlapping_patch_inference(
     
     stride = tuple([p - overlap for p in patch_size])
 
+    dim = image.dimension
+    diag = [float(image.direction[i, i]) for i in range(dim)]
+    flip_axes = tuple(i for i, d in enumerate(diag) if d < 0)
+
     image_array = image.numpy()
+    if flip_axes:
+        image_array = np.flip(image_array, axis=flip_axes).copy()
     if image.components == 1:
         image_array = np.expand_dims(image_array, axis=-1)
 
@@ -3474,6 +3481,19 @@ def overlapping_patch_inference(
     x_start = total_pad[2][0] * expansion_factor[2]
 
     final_vol = canvas[z_start:z_start+crop_D, y_start:y_start+crop_H, x_start:x_start+crop_W, :]
+
+    if align_phase:
+        from scipy.ndimage import shift as _nd_shift
+        shift_vec = tuple(-float(f - 1) / 2.0 for f in expansion_factor)
+        if any(abs(s) > 1e-4 for s in shift_vec):
+            if final_vol.ndim == 4:
+                for c in range(final_vol.shape[-1]):
+                    final_vol[..., c] = _nd_shift(final_vol[..., c], shift_vec, order=3, mode='nearest')
+            else:
+                final_vol = _nd_shift(final_vol, shift_vec, order=3, mode='nearest')
+
+    if flip_axes:
+        final_vol = np.flip(final_vol, axis=flip_axes).copy()
 
     if image.components == 1:
         final_vol = np.squeeze(final_vol, axis=-1)
@@ -3738,6 +3758,7 @@ def inference( # pragma: no cover
             batch_size=batch_size,
             verbose=verbose,
             volume_normalized=True,   # skip per-patch renorm — volume already normalized
+            align_phase=_align_phase,
         )
     else:
         # Default: direct full-volume inference in a single forward pass (no patch stitching)
