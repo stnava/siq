@@ -480,7 +480,12 @@ class VisualConvergenceReporter:
         cfg = getattr(self, "model_config", None)
         if cfg is None:
             cfg = siq.default_siq_config(model)
-        sr_img = siq.inference(self.lr_patch, model, config=cfg, verbose=False)
+        # Use raw model output for validation: no intensity matching (poly_order=None),
+        # no anti-checkerboard Gaussian blur (anti_checkerboard=False).
+        # Both post-processing steps smear edges and cause apparent sub-voxel shift
+        # in the comparison montage, and contaminate PSNR/SSIM/CBI training metrics.
+        sr_img = siq.inference(self.lr_patch, model, config=cfg, verbose=False,
+                               poly_order=None, anti_checkerboard=False)
         ants.copy_image_info(self.hr_patch, sr_img)
         sr_np = sr_img.numpy()
         
