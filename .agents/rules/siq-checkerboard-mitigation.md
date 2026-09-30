@@ -67,4 +67,17 @@ Never use PSNR alone to select the best model when perceptual or artifact-mitiga
   - The champion model must be saved as `asdbpn_3d_best_cqs.keras` (in checkpoints dir) and `asdbpn_3d_{factor_str}_best_mdl.keras` (at repo root).
   - Legacy `asdbpn_3d_best_psnr.keras` is preserved only as a reference checkpoint.
 
+## Single-Viewport Tabbed Presentation (In-Place Flicker Invariant)
 
+When generating visual reports and HTML dashboards (`render_convergence_dashboard.py`, `visual_convergence_report.py`):
+- **Single Viewport Requirement**: All comparison states—Ground Truth (HR), Linear Baseline (Bilinear), Latest Model (SR), Peak Champion, Error Map, and Downsampled Input (LR)—must be rendered into a **single, unified image viewport** sharing identical screen coordinates, canvas size, and zoom.
+- **In-Place Keystroke Flickering**:
+  - The dashboard must bind sequential numeric keys for immediate in-place alternation:
+    - Key `1`: Original Ground Truth (HR)
+    - Key `2`: Linear Baseline (Bilinear)
+    - Key `3`: Latest Model Output (SR)
+    - Key `4`: Peak Champion Model
+    - Key `5`: Residual Error Map (|SR - GT|)
+    - Key `6`: Downsampled Image (LR Input)
+  - Pressing keys or clicking tabs must swap the active image instantly in-place without page jumping or layout shift.
+- **No Side-by-Side Displacement**: Multi-panel side-by-side grids or multi-image comparative montages must NEVER displace or replace the interactive single-viewport presentation. Side-by-side displays prevent human perceptual flicker comparison and obscure sub-voxel alignment errors.

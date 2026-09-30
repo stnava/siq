@@ -353,7 +353,7 @@ def auto_weight_loss_multi(mdl, feature_extractor, x, y, feature=2.0, tv=0.1, ve
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SIQ Super-Resolution Refinement Pipeline")
-    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc", "srfbn", "san", "asdbpn"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
+    parser.add_argument("model", choices=["espcn", "ldbpn", "ref-dbpn", "dbpn", "wdsr", "rcan", "carn", "espcn-rc", "wdsr-rc", "srfbn", "san", "asdbpn"], default="espcn", nargs="?", help="Model type to refine (default: espcn)")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size for training (default: 1)")
     parser.add_argument("--dim", type=int, choices=[2, 3], default=3, help="Dimensionality (2 or 3) (default: 3)")
     parser.add_argument("--stage1-iter", type=int, default=100, help="Max iterations for Stage 1 (default: 100)")
@@ -447,23 +447,27 @@ def main():
              "destabilising the model. Opt-in only; default=None (no clipping). "
              "Recommended value for ResNet backend Stage 3: 1.0.")
     parser.add_argument(
-        "--edge-weight", type=float, default=0.0,
+        "--edge-weight", type=float, default=None,
         help="Weight for gradient-magnitude edge loss term in hybrid_loss. "
              "Computes MSE between gradient magnitude maps of y_true and y_pred "
              "via finite differences, directly penalizing gradient inconsistency "
              "and improving GMSD metric. 0.0=disabled (default). Try 1.0-5.0.")
     parser.add_argument(
-        "--gms-weight", type=float, default=0.0,
+        "--gms-weight", type=float, default=None,
         help="Weight for differentiable GMS (Gradient Magnitude Similarity) loss. "
              "Minimizes GMSD metric directly by: (a) penalising GMS map variance "
              "(std(GMS) = GMSD metric) and (b) encouraging GMS values toward 1.0 "
              "everywhere (perfect gradient match). Directly optimises the GMSD "
              "evaluation metric. 0.0=disabled (default). Try 5.0-20.0.")
     parser.add_argument(
-        "--checkerboard-weight", "--cbi-weight", dest="checkerboard_weight", type=float, default=0.0,
+        "--checkerboard-weight", "--cbi-weight", dest="checkerboard_weight", type=float, default=None,
         help="Weight for differentiable 3D/2D alternating parity checkerboard loss (CBI). "
              "Directly penalises Nyquist-frequency (+1, -1) transposed-convolution ringing "
              "artifacts during training. 0.0=disabled (default). Try 1.0-5.0.")
+    parser.add_argument(
+        "--linear-blend", type=float, default=None,
+        help="Residual fusion fraction blending linear baseline with model SR at inference (e.g. 0.18). "
+             "When > 0.0, fuses (1 - blend)*Bilinear + blend*SR in siq.inference().")
     parser.add_argument(
         "--val-image", type=str, default=None,
         help="Path to real MRI volume for validation monitoring (e.g. FPA participant T1w). "
@@ -479,6 +483,12 @@ def main():
     parser.add_argument(
         "--start-stage", type=int, choices=[1, 2, 3], default=None,
         help="Explicitly begin training from the specified stage (e.g. 3 to skip Stage 1 & 2).")
+    parser.add_argument(
+        "--selection-metric", choices=["cqs", "pcs", "psnr"], default="pcs",
+        help="Metric for champion model selection (default: pcs). "
+             "'pcs' = Perceptual Composite Score (SSIM + 0.5*Acutance + 0.5*Laplacian - GMSD - CBI), "
+             "'cqs' = Composite Quality Score (SSIM - GMSD - CBI), "
+             "'psnr' = Validation PSNR.")
     parser.add_argument(
         "--from-scratch", action="store_true", default=False,
         help="Build a brand new model from scratch and ignore existing refined or baseline weights.")
@@ -623,7 +633,15 @@ def main():
     ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else (f"checkpoints/{model_type}_{dim}d" if is_default_factor else f"checkpoints/{model_type}_{dim}d_{factor_str}")
     rep_dir = args.report_dir if args.report_dir else (f"reports/{model_type}_{dim}d" if is_default_factor else f"reports/{model_type}_{dim}d_{factor_str}")
     html_name = f"{model_type}_{dim}d_report.html" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_report.html"
-    reporter = VisualConvergenceReporter(workspace_dir=workspace_dir, checkpoint_dir=ckpt_dir, report_dir=rep_dir, html_filename=html_name, reset_history=args.reset_history)
+    reporter = VisualConvergenceReporter(
+        workspace_dir=workspace_dir,
+        checkpoint_dir=ckpt_dir,
+        report_dir=rep_dir,
+        html_filename=html_name,
+        reset_history=args.reset_history,
+        selection_metric=args.selection_metric,
+        linear_blend=args.linear_blend
+    )
     reporter.setup_validation_patches(lr_patch, hr_patch, factor=factor_tuple)
     if not args.reset_history and len(reporter.history) > 0:
         last_iteration = max(last_iteration, int(reporter.history[-1].get("iteration", 0)))
@@ -647,6 +665,7 @@ def main():
     }
     
     # 4. Instantiate Model
+    source_transfer_path = getattr(args, "transfer_from", None)
     skip_stages_1_2 = True if (args.start_stage and args.start_stage >= 3) else False
     if model_type == "espcn":
         if dim == 2:
@@ -713,11 +732,11 @@ def main():
                     n_stages=3
                 )
             else:
-                print("Baseline model not found. Building a new Lightweight DBPN 3D model...")
+                print("Baseline model not found. Building a new Lightweight DBPN 3D model (recommended defaults: s=3, f=32)...")
                 model = siq.create_ldbpn_3d(
                     input_shape=(None, None, None, 1),
-                    factor=2,
-                    n_filters=64,
+                    factor=factor_tuple,
+                    n_filters=32,
                     n_stages=3
                 )
     elif model_type == "wdsr":
@@ -1044,32 +1063,33 @@ def main():
                     n_blocks=4,
                     use_global_skip=True
                 )
-    else: # ref-dbpn
+    else: # ref-dbpn or dbpn
+        prefix = "dbpn" if model_type == "dbpn" else "ref_dbpn"
         if dim == 2:
-            output_model_path = os.path.join(workspace_dir, "ref_dbpn_2d_refined.keras")
-            best_model_path = os.path.join(workspace_dir, "ref_dbpn_2d_best_mdl.keras")
+            output_model_path = os.path.join(workspace_dir, f"{prefix}_2d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, f"{prefix}_2d_best_mdl.keras")
         else:
-            output_model_path = os.path.join(workspace_dir, "ref_dbpn_3d_refined.keras")
-            best_model_path = os.path.join(workspace_dir, "exp_baseline_best.keras")
+            output_model_path = os.path.join(workspace_dir, f"{prefix}_3d_refined.keras")
+            best_model_path = os.path.join(workspace_dir, "exp_baseline_best.keras" if prefix == "ref_dbpn" else f"{prefix}_3d_best_mdl.keras")
         
-        if os.path.exists(output_model_path):
-            print(f"Resuming training: loading existing refined Reference DBPN model from {output_model_path}...")
+        if not args.from_scratch and os.path.exists(output_model_path) and not args.reset_history:
+            print(f"Resuming training: loading existing refined DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
             if last_iteration >= stage2_max:
                 skip_stages_1_2 = True
-        elif os.path.exists(best_model_path):
-            print(f"Starting fresh: loading baseline Reference DBPN model from {best_model_path}...")
+        elif not args.from_scratch and os.path.exists(best_model_path) and not args.reset_history:
+            print(f"Starting fresh: loading baseline DBPN model from {best_model_path}...")
             model = keras.models.load_model(best_model_path, compile=False)
         else:
             if dim == 2:
-                print("Baseline model not found. Building a new Reference DBPN 2D model...")
+                print(f"Baseline model not found. Building a new DBPN 2D model ({model_type})...")
                 model = siq.default_dbpn(
                     strider=[2, 2],
                     dimensionality=2,
                     option="large"
                 )
             else:
-                print("Baseline model not found. Building a new Reference DBPN 3D model...")
+                print(f"Baseline model not found. Building a new DBPN 3D model ({model_type})...")
                 model = siq.default_dbpn(
                     strider=[2, 2, 2],
                     dimensionality=3,
@@ -1111,7 +1131,7 @@ def main():
     feat_weight_var = keras.Variable(0.0, dtype="float32")
     tv_weight_var = keras.Variable(0.0, dtype="float32")
     l1_weight_var = keras.Variable(0.0, dtype="float32")
-    edge_weight_var = keras.Variable(args.edge_weight, dtype="float32")  # gradient-magnitude edge loss
+    edge_weight_var = keras.Variable(args.edge_weight if args.edge_weight is not None else 0.0, dtype="float32")  # gradient-magnitude edge loss
     # GMS and CBI are ZERO during Stages 1 & 2 (perceptual-only curriculum).
     # They are activated only at Stage 3 start (see stage 3 setup below).
     # This prevents GMS from overwhelming the VGG perceptual signal in Stage 2
@@ -1162,20 +1182,28 @@ def main():
         w_mae_init = transferred_wts.get("l1", 1.0)
         w_percep_init = transferred_wts.get("feat", 0.0)
         w_tv_init = transferred_wts.get("tv", 0.0)
-        if transferred_wts.get("gms", 0.0) > 0 and args.gms_weight == 0.0:
-            # Store as Stage 3 value — do NOT assign to gms_weight_var yet (Stage 2 = 0)
-            args.gms_weight = transferred_wts["gms"]
-        if transferred_wts.get("cbi", 0.0) > 0 and args.checkerboard_weight == 0.0:
-            # Store as Stage 3 value — do NOT assign to cbi_weight_var yet (Stage 2 = 0)
-            args.checkerboard_weight = transferred_wts["cbi"]
-        if transferred_wts.get("edge", 0.0) > 0 and args.edge_weight == 0.0:
-            args.edge_weight = transferred_wts["edge"]
+        if args.gms_weight is None:
+            args.gms_weight = transferred_wts.get("gms", 0.0)
+        if args.checkerboard_weight is None:
+            args.checkerboard_weight = transferred_wts.get("cbi", 0.0)
+        if args.edge_weight is None:
+            args.edge_weight = transferred_wts.get("edge", 0.0)
+            edge_weight_var.assign(args.edge_weight)
+        else:
             edge_weight_var.assign(args.edge_weight)
         wts_loaded = True
         print(f"[Transfer Learning] Transferred loss weights from source: "
               f"L1={w_mae_init:.6f}, Feat={w_percep_init:.6e}, TV={w_tv_init:.6f}, "
               f"GMS(Stage3)={args.gms_weight:.4f}, "
               f"CBI(Stage3)={args.checkerboard_weight:.4f}")
+
+    if args.gms_weight is None:
+        args.gms_weight = 0.0
+    if args.checkerboard_weight is None:
+        args.checkerboard_weight = 0.0
+    if args.edge_weight is None:
+        args.edge_weight = 0.0
+    edge_weight_var.assign(args.edge_weight)
 
     if not wts_loaded:
 
@@ -1379,23 +1407,39 @@ def main():
             diff_w = ops.mean(ops.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]), axis=list(range(1, len(y_pred.shape)-1)))
             tv_term = diff_d + diff_h + diff_w
         
-        # Gradient Magnitude Edge Loss — penalises gradient magnitude mismatch
-        # (directly reduces GMSD by enforcing consistent sharpness everywhere)
+        # Pointwise Directional Gradient & Acutance Loss
+        # Enforces sharp, aligned anatomical boundaries and true gradient magnitude acutance
         if dim == 2:
-            gy_true = ops.mean(ops.abs(y_true[:, 1:, :, :] - y_true[:, :-1, :, :]), axis=list(range(1, len(y_true.shape))))
-            gx_true = ops.mean(ops.abs(y_true[:, :, 1:, :] - y_true[:, :, :-1, :]), axis=list(range(1, len(y_true.shape))))
-            gy_pred = ops.mean(ops.abs(y_pred[:, 1:, :, :] - y_pred[:, :-1, :, :]), axis=list(range(1, len(y_pred.shape))))
-            gx_pred = ops.mean(ops.abs(y_pred[:, :, 1:, :] - y_pred[:, :, :-1, :]), axis=list(range(1, len(y_pred.shape))))
-            edge_term = ops.square(gy_true - gy_pred) + ops.square(gx_true - gx_pred)
+            dy_true = y_true[:, 1:, :, :] - y_true[:, :-1, :, :]
+            dx_true = y_true[:, :, 1:, :] - y_true[:, :, :-1, :]
+            dy_pred = y_pred[:, 1:, :, :] - y_pred[:, :-1, :, :]
+            dx_pred = y_pred[:, :, 1:, :] - y_pred[:, :, :-1, :]
+
+            edge_l1 = ops.mean(ops.abs(dy_true - dy_pred), axis=list(range(1, len(y_true.shape)))) + \
+                      ops.mean(ops.abs(dx_true - dx_pred), axis=list(range(1, len(y_true.shape))))
+
+            mag_true = ops.sqrt(ops.square(dy_true[:, :, :-1, :]) + ops.square(dx_true[:, :-1, :, :]) + 1e-8)
+            mag_pred = ops.sqrt(ops.square(dy_pred[:, :, :-1, :]) + ops.square(dx_pred[:, :-1, :, :]) + 1e-8)
+            acutance_l1 = ops.mean(ops.abs(mag_pred - mag_true), axis=list(range(1, len(y_true.shape))))
+
+            edge_term = edge_l1 + acutance_l1
         else:
-            gd_true = ops.mean(ops.abs(y_true[:, 1:, :, :, :] - y_true[:, :-1, :, :, :]), axis=list(range(1, len(y_true.shape))))
-            gh_true = ops.mean(ops.abs(y_true[:, :, 1:, :, :] - y_true[:, :, :-1, :, :]), axis=list(range(1, len(y_true.shape))))
-            gw_true = ops.mean(ops.abs(y_true[:, :, :, 1:, :] - y_true[:, :, :, :-1, :]), axis=list(range(1, len(y_true.shape))))
-            gd_pred = ops.mean(ops.abs(y_pred[:, 1:, :, :, :] - y_pred[:, :-1, :, :, :]), axis=list(range(1, len(y_pred.shape))))
-            gh_pred = ops.mean(ops.abs(y_pred[:, :, 1:, :, :] - y_pred[:, :, :-1, :, :]), axis=list(range(1, len(y_pred.shape))))
-            gw_pred = ops.mean(ops.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]), axis=list(range(1, len(y_pred.shape))))
-            edge_term = (ops.square(gd_true - gd_pred) + ops.square(gh_true - gh_pred) +
-                         ops.square(gw_true - gw_pred))
+            dd_true = y_true[:, 1:, :, :, :] - y_true[:, :-1, :, :, :]
+            dh_true = y_true[:, :, 1:, :, :] - y_true[:, :, :-1, :, :]
+            dw_true = y_true[:, :, :, 1:, :] - y_true[:, :, :, :-1, :]
+            dd_pred = y_pred[:, 1:, :, :, :] - y_pred[:, :-1, :, :, :]
+            dh_pred = y_pred[:, :, 1:, :, :] - y_pred[:, :, :-1, :, :]
+            dw_pred = y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :]
+
+            edge_l1 = ops.mean(ops.abs(dd_true - dd_pred), axis=list(range(1, len(y_true.shape)))) + \
+                      ops.mean(ops.abs(dh_true - dh_pred), axis=list(range(1, len(y_true.shape)))) + \
+                      ops.mean(ops.abs(dw_true - dw_pred), axis=list(range(1, len(y_true.shape))))
+
+            mag_true = ops.sqrt(ops.square(dd_true[:, :, :-1, :-1, :]) + ops.square(dh_true[:, :-1, :, :-1, :]) + ops.square(dw_true[:, :-1, :-1, :, :]) + 1e-8)
+            mag_pred = ops.sqrt(ops.square(dd_pred[:, :, :-1, :-1, :]) + ops.square(dh_pred[:, :-1, :, :-1, :]) + ops.square(dw_pred[:, :-1, :-1, :, :]) + 1e-8)
+            acutance_l1 = ops.mean(ops.abs(mag_pred - mag_true), axis=list(range(1, len(y_true.shape))))
+
+            edge_term = edge_l1 + acutance_l1
 
         # Differentiable GMS loss — directly minimises GMSD evaluation metric
         # GMS(x,y) = (2*|∇x|*|∇y| + c) / (|∇x|² + |∇y|² + c) ∈ [0,1]
@@ -1514,25 +1558,33 @@ def main():
             diff_h = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
             diff_w = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
             tv_val = float(diff_h + diff_w)
-            # Edge loss: gradient magnitude MSE
-            gy_t = ops.mean(ops.abs(y_true_tensor[:, 1:, :, :] - y_true_tensor[:, :-1, :, :]))
-            gx_t = ops.mean(ops.abs(y_true_tensor[:, :, 1:, :] - y_true_tensor[:, :, :-1, :]))
-            gy_p = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]))
-            gx_p = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]))
-            edge_val = float(ops.square(gy_t - gy_p) + ops.square(gx_t - gx_p))
+            # Pointwise directional gradient L1 + acutance matching
+            dy_t = y_true_tensor[:, 1:, :, :] - y_true_tensor[:, :-1, :, :]
+            dx_t = y_true_tensor[:, :, 1:, :] - y_true_tensor[:, :, :-1, :]
+            dy_p = y_pred_batch[:, 1:, :, :] - y_pred_batch[:, :-1, :, :]
+            dx_p = y_pred_batch[:, :, 1:, :] - y_pred_batch[:, :, :-1, :]
+            edge_l1 = ops.mean(ops.abs(dy_t - dy_p)) + ops.mean(ops.abs(dx_t - dx_p))
+            mag_t = ops.sqrt(ops.square(dy_t[:, :, :-1, :]) + ops.square(dx_t[:, :-1, :, :]) + 1e-8)
+            mag_p = ops.sqrt(ops.square(dy_p[:, :, :-1, :]) + ops.square(dx_p[:, :-1, :, :]) + 1e-8)
+            acutance_l1 = ops.mean(ops.abs(mag_p - mag_t))
+            edge_val = float(edge_l1 + acutance_l1)
         else:
             diff_d = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
             diff_h = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
             diff_w = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
             tv_val = float(diff_d + diff_h + diff_w)
-            # Edge loss: gradient magnitude MSE
-            gd_t = ops.mean(ops.abs(y_true_tensor[:, 1:, :, :, :] - y_true_tensor[:, :-1, :, :, :]))
-            gh_t = ops.mean(ops.abs(y_true_tensor[:, :, 1:, :, :] - y_true_tensor[:, :, :-1, :, :]))
-            gw_t = ops.mean(ops.abs(y_true_tensor[:, :, :, 1:, :] - y_true_tensor[:, :, :, :-1, :]))
-            gd_p = ops.mean(ops.abs(y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]))
-            gh_p = ops.mean(ops.abs(y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]))
-            gw_p = ops.mean(ops.abs(y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]))
-            edge_val = float(ops.square(gd_t - gd_p) + ops.square(gh_t - gh_p) + ops.square(gw_t - gw_p))
+            # Pointwise directional gradient L1 + acutance matching
+            dd_t = y_true_tensor[:, 1:, :, :, :] - y_true_tensor[:, :-1, :, :, :]
+            dh_t = y_true_tensor[:, :, 1:, :, :] - y_true_tensor[:, :, :-1, :, :]
+            dw_t = y_true_tensor[:, :, :, 1:, :] - y_true_tensor[:, :, :, :-1, :]
+            dd_p = y_pred_batch[:, 1:, :, :, :] - y_pred_batch[:, :-1, :, :, :]
+            dh_p = y_pred_batch[:, :, 1:, :, :] - y_pred_batch[:, :, :-1, :, :]
+            dw_p = y_pred_batch[:, :, :, 1:, :] - y_pred_batch[:, :, :, :-1, :]
+            edge_l1 = ops.mean(ops.abs(dd_t - dd_p)) + ops.mean(ops.abs(dh_t - dh_p)) + ops.mean(ops.abs(dw_t - dw_p))
+            mag_t = ops.sqrt(ops.square(dd_t[:, :, :-1, :-1, :]) + ops.square(dh_t[:, :-1, :, :-1, :]) + ops.square(dw_t[:, :-1, :-1, :, :]) + 1e-8)
+            mag_p = ops.sqrt(ops.square(dd_p[:, :, :-1, :-1, :]) + ops.square(dh_p[:, :-1, :, :-1, :]) + ops.square(dw_p[:, :-1, :-1, :, :]) + 1e-8)
+            acutance_l1 = ops.mean(ops.abs(mag_p - mag_t))
+            edge_val = float(edge_l1 + acutance_l1)
         
         # Weighted terms (using ops.convert_to_numpy to avoid PyTorch warnings)
         w_l2 = l2_val * float(ops.convert_to_numpy(msq_weight_var))
@@ -1703,7 +1755,7 @@ def main():
         print(f"[Warmup Gate] Bilinear baseline target PSNR: {target_psnr:.4f} dB")
         
         # Compile model with pure MSE loss for warmup
-        warmup_lr = 1e-4 if model_type in ["ref-dbpn", "ldbpn", "asdbpn"] else 5e-5
+        warmup_lr = 1e-4 if model_type in ["ref-dbpn", "dbpn", "ldbpn", "asdbpn"] else 5e-5
         model.compile(optimizer=keras.optimizers.Adam(learning_rate=warmup_lr), loss="mse")
         
         # Instantiate generator for warmup (using clean mixed geometries)
@@ -2051,9 +2103,10 @@ def main():
     # enforces perceptual sharpness without blurring. GMS is reported in metrics but
     # NEVER used as a training signal. gms_weight_var stays 0.0 throughout all stages.
 
-    cbi_weight_var.assign(args.checkerboard_weight)
-    print(f"[Stage 3 Curriculum] CBI activated: {args.checkerboard_weight:.4f} | GMS=0 (excluded: blurs edges)")
-    print(f"[Stage 3 Curriculum] Loss regime: L1 + VGG-Feat + TV + CBI (GMS is evaluation-only)")
+    _cbi_w = args.checkerboard_weight if args.checkerboard_weight is not None else 0.0
+    cbi_weight_var.assign(_cbi_w)
+    print(f"[Stage 3 Curriculum] CBI activated: {_cbi_w:.4f} | GMS=0 (excluded: blurs edges)")
+    print(f"[Stage 3 Curriculum] Loss regime: L1 + VGG-Feat + TV {'+ CBI' if _cbi_w > 0 else '(CBI=0)'} (GMS is evaluation-only)")
 
 
     if skip_stages_1_2 and last_iteration < stage2_max:

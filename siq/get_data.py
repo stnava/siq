@@ -54,6 +54,8 @@ def ops_psnr(y_true, y_pred, max_val=255.0):
     return 20 * (ops.log(ops.cast(max_val, dtype="float32")) / log_10) - 10 * (ops.log(mse) / log_10)
 
 def _extract_spatial_and_channels(y):
+    if hasattr(y, 'numpy'):
+        y = y.numpy()
     ndim = y.ndim
     if ndim == 2:
         return [y], 2
@@ -242,6 +244,382 @@ def compute_checkerboard_index(y, y_true=None, factor=None):
         cbi_list.append(float(np.std(resp) / ref_std))
 
     return float(np.mean(cbi_list))
+
+
+def compute_tenengrad(y):
+    """
+    Computes the Tenengrad gradient energy density for 2D or 3D images.
+
+    Tenengrad(y) = (1/N) * sum_{x} ||\nabla y(x)||^2
+    using Sobel operators along each spatial dimension.
+
+    Parameters
+    ----------
+    y : np.ndarray or ANTsImage
+        Input 2D or 3D image/volume.
+
+    Returns
+    -------
+    float
+        Average squared gradient magnitude (higher means sharper edges).
+    """
+    from scipy.ndimage import sobel
+    if hasattr(y, 'numpy'):
+        y = y.numpy()
+    y = np.squeeze(y).astype(np.float64)
+    grads = [sobel(y, axis=i) for i in range(y.ndim)]
+    return float(np.mean(sum(g**2 for g in grads)))
+
+
+def compute_acutance_ratio(y_true, y_pred):
+    """
+    Computes the Relative Acutance Ratio (Tenengrad ratio) between predicted
+    and ground truth images.
+
+    Acutance Ratio = Tenengrad(y_pred) / Tenengrad(y_true)
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Ground truth and reconstructed images/volumes.
+
+    Returns
+    -------
+    float
+        Ratio of edge sharpness:
+        - 1.0 indicates perfect preservation of ground truth edge acutance.
+        - < 1.0 indicates blurring / low-pass smoothing (e.g. bilinear is ~0.79).
+        - > 1.0 indicates edge sharpening or high-frequency overshoot.
+    """
+    t_true = compute_tenengrad(y_true)
+    t_pred = compute_tenengrad(y_pred)
+    return float(t_pred / (t_true + 1e-12))
+
+
+def compute_laplacian_energy_ratio(y_true, y_pred):
+    """
+    Computes the Laplacian High-Frequency Energy Ratio:
+
+    Ratio = ||\nabla^2 y_pred||_1 / ||\nabla^2 y_true||_1
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Ground truth and reconstructed images/volumes.
+
+    Returns
+    -------
+    float
+        Ratio of Laplacian high-frequency edge energy.
+        Bilinear typically loses >50% of detail (ratio ~0.44), whereas
+        effective super-resolution recovers fine structure (ratio ~0.80 - 1.05).
+    """
+    from scipy.ndimage import laplace
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+    yt = np.squeeze(y_true).astype(np.float64)
+    yp = np.squeeze(y_pred).astype(np.float64)
+    l_true = float(np.mean(np.abs(laplace(yt))))
+    l_pred = float(np.mean(np.abs(laplace(yp))))
+    return float(l_pred / (l_true + 1e-12))
+
+
+def compute_spectral_energy_ratio(y_true, y_pred, cutoff_ratio=None, factor=None):
+    """
+    Computes the High-Frequency Fourier Energy Ratio above the low-resolution
+    Nyquist barrier.
+
+    Ratio = sum_{r > cutoff} |F_pred(k)| / sum_{r > cutoff} |F_true(k)|
+    where r in [0, 1] is the normalized radial frequency in the Fourier domain
+    across upsampled axes. For 2x super-resolution, the LR Nyquist limit corresponds
+    to cutoff_ratio = 0.5.
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Ground truth and reconstructed 2D or 3D images.
+    cutoff_ratio : float, optional
+        Normalized radial frequency cutoff in [0, 1]. If None, automatically derived
+        from factor (1 / max_upsample_factor).
+    factor : int, tuple, or list, optional
+        Upsampling factor per axis. If anisotropic (e.g. (1, 1, 2)), the frequency
+        cutoff is evaluated across only the upsampled axes.
+
+    Returns
+    -------
+    float
+        Ratio of high-frequency Fourier amplitude spectrum.
+        Values near 1.0 indicate realistic spectral content extrapolation.
+    """
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+    yt = np.squeeze(y_true).astype(np.float64)
+    yp = np.squeeze(y_pred).astype(np.float64)
+
+    spatial_dim = yt.ndim
+    if factor is not None:
+        if isinstance(factor, (int, float)):
+            f_tuple = tuple([float(factor)] * spatial_dim)
+        elif len(factor) == 1:
+            f_tuple = tuple([float(factor[0])] * spatial_dim)
+        else:
+            f_tuple = tuple(float(f) for f in factor)
+    else:
+        f_tuple = tuple([2.0] * spatial_dim)
+
+    up_axes = [i for i, f in enumerate(f_tuple) if f > 1.0]
+    if not up_axes:
+        up_axes = list(range(spatial_dim))
+
+    if cutoff_ratio is None:
+        cutoff_ratio = 1.0 / max([f_tuple[i] for i in up_axes])
+
+    ft = np.fft.fftshift(np.fft.fftn(yt))
+    fp = np.fft.fftshift(np.fft.fftn(yp))
+
+    shape = yt.shape
+    coords = [np.linspace(-1, 1, shape[i]) for i in range(spatial_dim)]
+    mesh = np.meshgrid(*coords, indexing='ij')
+
+    r_sq = sum(mesh[i]**2 for i in up_axes)
+    hf_mask = np.sqrt(r_sq) > cutoff_ratio
+
+    hf_true = np.sum(np.abs(ft)[hf_mask])
+    hf_pred = np.sum(np.abs(fp)[hf_mask])
+    return float(hf_pred / (hf_true + 1e-12))
+
+
+def compute_ms_ssim(y_true, y_pred, data_range=1.0, weights=None, win_size=7, K1=0.01, K2=0.03):
+    """
+    Multi-Scale Structural Similarity Index (MS-SSIM) in 2D and 3D.
+
+    Implements Wang et al. (2003) across dyadic downsampling scales:
+    MS-SSIM = [l_M(x, y)]^alpha_M * prod_{j=1}^M [cs_j(x, y)]^beta_j
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Ground truth and reconstructed images/volumes.
+    data_range : float
+        Dynamic range of the inputs. Default 1.0.
+    weights : list of float, optional
+        Relative weights per scale. Defaults to Wang et al. 5-scale weights:
+        [0.0448, 0.2856, 0.3001, 0.2363, 0.1333].
+    win_size : int
+        Local window size for uniform filtering. Default 7.
+    K1, K2 : float
+        Stability constants. Defaults 0.01, 0.03.
+
+    Returns
+    -------
+    float
+        MS-SSIM score in [0, 1] (1.0 = identical).
+    """
+    from scipy.ndimage import uniform_filter
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+    yt = np.squeeze(y_true).astype(np.float64)
+    yp = np.squeeze(y_pred).astype(np.float64)
+
+    if weights is None:
+        weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+    w_list = list(weights)
+
+    C1 = (K1 * data_range) ** 2
+    C2 = (K2 * data_range) ** 2
+
+    mcs = []
+    cur_t = yt
+    cur_p = yp
+
+    for i, w in enumerate(w_list):
+        if min(cur_t.shape) < win_size:
+            w_list = w_list[:i]
+            break
+
+        mu_t = uniform_filter(cur_t, win_size)
+        mu_p = uniform_filter(cur_p, win_size)
+        sig_t = np.maximum(0.0, uniform_filter(cur_t * cur_t, win_size) - mu_t ** 2)
+        sig_p = np.maximum(0.0, uniform_filter(cur_p * cur_p, win_size) - mu_p ** 2)
+        sig_tp = uniform_filter(cur_t * cur_p, win_size) - mu_t * mu_p
+
+        l = (2.0 * mu_t * mu_p + C1) / (mu_t ** 2 + mu_p ** 2 + C1 + 1e-12)
+        cs = (2.0 * sig_tp + C2) / (sig_t + sig_p + C2 + 1e-12)
+
+        pad = win_size // 2
+        sl = tuple(slice(pad, -pad) for _ in range(cur_t.ndim))
+
+        if i == len(w_list) - 1 or min(cur_t.shape) // 2 < win_size:
+            final_l = float(np.mean(l[sl]))
+            mcs.append(float(np.mean(cs[sl])))
+            w_list = w_list[:len(mcs)]
+            break
+        else:
+            mcs.append(float(np.mean(cs[sl])))
+            down_sl = tuple(slice(None, None, 2) for _ in range(cur_t.ndim))
+            cur_t = uniform_filter(cur_t, 2)[down_sl]
+            cur_p = uniform_filter(cur_p, 2)[down_sl]
+
+    w_arr = np.array(w_list, dtype=np.float64) / sum(w_list)
+    mcs_arr = np.maximum(0.0, np.array(mcs, dtype=np.float64))
+    val = (final_l ** w_arr[-1]) * np.prod(mcs_arr ** w_arr)
+    return float(val)
+
+
+_LPIPS_VGG_SINGLETON = None
+
+def _get_lpips_vgg_singleton(device="cpu"):
+    global _LPIPS_VGG_SINGLETON
+    if _LPIPS_VGG_SINGLETON is None:
+        import torch
+        import torch.nn as nn
+        import torchvision.models as models
+
+        class _VGGFeatureExtractor(nn.Module):
+            def __init__(self):
+                super().__init__()
+                vgg = models.vgg19(weights=models.VGG19_Weights.DEFAULT).features.eval()
+                for p in vgg.parameters():
+                    p.requires_grad = False
+                self.slices = nn.ModuleList([
+                    vgg[:4],
+                    vgg[4:9],
+                    vgg[9:14],
+                    vgg[14:23],
+                    vgg[23:32]
+                ])
+                self.register_buffer('mean', torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+                self.register_buffer('std', torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+
+            def forward(self, x, y):
+                if x.shape[1] == 1:
+                    x = x.repeat(1, 3, 1, 1)
+                if y.shape[1] == 1:
+                    y = y.repeat(1, 3, 1, 1)
+                x = (x - self.mean) / self.std
+                y = (y - self.mean) / self.std
+                dist = 0.0
+                cur_x, cur_y = x, y
+                for s in self.slices:
+                    cur_x = s(cur_x)
+                    cur_y = s(cur_y)
+                    norm_x = cur_x / (torch.sqrt(torch.sum(cur_x**2, dim=1, keepdim=True)) + 1e-10)
+                    norm_y = cur_y / (torch.sqrt(torch.sum(cur_y**2, dim=1, keepdim=True)) + 1e-10)
+                    diff = (norm_x - norm_y)**2
+                    dist = dist + torch.mean(diff)
+                return dist / len(self.slices)
+
+        _LPIPS_VGG_SINGLETON = _VGGFeatureExtractor()
+        _LPIPS_VGG_SINGLETON.to(device)
+    return _LPIPS_VGG_SINGLETON
+
+
+def compute_lpips(y_true, y_pred, net='vgg', device=None, num_slices=16):
+    """
+    Computes Learned Perceptual Image Patch Similarity (LPIPS) distance.
+
+    For 2D inputs: computes perceptual distance across normalized deep features.
+    For 3D inputs: computes tri-planar perceptual distance by sampling orthogonal
+    slices across Axial, Coronal, and Sagittal anatomical planes:
+        LPIPS_3D = (1/3) * (LPIPS_axial + LPIPS_coronal + LPIPS_sagittal)
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray or ANTsImage
+        Ground truth and reconstructed images/volumes in [0, 1].
+    net : str, optional
+        Feature backbone ('vgg' by default).
+    device : str or torch.device, optional
+        PyTorch device ('cuda', 'mps', or 'cpu'). Defaults to best available.
+    num_slices : int, optional
+        Number of slices per anatomical plane to evaluate for 3D volumes. Default 16.
+
+    Returns
+    -------
+    float
+        Perceptual distance (lower is better; 0.0 = perceptual identity).
+    """
+    try:
+        import torch
+    except ImportError:
+        raise ImportError("PyTorch is required for compute_lpips. Install torch and torchvision.")
+
+    if hasattr(y_true, 'numpy'):
+        y_true = y_true.numpy()
+    if hasattr(y_pred, 'numpy'):
+        y_pred = y_pred.numpy()
+    yt = np.squeeze(y_true).astype(np.float32)
+    yp = np.squeeze(y_pred).astype(np.float32)
+
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu')
+    vgg = _get_lpips_vgg_singleton(device=device)
+
+    if yt.ndim == 2:
+        tx = torch.from_numpy(yt).unsqueeze(0).unsqueeze(0).to(device)
+        ty = torch.from_numpy(yp).unsqueeze(0).unsqueeze(0).to(device)
+        with torch.no_grad():
+            return float(vgg(tx, ty).detach().cpu().numpy())
+    elif yt.ndim == 3:
+        dists = []
+        for ax in range(3):
+            size = yt.shape[ax]
+            if size <= num_slices:
+                indices = list(range(size))
+            else:
+                indices = np.linspace(int(size * 0.1), int(size * 0.9), num_slices, dtype=int)
+            sl_t = [np.take(yt, i, axis=ax) for i in indices]
+            sl_p = [np.take(yp, i, axis=ax) for i in indices]
+            bx = torch.from_numpy(np.stack(sl_t, axis=0)).unsqueeze(1).to(device)
+            by = torch.from_numpy(np.stack(sl_p, axis=0)).unsqueeze(1).to(device)
+            with torch.no_grad():
+                d = float(vgg(bx, by).detach().cpu().numpy())
+            dists.append(d)
+        return float(np.mean(dists))
+    else:
+        raise ValueError(f"Unsupported dimensions for compute_lpips: {yt.ndim}")
+
+
+def compute_perceptual_metrics(y_true, y_pred, factor=None):
+    """
+    Computes a comprehensive dictionary of quantitative quality and independent
+    perceptual metrics for 2D or 3D images.
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - psnr: Peak Signal-to-Noise Ratio (dB)
+        - ssim: Structural Similarity Index
+        - ms_ssim: Multi-Scale Structural Similarity
+        - acutance_ratio: Tenengrad edge acutance relative to ground truth
+        - laplacian_ratio: Laplacian high-frequency edge energy ratio
+        - spectral_ratio: Fourier high-frequency energy ratio above LR Nyquist
+        - lpips: Deep perceptual feature distance (lower is better)
+        - gmsd: Gradient Magnitude Similarity Deviation
+        - cbi: Checkerboard Index
+    """
+    res = {
+        "psnr": compute_psnr(y_true, y_pred),
+        "ssim": compute_ssim(y_true, y_pred),
+        "ms_ssim": compute_ms_ssim(y_true, y_pred),
+        "acutance_ratio": compute_acutance_ratio(y_true, y_pred),
+        "laplacian_ratio": compute_laplacian_energy_ratio(y_true, y_pred),
+        "spectral_ratio": compute_spectral_energy_ratio(y_true, y_pred, factor=factor),
+        "gmsd": compute_gmsd(y_true, y_pred),
+        "cbi": compute_checkerboard_index(y_pred, y_true, factor=factor),
+    }
+    try:
+        res["lpips"] = compute_lpips(y_true, y_pred)
+    except Exception:
+        res["lpips"] = None
+    return res
 
 
 def estimate_anti_checkerboard_sigma(vol, max_sigma=0.40):
@@ -3526,7 +3904,8 @@ def inference( # pragma: no cover
     verbose=False,
     anti_checkerboard='auto',
     anti_checkerboard_sigma=None,
-    align_phase=True):
+    align_phase=True,
+    linear_blend=None):
 
     """
     Perform super-resolution inference on an input image, optionally guided by segmentation.
@@ -3845,6 +4224,20 @@ def inference( # pragma: no cover
             print("[siq] No checkerboard artifact detected (excess <= 1.2x); zero anti-checkerboard filtering applied.")
 
     ref = ants.resample_image_to_target(pimg, imgsr)
+    _linear_blend = linear_blend
+    if _linear_blend is None and config is not None:
+        _linear_blend = config.get('inference', {}).get('linear_blend', None)
+        
+    if _linear_blend is not None and _linear_blend > 0:
+        ref_norm = ants.iMath(ref, "Normalize")
+        sr_norm = ants.iMath(imgsr, "Normalize")
+        fused_np = (1.0 - _linear_blend) * ref_norm.numpy() + _linear_blend * sr_norm.numpy()
+        if _output_clip:
+            fused_np = np.clip(fused_np, 0.0, 1.0)
+        imgsr_fused = ants.from_numpy(fused_np.astype(np.float32))
+        ants.copy_image_info(imgsr, imgsr_fused)
+        imgsr = imgsr_fused
+
     return apply_intensity_match(imgsr, ref, poly_order, verbose)
 
 

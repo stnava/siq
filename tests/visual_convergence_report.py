@@ -327,12 +327,13 @@ class VisualConvergenceReporter:
     Manages regular convergence checkpointing, metric tracking, orthogonal slice
     montage generation, and live HTML report updating during 3D AS-DBPN training.
     """
-    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html", reset_history=False, selection_metric="cqs"):
+    def __init__(self, workspace_dir=".", checkpoint_dir="checkpoints/asdbpn_3d", report_dir="reports/asdbpn_3d", html_filename="asdbpn_3d_report.html", reset_history=False, selection_metric="cqs", linear_blend=None):
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.checkpoint_dir = os.path.join(self.workspace_dir, checkpoint_dir)
         self.report_dir = os.path.join(self.workspace_dir, report_dir)
         self.html_path = os.path.join(self.workspace_dir, html_filename)
         self.selection_metric = selection_metric
+        self.linear_blend = linear_blend
         
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(self.report_dir, exist_ok=True)
@@ -341,6 +342,7 @@ class VisualConvergenceReporter:
         self.history = []
         self.best_score = -float('inf')
         self.best_cqs = -float('inf')
+        self.best_pcs = -float('inf')
         self.best_psnr = -1.0
         self.best_iter = 0
         self.best_stage = None
@@ -365,11 +367,21 @@ class VisualConvergenceReporter:
                         gmsd = float(r.get("val_gmsd", 0.0))
                         cbi = float(r.get("val_cbi", 0.0))
                         cqs = float(r.get("val_cqs", ssim - gmsd - cbi))
+                        acutance = float(r.get("val_acutance", 0.0))
+                        laplacian = float(r.get("val_laplacian", 0.0))
+                        pcs = float(r.get("val_pcs", ssim + 0.5 * acutance + 0.5 * laplacian - gmsd - cbi))
                         if psnr > self.best_psnr:
                             self.best_psnr = psnr
-                        if int(r.get("is_best", 0)) == 1 or cqs > self.best_cqs:
+                        if self.selection_metric == "pcs":
+                            score = pcs
+                        elif self.selection_metric == "cqs":
+                            score = cqs
+                        else:
+                            score = psnr
+                        if int(r.get("is_best", 0)) == 1 or score > self.best_score:
                             self.best_cqs = cqs
-                            self.best_score = cqs if self.selection_metric == "cqs" else psnr
+                            self.best_pcs = pcs
+                            self.best_score = score
                             self.best_iter = int(r.get("iteration", 0))
                             self.best_stage = str(r.get("stage", ""))
                 print(f"[Convergence Reporter] Loaded {len(self.history)} existing history entries. Best CQS: {self.best_cqs:.4f} (PSNR: {self.best_psnr:.2f} dB) at iter {self.best_iter}")
@@ -431,13 +443,43 @@ class VisualConvergenceReporter:
         lin_hfen = float(compute_hfen(self.gt_np, bilinear_np))
         lin_corr = float(np.corrcoef(bilinear_np.flatten(), self.gt_np.flatten())[0, 1])
         
+        import siq
+        lin_ms_ssim = float(siq.compute_ms_ssim(self.gt_np, bilinear_np))
+        lin_acutance = float(siq.compute_acutance_ratio(self.gt_np, bilinear_np))
+        lin_laplacian = float(siq.compute_laplacian_energy_ratio(self.gt_np, bilinear_np))
+        lin_spectral = float(siq.compute_spectral_energy_ratio(self.gt_np, bilinear_np, factor=self.factor))
+        
+        lin_cbi = float(siq.compute_checkerboard_index(bilinear_np, self.gt_np, factor=self.factor))
+        lin_cqs = float(lin_ssim - lin_gmsd - lin_cbi)
+        lin_pcs = float(lin_ssim + 0.5 * lin_acutance + 0.5 * lin_laplacian - lin_gmsd - lin_cbi)
+        
         self.bilinear_metrics = {
             "psnr": lin_psnr,
             "ssim": lin_ssim,
+            "ms_ssim": lin_ms_ssim,
+            "acutance_ratio": lin_acutance,
+            "laplacian_ratio": lin_laplacian,
+            "spectral_ratio": lin_spectral,
             "gmsd": lin_gmsd,
             "hfen": lin_hfen,
-            "corr": lin_corr
+            "corr": lin_corr,
+            "cbi": lin_cbi,
+            "cqs": lin_cqs,
+            "pcs": lin_pcs
         }
+        
+        import json
+        b_data = {
+            "bilinear": self.bilinear_metrics,
+            "factor": self.factor
+        }
+        for d in [self.checkpoint_dir, self.report_dir]:
+            try:
+                os.makedirs(d, exist_ok=True)
+                with open(os.path.join(d, "baselines.json"), "w") as _bf:
+                    json.dump(b_data, _bf, indent=2)
+            except Exception:
+                pass
         
         bilinear_path = os.path.join(self.report_dir, "val3d_bilinear.png")
         lin_path = os.path.join(self.report_dir, "val3d_linear_upsampled.png")
@@ -494,23 +536,32 @@ class VisualConvergenceReporter:
         cfg = getattr(self, "model_config", None)
         if cfg is None:
             cfg = siq.default_siq_config(model)
+        if isinstance(getattr(self, "factor", None), (list, tuple)) and len(self.factor) == 2:
+            if "normalization" not in cfg:
+                cfg["normalization"] = {}
+            cfg["normalization"]["truncate_quantiles"] = [0.0, 1.0]
         # Use raw model output for validation: no intensity matching (poly_order=None),
         # no anti-checkerboard Gaussian blur (anti_checkerboard=False).
         # Both post-processing steps smear edges and cause apparent sub-voxel shift
         # in the comparison montage, and contaminate PSNR/SSIM/CBI training metrics.
         sr_img = siq.inference(self.lr_patch, model, config=cfg, verbose=False,
-                               poly_order=None, anti_checkerboard=False)
+                               poly_order=None, anti_checkerboard=False, linear_blend=self.linear_blend)
         ants.copy_image_info(self.hr_patch, sr_img)  # spatial metadata only (origin/spacing/direction)
         sr_np = sr_img.numpy()
         
         # SR inference is [0,1]; hr_patch_norm is also [0,1] — fair, consistent comparison.
         val_psnr = float(compute_psnr(self.gt_np, sr_np))
         val_ssim = float(compute_ssim(self.gt_np, sr_np))
+        val_ms_ssim = float(siq.compute_ms_ssim(self.gt_np, sr_np))
+        val_acutance = float(siq.compute_acutance_ratio(self.gt_np, sr_np))
+        val_laplacian = float(siq.compute_laplacian_energy_ratio(self.gt_np, sr_np))
+        val_spectral = float(siq.compute_spectral_energy_ratio(self.gt_np, sr_np, factor=getattr(self, "factor", None)))
         val_gmsd = float(compute_gmsd(self.gt_np, sr_np))
         val_hfen = float(compute_hfen(self.gt_np, sr_np))
         val_corr = float(np.corrcoef(sr_np.flatten(), self.gt_np.flatten())[0, 1])
         val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np, factor=getattr(self, "factor", None)))
         val_cqs = float(val_ssim - val_gmsd - val_cbi)
+        val_pcs = float(val_ssim + 0.5 * val_acutance + 0.5 * val_laplacian - val_gmsd - val_cbi)
         
         # Determine champion model.
         # Stages are prioritized hierarchically so downstream perceptual refinement (Stage 3)
@@ -528,17 +579,25 @@ class VisualConvergenceReporter:
         if cur_rank > best_rank:
             is_new_best = True
         elif cur_rank == best_rank:
-            if self.selection_metric == "cqs":
+            if self.selection_metric == "pcs":
+                is_new_best = val_pcs > self.best_score
+            elif self.selection_metric == "cqs":
                 is_new_best = val_cqs > self.best_score
             elif self.selection_metric == "psnr":
                 is_new_best = val_psnr > self.best_psnr
             else:
-                is_new_best = val_cqs > self.best_score
+                is_new_best = val_pcs > self.best_score
         else:
             is_new_best = False
 
         if is_new_best:
-            self.best_score = val_cqs if self.selection_metric == "cqs" else val_psnr
+            if self.selection_metric == "pcs":
+                self.best_score = val_pcs
+            elif self.selection_metric == "cqs":
+                self.best_score = val_cqs
+            else:
+                self.best_score = val_psnr
+            self.best_pcs = val_pcs
             self.best_cqs = val_cqs
             self.best_iter = iteration
             self.best_stage = stage_name
@@ -574,8 +633,11 @@ class VisualConvergenceReporter:
                 _upfactor = 2
         except Exception:
             _upfactor = 2
+        ckpt_base = os.path.basename(self.checkpoint_dir)
+        m_prefix = ckpt_base.split("_")[0] if "_" in ckpt_base else "asdbpn"
+        dim_str = "2d" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 2) else "3d"
         provenance_config = {
-            "model_type": "asdbpn_3d",
+            "model_type": f"{m_prefix}_{dim_str}",
             "siq_version": _siq_ver,
             "saved_at": datetime.datetime.utcnow().isoformat() + "Z",
             "stage": stage_name,
@@ -585,7 +647,7 @@ class VisualConvergenceReporter:
             "upsample_factor": _upfactor,
             "normalization": {
                 "method": "volume",
-                "truncate_quantiles": [0.001, 0.999],
+                "truncate_quantiles": [0.0, 1.0] if (isinstance(getattr(self, "factor", None), (list, tuple)) and len(self.factor) == 2) else [0.001, 0.999],
                 "output_range": [0.0, 1.0],
                 "note": (
                     "Apply ants.iMath(vol,'TruncateIntensity',0.001,0.999) then "
@@ -596,6 +658,7 @@ class VisualConvergenceReporter:
             "inference": {
                 "preferred_method": "direct_single_patch_if_fits",
                 "patch_overlap": 16,
+                "linear_blend": float(self.linear_blend) if self.linear_blend is not None else None,
                 "output_clip": [0.0, 1.0],
                 "antspynet_wrapper": False,
                 "note": (
@@ -609,9 +672,14 @@ class VisualConvergenceReporter:
             "val_metrics": {
                 "val_psnr": float(val_psnr),
                 "val_ssim": float(val_ssim),
+                "val_ms_ssim": float(val_ms_ssim),
+                "val_acutance_ratio": float(val_acutance),
+                "val_laplacian_ratio": float(val_laplacian),
+                "val_spectral_ratio": float(val_spectral),
                 "val_gmsd": float(val_gmsd),
                 "val_cbi": float(val_cbi),
                 "val_cqs": float(val_cqs),
+                "val_pcs": float(val_pcs),
                 "val_hfen": float(val_hfen),
             }
         }
@@ -628,8 +696,13 @@ class VisualConvergenceReporter:
                     "cbi": float(loss_weights.get("cbi", 0.0)),
                 }
                 wts_df = pd.DataFrame([wts_row])
-                f_s = f"{_upfactor[0]}x{_upfactor[1]}x{_upfactor[2]}" if isinstance(_upfactor, (list, tuple)) else f"{_upfactor}x{_upfactor}x{_upfactor}"
-                wts_fn = "asdbpn_3d_refined_training_weights.csv" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_refined_training_weights.csv"
+                f_s = f"{_upfactor[0]}x{_upfactor[1]}x{_upfactor[2]}" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 3) else ("2x2" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 2) else f"{_upfactor}x{_upfactor}x{_upfactor}")
+                if f_s == "2x2x2":
+                    wts_fn = f"{m_prefix}_3d_refined_training_weights.csv"
+                elif f_s == "2x2":
+                    wts_fn = f"{m_prefix}_2d_refined_training_weights.csv"
+                else:
+                    wts_fn = f"{m_prefix}_3d_{f_s}_refined_training_weights.csv"
                 wts_df.to_csv(os.path.join(self.workspace_dir, wts_fn), index=False)
                 wts_df.to_csv(os.path.join(self.checkpoint_dir, wts_fn), index=False)
             except Exception:
@@ -650,23 +723,31 @@ class VisualConvergenceReporter:
         else:
             f_s = f"{_upfactor}x{_upfactor}x{_upfactor}"
         dim_str = "2d" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 2) else "3d"
-        refined_fn = f"asdbpn_{dim_str}_{f_s}_refined.keras"
-        best_fn = f"asdbpn_{dim_str}_{f_s}_best_mdl.keras"
+        refined_fn = f"{m_prefix}_{dim_str}_{f_s}_refined.keras"
+        best_fn = f"{m_prefix}_{dim_str}_{f_s}_best_mdl.keras"
         # Legacy alias for default 3D 2x2x2
         if f_s == "2x2x2":
-            refined_fn = "asdbpn_3d_refined.keras"
-            best_fn = "asdbpn_3d_best_mdl.keras"
+            refined_fn = f"{m_prefix}_3d_refined.keras"
+            best_fn = f"{m_prefix}_3d_best_mdl.keras"
         refined_root_path = os.path.join(self.workspace_dir, refined_fn)
         model.save(refined_root_path)
         _save_config(refined_root_path, provenance_config)
+        if f_s == "2x2":
+            alias_ref_2d = os.path.join(self.workspace_dir, f"{m_prefix}_2d_refined.keras")
+            model.save(alias_ref_2d)
+            _save_config(alias_ref_2d, provenance_config)
         
         if is_new_best:
-            best_cqs_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_cqs.keras")
+            best_cqs_ckpt = os.path.join(self.checkpoint_dir, f"{m_prefix}_{dim_str}_best_cqs.keras")
             model.save(best_cqs_ckpt)
             _save_config(best_cqs_ckpt, provenance_config)
             best_root_path = os.path.join(self.workspace_dir, best_fn)
             model.save(best_root_path)
             _save_config(best_root_path, provenance_config)
+            if f_s == "2x2":
+                alias_best_2d = os.path.join(self.workspace_dir, f"{m_prefix}_2d_best_mdl.keras")
+                model.save(alias_best_2d)
+                _save_config(alias_best_2d, provenance_config)
             # Immutable archive: copy to model_archive/ + register in model_registry.json
             try:
                 import siq as _siq
@@ -701,21 +782,34 @@ class VisualConvergenceReporter:
             title=f"Residual Error |AS-DBPN (Iter {iteration}) - GT|"
         )
         
+        dim_str = "2D" if (isinstance(getattr(self, "factor", None), (list, tuple)) and len(self.factor) == 2) else "3D"
         # Maintain current and best pointers in reports
         current_img_path = os.path.join(self.report_dir, "val3d_asdbpn_current.png")
-        save_orthogonal_slice_montage(sr_img, current_img_path, title=f"Latest AS-DBPN Output (Iter {iteration})")
+        save_orthogonal_slice_montage(
+            sr_img, current_img_path,
+            title=f"Latest {dim_str} AS-DBPN Output (Iter {iteration} — PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CQS: {val_cqs:.4f}, CBI: {val_cbi:.4f})"
+        )
         
         current_diff_path = os.path.join(self.report_dir, "diff3d_asdbpn_current.png")
-        save_difference_montage(sr_np, self.gt_np, current_diff_path, title=f"Latest Residual Error (Iter {iteration})")
+        save_difference_montage(
+            sr_np, self.gt_np, current_diff_path,
+            title=f"Latest Residual Error |{dim_str} AS-DBPN (Iter {iteration}) - GT| (PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CBI: {val_cbi:.4f})"
+        )
         
         # Maintain SR Upsampled image pointer (identical scale)
         sr_upsampled_path = os.path.join(self.report_dir, "val3d_sr_upsampled.png")
-        save_orthogonal_slice_montage(sr_img, sr_upsampled_path, title=f"4. SR Upsampled Image (3D AS-DBPN Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
+        save_orthogonal_slice_montage(
+            sr_img, sr_upsampled_path,
+            title=f"4. Latest AS-DBPN Image ({dim_str} Step {iteration} — PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CQS: {val_cqs:.4f}, CBI: {val_cbi:.4f})"
+        )
         
         # Maintain 4-Way Unified Comparative Montage
         if hasattr(self, "downsampled_img") and hasattr(self, "bilinear_sr") and self.downsampled_img is not None and self.bilinear_sr is not None:
             comp_path = os.path.join(self.report_dir, "val3d_4way_comparison.png")
-            save_4way_comparison_montage(self.hr_patch_norm, self.downsampled_img, self.bilinear_sr, sr_img, comp_path, title=f"Identical-Scale 4-Way Comparison (Step {iteration} - PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f})")
+            save_4way_comparison_montage(
+                self.hr_patch_norm, self.downsampled_img, self.bilinear_sr, sr_img, comp_path,
+                title=f"Identical-Scale 4-Way Comparison (Step {iteration} — PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CQS: {val_cqs:.4f})"
+            )
             
         if is_new_best:
             best_img_path = os.path.join(self.report_dir, "val3d_asdbpn_best.png")
@@ -731,9 +825,14 @@ class VisualConvergenceReporter:
             "train_loss": float(train_loss) if train_loss is not None else 0.0,
             "val_psnr": val_psnr,
             "val_ssim": val_ssim,
+            "val_ms_ssim": val_ms_ssim,
+            "val_acutance": val_acutance,
+            "val_laplacian": val_laplacian,
+            "val_spectral": val_spectral,
             "val_gmsd": val_gmsd,
             "val_cbi": val_cbi,
             "val_cqs": val_cqs,
+            "val_pcs": val_pcs,
             "val_hfen": val_hfen,
             "val_corr": val_corr,
             "is_best": 1 if is_new_best else 0,

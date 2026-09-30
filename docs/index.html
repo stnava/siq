@@ -338,6 +338,30 @@
             </p>
         </div>
 
+        <h2>State-of-the-Art 3D Reconstruction: L-DBPN 3D</h2>
+        <p style="text-align: center; color: #94a3b8; max-width: 800px; margin: 0 auto 40px;">
+            For maximal anatomical fidelity in 3D, SIQ introduces <strong>3D Lightweight Deep Back-Projection Networks (L-DBPN 3D)</strong>. By integrating iterative low- and high-resolution error correction with <code>PixelShuffle3D</code>, L-DBPN delivers state-of-the-art edge sharpness without transposed-convolution checkerboard grid artifacts.
+        </p>
+
+        <div class="parity-alert" style="background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); text-align: left;">
+            <h4 style="color: var(--accent-color);">Recommended Production Configuration: <code>create_ldbpn_3d(s=3, f=32)</code></h4>
+            <p style="color: #cbd5e1; margin-bottom: 12px;">
+                Benchmarked on 3D MRI volumes, this configuration achieves the optimal balance of parameter efficiency, inference throughput, and anatomical reconstruction:
+            </p>
+            <ul style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 16px; padding-left: 20px;">
+                <li><strong>2.06M Parameters (7.85 MB)</strong>: Compact footprint fits comfortably within GPU VRAM during volumetric training.</li>
+                <li><strong>273 ms Forward Pass</strong>: 3.5&times; faster than AS-DBPN and legacy 3D DBPN by replacing 6&times;6&times;6 kernels with compact 3&times;3&times;3 convolutions.</li>
+                <li><strong>Zero Checkerboard Grid Resonance</strong>: Sub-pixel shuffle eliminates deconvolution banding along upsampled axes.</li>
+                <li><strong>Native Anisotropic Scaling</strong>: Out-of-the-box support for clinical anisotropic protocols (e.g. <code>factor=(1, 1, 2)</code>).</li>
+            </ul>
+            <p style="margin-top: 10px; display: flex;">
+                <a href="ldbpn_3d_architecture.md" class="stat-badge" style="display: inline-flex; text-decoration: none; color: #38bdf8; font-weight: 600; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.1); cursor: pointer;">
+                    <span class="dot" style="background-color: #38bdf8; box-shadow: 0 0 10px #38bdf8;"></span>
+                    Read Full L-DBPN 3D Technical Documentation &rarr;
+                </a>
+            </p>
+        </div>
+
 
         <h2>Simplicity Meets Power</h2>
 

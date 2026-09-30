@@ -9166,5 +9166,2460 @@
     },
     "loss_weights": {},
     "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02125_20260930_130644"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_02400_20260930_131908",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 2400 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:19:08.161601+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02400_20260930_131908/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02400_20260930_131908/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 2400,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.058339102688038,
+      "val_ssim": 0.8988132411772216,
+      "val_gmsd": 0.1652006059885025,
+      "val_cbi": 0.059787817299366,
+      "val_cqs": 0.6738248178893531,
+      "val_hfen": 0.3424389958381653
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.9622039794921875,
+      "feat": 0.03729294613003731,
+      "tv": 0.6550285220146179,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 2.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02400_20260930_131908"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_02675_20260930_131957",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 2675 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:19:57.170783+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02675_20260930_131957/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02675_20260930_131957/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 2675,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.66804563799789,
+      "val_ssim": 0.903721949698374,
+      "val_gmsd": 0.16390930116176605,
+      "val_cbi": 0.059759173542261124,
+      "val_cqs": 0.6800534749943469,
+      "val_hfen": 0.3380243182182312
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.8291916847229,
+      "feat": 0.03573393449187279,
+      "tv": 0.6442794799804688,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 2.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_02675_20260930_131957"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_03800_20260930_134652",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 3800 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:46:52.092935+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_03800_20260930_134652/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_03800_20260930_134652/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 3800,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.871273543320775,
+      "val_ssim": 0.8983094145521997,
+      "val_gmsd": 0.1569647639989853,
+      "val_cbi": 0.05866144970059395,
+      "val_cqs": 0.6826832008526205,
+      "val_hfen": 0.33062276244163513
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 9.249472618103027,
+      "feat": 0.0059962645173072815,
+      "tv": 0.6474946737289429,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_03800_20260930_134652"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_04000_20260930_134738",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 4000 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:47:38.086732+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04000_20260930_134738/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04000_20260930_134738/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 4000,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 22.608713228617276,
+      "val_ssim": 0.9002550497545738,
+      "val_gmsd": 0.1572481244802475,
+      "val_cbi": 0.058708082884550095,
+      "val_cqs": 0.6842988423897762,
+      "val_hfen": 0.32915425300598145
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 10.39302921295166,
+      "feat": 0.008201861754059792,
+      "tv": 0.651779294013977,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04000_20260930_134738"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_04075_20260930_134755",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 4075 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T13:47:55.625499+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04075_20260930_134755/asdbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04075_20260930_134755/asdbpn_3d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 4075,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 22.809765862770796,
+      "val_ssim": 0.9076054775479153,
+      "val_gmsd": 0.15482299029827118,
+      "val_cbi": 0.058859504759311676,
+      "val_cqs": 0.6939229824903325,
+      "val_hfen": 0.3348953425884247
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 10.830215454101562,
+      "feat": 0.008962300606071949,
+      "tv": 0.6573074460029602,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_04075_20260930_134755"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_05501_20260930_151341",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 5501 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:13:41.933549+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05501_20260930_151341/asdbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05501_20260930_151341/asdbpn_2d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 5501,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 19.362664681225187,
+      "val_ssim": 0.7962671089596711,
+      "val_ms_ssim": 0.9756899976458828,
+      "val_acutance_ratio": 0.8611098381232724,
+      "val_laplacian_ratio": 0.5508145414298464,
+      "val_spectral_ratio": 0.5231874252522466,
+      "val_gmsd": 0.17448848485946655,
+      "val_cbi": 0.058604784309864044,
+      "val_cqs": 0.5631738397903405,
+      "val_pcs": 1.2691360295669,
+      "val_hfen": 0.3290833830833435
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 11.594391822814941,
+      "feat": 0.0105949891731143,
+      "tv": 0.6865273714065552,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05501_20260930_151341"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_05525_20260930_151345",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 5525 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:13:45.523421+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05525_20260930_151345/asdbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05525_20260930_151345/asdbpn_2d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 5525,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.396293925359913,
+      "val_ssim": 0.8642939660716613,
+      "val_ms_ssim": 0.9768540954316179,
+      "val_acutance_ratio": 0.9193047671470824,
+      "val_laplacian_ratio": 0.5439640664104735,
+      "val_spectral_ratio": 0.5511671177880062,
+      "val_gmsd": 0.16073237359523773,
+      "val_cbi": 0.05863353982567787,
+      "val_cqs": 0.6449280526507457,
+      "val_pcs": 1.3765624694295235,
+      "val_hfen": 0.33361008763313293
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 11.26954460144043,
+      "feat": 0.011898316442966461,
+      "tv": 0.6624435186386108,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05525_20260930_151345"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_05650_20260930_151915",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 5650 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:19:15.993261+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05650_20260930_151915/asdbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05650_20260930_151915/asdbpn_2d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 5650,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.511168197889404,
+      "val_ssim": 0.8732234201249837,
+      "val_ms_ssim": 0.9748576703804451,
+      "val_acutance_ratio": 1.0351111344674908,
+      "val_laplacian_ratio": 0.6136081522531601,
+      "val_spectral_ratio": 0.6199454079574639,
+      "val_gmsd": 0.16236454248428345,
+      "val_cbi": 0.059458039700984955,
+      "val_cqs": 0.6514008379397153,
+      "val_pcs": 1.4757604813000407,
+      "val_hfen": 0.3601742386817932
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 9.441329956054688,
+      "feat": 0.018862396478652954,
+      "tv": 0.5256926417350769,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05650_20260930_151915"
+  },
+  {
+    "entry_id": "asdbpn_3d_2x2_stage_3_refinement_05850_20260930_154132",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 5850 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:41:32.187350+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05850_20260930_154132/asdbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05850_20260930_154132/asdbpn_2d_best_cqs_config.json",
+    "model_type": "asdbpn_3d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 5850,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.67180216688409,
+      "val_ssim": 0.8704420771971435,
+      "val_ms_ssim": 0.9748115440926135,
+      "val_acutance_ratio": 1.0382106013114607,
+      "val_laplacian_ratio": 0.6147225139795671,
+      "val_spectral_ratio": 0.6257580546811233,
+      "val_gmsd": 0.16135261952877045,
+      "val_cbi": 0.05961037054657936,
+      "val_cqs": 0.6494790871217937,
+      "val_pcs": 1.4759456447673074,
+      "val_hfen": 0.3622020483016968
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 8.848047256469727,
+      "feat": 0.021374009549617767,
+      "tv": 0.37222766876220703,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/asdbpn_3d_2x2_stage_3_refinement_05850_20260930_154132"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155313",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 0 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:53:13.296151+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155313/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155313/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Initial (Pre-Warmup)",
+    "iteration": 0,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 7.5624305912175815,
+      "val_ssim": 0.06101274374387589,
+      "val_ms_ssim": 0.03221351071750194,
+      "val_acutance_ratio": 0.04612346039398853,
+      "val_laplacian_ratio": 0.030353480399935694,
+      "val_spectral_ratio": 0.26457520835155246,
+      "val_gmsd": 0.363840788602829,
+      "val_cbi": 0.06615416705608368,
+      "val_cqs": -0.3689822119150368,
+      "val_pcs": -0.3307437415180747,
+      "val_hfen": 1.0186516046524048
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155313"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00001_20260930_155316",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:53:16.930207+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155316/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155316/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 1,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 15.379930251369036,
+      "val_ssim": 0.5517243566206962,
+      "val_ms_ssim": 0.8460346982601189,
+      "val_acutance_ratio": 0.2952230031572705,
+      "val_laplacian_ratio": 0.3859738802311685,
+      "val_spectral_ratio": 0.3475853710760112,
+      "val_gmsd": 0.2573135495185852,
+      "val_cbi": 0.06923495978116989,
+      "val_cqs": 0.2251758473209411,
+      "val_pcs": 0.5657742890151606,
+      "val_hfen": 0.8371340036392212
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155316"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00040_20260930_155338",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 40 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:53:38.314901+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155338/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155338/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 40,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.36670231998213,
+      "val_ssim": 0.7483356237997322,
+      "val_ms_ssim": 0.9181886669244032,
+      "val_acutance_ratio": 0.3982829990332558,
+      "val_laplacian_ratio": 0.1435656399431909,
+      "val_spectral_ratio": 0.04346067669022663,
+      "val_gmsd": 0.24312715232372284,
+      "val_cbi": 0.06436476111412048,
+      "val_cqs": 0.44084371036188885,
+      "val_pcs": 0.7117680298501123,
+      "val_hfen": 0.6583754420280457
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155338"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00050_20260930_155345",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 50 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:53:45.210333+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155345/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155345/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 50,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.850718718817255,
+      "val_ssim": 0.7936759474476428,
+      "val_ms_ssim": 0.92995380878792,
+      "val_acutance_ratio": 0.5238472808886879,
+      "val_laplacian_ratio": 0.174701111633077,
+      "val_spectral_ratio": 0.048982312299265404,
+      "val_gmsd": 0.23808898031711578,
+      "val_cbi": 0.06409801542758942,
+      "val_cqs": 0.4914889517029376,
+      "val_pcs": 0.8407631479638202,
+      "val_hfen": 0.6073629856109619
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155345"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00060_20260930_155351",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 60 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:53:51.885222+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155351/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155351/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 60,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.078709091484537,
+      "val_ssim": 0.8084104469256419,
+      "val_ms_ssim": 0.9288470131626785,
+      "val_acutance_ratio": 0.6405237934107892,
+      "val_laplacian_ratio": 0.20433315024238458,
+      "val_spectral_ratio": 0.057856826338579345,
+      "val_gmsd": 0.2287953644990921,
+      "val_cbi": 0.06383354961872101,
+      "val_cqs": 0.5157815328078288,
+      "val_pcs": 0.9382100046344155,
+      "val_hfen": 0.5712080597877502
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155351"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00075_20260930_155400",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:54:00.974335+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155400/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155400/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 75,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.722538337395562,
+      "val_ssim": 0.832525142637757,
+      "val_ms_ssim": 0.9378516633952023,
+      "val_acutance_ratio": 0.8825259195104226,
+      "val_laplacian_ratio": 0.26971772393722254,
+      "val_spectral_ratio": 0.08355679598656923,
+      "val_gmsd": 0.212973490357399,
+      "val_cbi": 0.06322922557592392,
+      "val_cqs": 0.5563224267044341,
+      "val_pcs": 1.1324442484282566,
+      "val_hfen": 0.5488436222076416
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155400"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00120_20260930_155424",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 120 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:54:24.639341+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155424/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155424/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 120,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.248181713987474,
+      "val_ssim": 0.8479724842397482,
+      "val_ms_ssim": 0.941477159002856,
+      "val_acutance_ratio": 0.8729056149876698,
+      "val_laplacian_ratio": 0.30331777998333603,
+      "val_spectral_ratio": 0.13061661807113817,
+      "val_gmsd": 0.19279463589191437,
+      "val_cbi": 0.06222856417298317,
+      "val_cqs": 0.5929492841748507,
+      "val_pcs": 1.1810609816603537,
+      "val_hfen": 0.46204790472984314
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155424"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00125_20260930_155429",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 125 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:54:29.603128+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155429/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155429/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 125,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.857560066876406,
+      "val_ssim": 0.8563771359955132,
+      "val_ms_ssim": 0.9428560085341029,
+      "val_acutance_ratio": 0.9389786966285723,
+      "val_laplacian_ratio": 0.3312281988822591,
+      "val_spectral_ratio": 0.1476373635613556,
+      "val_gmsd": 0.18941231071949005,
+      "val_cbi": 0.06213780492544174,
+      "val_cqs": 0.6048270203505814,
+      "val_pcs": 1.239930468105997,
+      "val_hfen": 0.472607284784317
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155429"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00160_20260930_155449",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 160 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:54:49.189685+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155449/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155449/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 160,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.35828672386737,
+      "val_ssim": 0.8498116611021226,
+      "val_ms_ssim": 0.9487940073226713,
+      "val_acutance_ratio": 1.006355579624455,
+      "val_laplacian_ratio": 0.3729073377236107,
+      "val_spectral_ratio": 0.17341906976336616,
+      "val_gmsd": 0.1816006451845169,
+      "val_cbi": 0.06138971447944641,
+      "val_cqs": 0.6068213014381593,
+      "val_pcs": 1.296452760112192,
+      "val_hfen": 0.44788894057273865
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155449"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155655",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 0 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:56:55.983526+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155655/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155655/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Initial (Pre-Warmup)",
+    "iteration": 0,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 7.5624305912175815,
+      "val_ssim": 0.06101274374387589,
+      "val_ms_ssim": 0.03221351071750194,
+      "val_acutance_ratio": 0.04612346039398853,
+      "val_laplacian_ratio": 0.030353480399935694,
+      "val_spectral_ratio": 0.26457520835155246,
+      "val_gmsd": 0.363840788602829,
+      "val_cbi": 0.06615416705608368,
+      "val_cqs": -0.3689822119150368,
+      "val_pcs": -0.3307437415180747,
+      "val_hfen": 1.0186516046524048
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_155655"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00001_20260930_155659",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:56:59.139360+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155659/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155659/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 1,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 15.379930251369036,
+      "val_ssim": 0.5517243566206962,
+      "val_ms_ssim": 0.8460346982601189,
+      "val_acutance_ratio": 0.2952230031572705,
+      "val_laplacian_ratio": 0.3859738802311685,
+      "val_spectral_ratio": 0.3475853710760112,
+      "val_gmsd": 0.2573135495185852,
+      "val_cbi": 0.06923495978116989,
+      "val_cqs": 0.2251758473209411,
+      "val_pcs": 0.5657742890151606,
+      "val_hfen": 0.8371340036392212
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_155659"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00040_20260930_155720",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 40 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:57:20.701373+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155720/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155720/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 40,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.36670231998213,
+      "val_ssim": 0.7483356237997322,
+      "val_ms_ssim": 0.9181886669244032,
+      "val_acutance_ratio": 0.3982829990332558,
+      "val_laplacian_ratio": 0.1435656399431909,
+      "val_spectral_ratio": 0.04346067669022663,
+      "val_gmsd": 0.24312715232372284,
+      "val_cbi": 0.06436476111412048,
+      "val_cqs": 0.44084371036188885,
+      "val_pcs": 0.7117680298501123,
+      "val_hfen": 0.6583754420280457
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_155720"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00050_20260930_155727",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 50 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:57:27.768477+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155727/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155727/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 50,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.850718718817255,
+      "val_ssim": 0.7936759474476428,
+      "val_ms_ssim": 0.92995380878792,
+      "val_acutance_ratio": 0.5238472808886879,
+      "val_laplacian_ratio": 0.174701111633077,
+      "val_spectral_ratio": 0.048982312299265404,
+      "val_gmsd": 0.23808898031711578,
+      "val_cbi": 0.06409801542758942,
+      "val_cqs": 0.4914889517029376,
+      "val_pcs": 0.8407631479638202,
+      "val_hfen": 0.6073629856109619
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_155727"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00060_20260930_155734",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 60 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:57:34.450136+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155734/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155734/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 60,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.078709091484537,
+      "val_ssim": 0.8084104469256419,
+      "val_ms_ssim": 0.9288470131626785,
+      "val_acutance_ratio": 0.6405237934107892,
+      "val_laplacian_ratio": 0.20433315024238458,
+      "val_spectral_ratio": 0.057856826338579345,
+      "val_gmsd": 0.2287953644990921,
+      "val_cbi": 0.06383354961872101,
+      "val_cqs": 0.5157815328078288,
+      "val_pcs": 0.9382100046344155,
+      "val_hfen": 0.5712080597877502
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_155734"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00075_20260930_155743",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:57:43.542593+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155743/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155743/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 75,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.722538337395562,
+      "val_ssim": 0.832525142637757,
+      "val_ms_ssim": 0.9378516633952023,
+      "val_acutance_ratio": 0.8825259195104226,
+      "val_laplacian_ratio": 0.26971772393722254,
+      "val_spectral_ratio": 0.08355679598656923,
+      "val_gmsd": 0.212973490357399,
+      "val_cbi": 0.06322922557592392,
+      "val_cqs": 0.5563224267044341,
+      "val_pcs": 1.1324442484282566,
+      "val_hfen": 0.5488436222076416
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_155743"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00120_20260930_155807",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 120 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:58:07.208769+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155807/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155807/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 120,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.248181713987474,
+      "val_ssim": 0.8479724842397482,
+      "val_ms_ssim": 0.941477159002856,
+      "val_acutance_ratio": 0.8729056149876698,
+      "val_laplacian_ratio": 0.30331777998333603,
+      "val_spectral_ratio": 0.13061661807113817,
+      "val_gmsd": 0.19279463589191437,
+      "val_cbi": 0.06222856417298317,
+      "val_cqs": 0.5929492841748507,
+      "val_pcs": 1.1810609816603537,
+      "val_hfen": 0.46204790472984314
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_155807"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00125_20260930_155811",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 125 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:58:11.998542+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155811/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155811/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 125,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.857560066876406,
+      "val_ssim": 0.8563771359955132,
+      "val_ms_ssim": 0.9428560085341029,
+      "val_acutance_ratio": 0.9389786966285723,
+      "val_laplacian_ratio": 0.3312281988822591,
+      "val_spectral_ratio": 0.1476373635613556,
+      "val_gmsd": 0.18941231071949005,
+      "val_cbi": 0.06213780492544174,
+      "val_cqs": 0.6048270203505814,
+      "val_pcs": 1.239930468105997,
+      "val_hfen": 0.472607284784317
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_155811"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00160_20260930_155831",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 160 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:58:31.478502+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155831/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155831/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 160,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.35828672386737,
+      "val_ssim": 0.8498116611021226,
+      "val_ms_ssim": 0.9487940073226713,
+      "val_acutance_ratio": 1.006355579624455,
+      "val_laplacian_ratio": 0.3729073377236107,
+      "val_spectral_ratio": 0.17341906976336616,
+      "val_gmsd": 0.1816006451845169,
+      "val_cbi": 0.06138971447944641,
+      "val_cqs": 0.6068213014381593,
+      "val_pcs": 1.296452760112192,
+      "val_hfen": 0.44788894057273865
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_155831"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00240_20260930_155915",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 240 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:59:15.286980+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_155915/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_155915/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 240,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 18.615159795025537,
+      "val_ssim": 0.8715859671631034,
+      "val_ms_ssim": 0.9577578926050067,
+      "val_acutance_ratio": 0.9842305263061562,
+      "val_laplacian_ratio": 0.4089972249736223,
+      "val_spectral_ratio": 0.1908071611879664,
+      "val_gmsd": 0.16867585480213165,
+      "val_cbi": 0.06062374636530876,
+      "val_cqs": 0.642286365995663,
+      "val_pcs": 1.3389002416355522,
+      "val_hfen": 0.3939668536186218
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_155915"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00280_20260930_155938",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 280 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T15:59:38.521196+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_155938/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_155938/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 280,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 18.701187064831956,
+      "val_ssim": 0.8733852156160725,
+      "val_ms_ssim": 0.9572635315499162,
+      "val_acutance_ratio": 1.0119846097904317,
+      "val_laplacian_ratio": 0.408403297133067,
+      "val_spectral_ratio": 0.19697310002240795,
+      "val_gmsd": 0.16273130476474762,
+      "val_cbi": 0.060443416237831116,
+      "val_cqs": 0.6502104946134938,
+      "val_pcs": 1.360404448075243,
+      "val_hfen": 0.4028826355934143
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_155938"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00350_20260930_160014",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 350 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:00:14.812947+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160014/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160014/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 350,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 21.804994211306067,
+      "val_ssim": 0.8971832253260117,
+      "val_ms_ssim": 0.9720058800481256,
+      "val_acutance_ratio": 0.9809213926152239,
+      "val_laplacian_ratio": 0.43924268577243825,
+      "val_spectral_ratio": 0.21897508697022397,
+      "val_gmsd": 0.1538764238357544,
+      "val_cbi": 0.05986505746841431,
+      "val_cqs": 0.683441744021843,
+      "val_pcs": 1.393523783215674,
+      "val_hfen": 0.3597702980041504
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160014"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00001_20260930_160053",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:00:53.914585+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_160053/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_160053/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 1,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.67675690112284,
+      "val_ssim": 0.8726256947251677,
+      "val_ms_ssim": 0.9765873170467018,
+      "val_acutance_ratio": 0.9651709494767686,
+      "val_laplacian_ratio": 0.4461771331139125,
+      "val_spectral_ratio": 0.25198028227791963,
+      "val_gmsd": 0.15371935069561005,
+      "val_cbi": 0.059435244649648666,
+      "val_cqs": 0.659471099379909,
+      "val_pcs": 1.3651451406752495,
+      "val_hfen": 0.35324928164482117
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_160053"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00025_20260930_160109",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 25 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:01:09.750868+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_160109/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_160109/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 25,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.258914244961804,
+      "val_ssim": 0.9013183801792788,
+      "val_ms_ssim": 0.9791987665867137,
+      "val_acutance_ratio": 0.9355239352567989,
+      "val_laplacian_ratio": 0.4822649798468345,
+      "val_spectral_ratio": 0.31198270980376797,
+      "val_gmsd": 0.14993415772914886,
+      "val_cbi": 0.05899496003985405,
+      "val_cqs": 0.6923892624102759,
+      "val_pcs": 1.4012837199620927,
+      "val_hfen": 0.3333165645599365
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.549236536026001,
+      "feat": 0.000960618956014514,
+      "tv": 0.003343265736475587,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_160109"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00075_20260930_160141",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:01:41.724119+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_160141/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_160141/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 75,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.557859507799876,
+      "val_ssim": 0.9085433730247722,
+      "val_ms_ssim": 0.9795445445460536,
+      "val_acutance_ratio": 0.8984646787134408,
+      "val_laplacian_ratio": 0.5031191322175343,
+      "val_spectral_ratio": 0.43074364102801976,
+      "val_gmsd": 0.1489543616771698,
+      "val_cbi": 0.05844789743423462,
+      "val_cqs": 0.7011411139133678,
+      "val_pcs": 1.4019330193788555,
+      "val_hfen": 0.3256632685661316
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.723193407058716,
+      "feat": 0.0036443741992115974,
+      "tv": 0.011421812698245049,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_160141"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00100_20260930_160157",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 100 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:01:57.937885+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00100_20260930_160157/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00100_20260930_160157/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 100,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 26.0496970159881,
+      "val_ssim": 0.9111820571392281,
+      "val_ms_ssim": 0.9814279459883233,
+      "val_acutance_ratio": 0.8714037677643317,
+      "val_laplacian_ratio": 0.550842410502834,
+      "val_spectral_ratio": 0.5257889345262425,
+      "val_gmsd": 0.15115168690681458,
+      "val_cbi": 0.05836985260248184,
+      "val_cqs": 0.7016605176299316,
+      "val_pcs": 1.4127836067635147,
+      "val_hfen": 0.3184540569782257
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.8285634517669678,
+      "feat": 0.005432554520666599,
+      "tv": 0.015495682135224342,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00100_20260930_160157"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00275_20260930_160350",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 275 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:03:50.434151+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_160350/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_160350/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 275,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.519134223096806,
+      "val_ssim": 0.902873903356387,
+      "val_ms_ssim": 0.9793808779818282,
+      "val_acutance_ratio": 0.8809916806125866,
+      "val_laplacian_ratio": 0.6091217964725416,
+      "val_spectral_ratio": 0.6041979728536337,
+      "val_gmsd": 0.15737731754779816,
+      "val_cbi": 0.0588899627327919,
+      "val_cqs": 0.6866066230757969,
+      "val_pcs": 1.4316633616183612,
+      "val_hfen": 0.3262283205986023
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.3407559394836426,
+      "feat": 0.015502124093472958,
+      "tv": 0.035282887518405914,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_160350"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00300_20260930_160407",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 300 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:04:07.647073+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00300_20260930_160407/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00300_20260930_160407/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 300,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 26.186324110749585,
+      "val_ssim": 0.9026400187470901,
+      "val_ms_ssim": 0.9802080403540263,
+      "val_acutance_ratio": 0.8871293076626868,
+      "val_laplacian_ratio": 0.6218368418556406,
+      "val_spectral_ratio": 0.6276429020003708,
+      "val_gmsd": 0.15712472796440125,
+      "val_cbi": 0.05895921215415001,
+      "val_cqs": 0.6865560786285388,
+      "val_pcs": 1.4410391533877025,
+      "val_hfen": 0.3231390416622162
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.3924994468688965,
+      "feat": 0.016401195898652077,
+      "tv": 0.03796033561229706,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00300_20260930_160407"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00400_20260930_160513",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 400 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:05:13.978242+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_160513/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_160513/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 400,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.70085990400897,
+      "val_ssim": 0.9028258460520813,
+      "val_ms_ssim": 0.9795939149870291,
+      "val_acutance_ratio": 1.005042218700612,
+      "val_laplacian_ratio": 0.6471014350763212,
+      "val_spectral_ratio": 0.6510036478118814,
+      "val_gmsd": 0.15405873954296112,
+      "val_cbi": 0.05933551490306854,
+      "val_cqs": 0.6894315916060516,
+      "val_pcs": 1.5155034184945182,
+      "val_hfen": 0.33087357878685
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.6065895557403564,
+      "feat": 0.02221771329641342,
+      "tv": 0.04547911137342453,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_160513"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_160631",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 0 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:06:31.180574+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_160631/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_160631/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Initial (Pre-Warmup)",
+    "iteration": 0,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 7.5624305912175815,
+      "val_ssim": 0.06101274374387589,
+      "val_ms_ssim": 0.03221351071750194,
+      "val_acutance_ratio": 0.04612346039398853,
+      "val_laplacian_ratio": 0.030353480399935694,
+      "val_spectral_ratio": 0.26457520835155246,
+      "val_gmsd": 0.363840788602829,
+      "val_cbi": 0.06615416705608368,
+      "val_cqs": -0.3689822119150368,
+      "val_pcs": -0.3307437415180747,
+      "val_hfen": 1.0186516046524048
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_initial_(pre-warmup)_00000_20260930_160631"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00001_20260930_160634",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:06:34.355790+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_160634/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_160634/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 1,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 15.379930251369036,
+      "val_ssim": 0.5517243566206962,
+      "val_ms_ssim": 0.8460346982601189,
+      "val_acutance_ratio": 0.2952230031572705,
+      "val_laplacian_ratio": 0.3859738802311685,
+      "val_spectral_ratio": 0.3475853710760112,
+      "val_gmsd": 0.2573135495185852,
+      "val_cbi": 0.06923495978116989,
+      "val_cqs": 0.2251758473209411,
+      "val_pcs": 0.5657742890151606,
+      "val_hfen": 0.8371340036392212
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00001_20260930_160634"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00040_20260930_160656",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 40 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:06:56.022689+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_160655/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_160655/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 40,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.36670231998213,
+      "val_ssim": 0.7483356237997322,
+      "val_ms_ssim": 0.9181886669244032,
+      "val_acutance_ratio": 0.3982829990332558,
+      "val_laplacian_ratio": 0.1435656399431909,
+      "val_spectral_ratio": 0.04346067669022663,
+      "val_gmsd": 0.24312715232372284,
+      "val_cbi": 0.06436476111412048,
+      "val_cqs": 0.44084371036188885,
+      "val_pcs": 0.7117680298501123,
+      "val_hfen": 0.6583754420280457
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00040_20260930_160655"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00050_20260930_160703",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 50 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:07:03.009526+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_160702/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_160702/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 50,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.850718718817255,
+      "val_ssim": 0.7936759474476428,
+      "val_ms_ssim": 0.92995380878792,
+      "val_acutance_ratio": 0.5238472808886879,
+      "val_laplacian_ratio": 0.174701111633077,
+      "val_spectral_ratio": 0.048982312299265404,
+      "val_gmsd": 0.23808898031711578,
+      "val_cbi": 0.06409801542758942,
+      "val_cqs": 0.4914889517029376,
+      "val_pcs": 0.8407631479638202,
+      "val_hfen": 0.6073629856109619
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00050_20260930_160702"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00060_20260930_160709",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 60 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:07:09.703779+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_160709/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_160709/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 60,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.078709091484537,
+      "val_ssim": 0.8084104469256419,
+      "val_ms_ssim": 0.9288470131626785,
+      "val_acutance_ratio": 0.6405237934107892,
+      "val_laplacian_ratio": 0.20433315024238458,
+      "val_spectral_ratio": 0.057856826338579345,
+      "val_gmsd": 0.2287953644990921,
+      "val_cbi": 0.06383354961872101,
+      "val_cqs": 0.5157815328078288,
+      "val_pcs": 0.9382100046344155,
+      "val_hfen": 0.5712080597877502
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00060_20260930_160709"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00075_20260930_160718",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:07:18.871863+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_160718/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_160718/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 75,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.722538337395562,
+      "val_ssim": 0.832525142637757,
+      "val_ms_ssim": 0.9378516633952023,
+      "val_acutance_ratio": 0.8825259195104226,
+      "val_laplacian_ratio": 0.26971772393722254,
+      "val_spectral_ratio": 0.08355679598656923,
+      "val_gmsd": 0.212973490357399,
+      "val_cbi": 0.06322922557592392,
+      "val_cqs": 0.5563224267044341,
+      "val_pcs": 1.1324442484282566,
+      "val_hfen": 0.5488436222076416
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00075_20260930_160718"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00120_20260930_160742",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 120 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:07:42.843862+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_160742/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_160742/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 120,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.248181713987474,
+      "val_ssim": 0.8479724842397482,
+      "val_ms_ssim": 0.941477159002856,
+      "val_acutance_ratio": 0.8729056149876698,
+      "val_laplacian_ratio": 0.30331777998333603,
+      "val_spectral_ratio": 0.13061661807113817,
+      "val_gmsd": 0.19279463589191437,
+      "val_cbi": 0.06222856417298317,
+      "val_cqs": 0.5929492841748507,
+      "val_pcs": 1.1810609816603537,
+      "val_hfen": 0.46204790472984314
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00120_20260930_160742"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00125_20260930_160747",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 125 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:07:47.801321+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_160747/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_160747/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 125,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 16.857560066876406,
+      "val_ssim": 0.8563771359955132,
+      "val_ms_ssim": 0.9428560085341029,
+      "val_acutance_ratio": 0.9389786966285723,
+      "val_laplacian_ratio": 0.3312281988822591,
+      "val_spectral_ratio": 0.1476373635613556,
+      "val_gmsd": 0.18941231071949005,
+      "val_cbi": 0.06213780492544174,
+      "val_cqs": 0.6048270203505814,
+      "val_pcs": 1.239930468105997,
+      "val_hfen": 0.472607284784317
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00125_20260930_160747"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00160_20260930_160807",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 160 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:08:07.098101+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_160807/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_160807/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 160,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 17.35828672386737,
+      "val_ssim": 0.8498116611021226,
+      "val_ms_ssim": 0.9487940073226713,
+      "val_acutance_ratio": 1.006355579624455,
+      "val_laplacian_ratio": 0.3729073377236107,
+      "val_spectral_ratio": 0.17341906976336616,
+      "val_gmsd": 0.1816006451845169,
+      "val_cbi": 0.06138971447944641,
+      "val_cqs": 0.6068213014381593,
+      "val_pcs": 1.296452760112192,
+      "val_hfen": 0.44788894057273865
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00160_20260930_160807"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00240_20260930_160850",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 240 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:08:50.005107+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_160849/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_160849/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 240,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 18.615159795025537,
+      "val_ssim": 0.8715859671631034,
+      "val_ms_ssim": 0.9577578926050067,
+      "val_acutance_ratio": 0.9842305263061562,
+      "val_laplacian_ratio": 0.4089972249736223,
+      "val_spectral_ratio": 0.1908071611879664,
+      "val_gmsd": 0.16867585480213165,
+      "val_cbi": 0.06062374636530876,
+      "val_cqs": 0.642286365995663,
+      "val_pcs": 1.3389002416355522,
+      "val_hfen": 0.3939668536186218
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00240_20260930_160849"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00280_20260930_160913",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 280 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:09:13.832982+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_160913/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_160913/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 280,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 18.701187064831956,
+      "val_ssim": 0.8733852156160725,
+      "val_ms_ssim": 0.9572635315499162,
+      "val_acutance_ratio": 1.0119846097904317,
+      "val_laplacian_ratio": 0.408403297133067,
+      "val_spectral_ratio": 0.19697310002240795,
+      "val_gmsd": 0.16273130476474762,
+      "val_cbi": 0.060443416237831116,
+      "val_cqs": 0.6502104946134938,
+      "val_pcs": 1.360404448075243,
+      "val_hfen": 0.4028826355934143
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00280_20260930_160913"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_warmup_00350_20260930_160950",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 350 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:09:50.703257+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160950/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160950/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 350,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 21.804994211306067,
+      "val_ssim": 0.8971832253260117,
+      "val_ms_ssim": 0.9720058800481256,
+      "val_acutance_ratio": 0.9809213926152239,
+      "val_laplacian_ratio": 0.43924268577243825,
+      "val_spectral_ratio": 0.21897508697022397,
+      "val_gmsd": 0.1538764238357544,
+      "val_cbi": 0.05986505746841431,
+      "val_cqs": 0.683441744021843,
+      "val_pcs": 1.393523783215674,
+      "val_hfen": 0.3597702980041504
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_warmup_00350_20260930_160950"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00001_20260930_161030",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:10:30.280208+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_161030/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_161030/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 1,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.140034625541592,
+      "val_ssim": 0.8726409939844579,
+      "val_ms_ssim": 0.9774195758044283,
+      "val_acutance_ratio": 0.9767748379986734,
+      "val_laplacian_ratio": 0.4494840468978639,
+      "val_spectral_ratio": 0.253932965506573,
+      "val_gmsd": 0.15432801842689514,
+      "val_cbi": 0.05945167317986488,
+      "val_cqs": 0.6588613023776979,
+      "val_pcs": 1.3719907448259665,
+      "val_hfen": 0.3573262393474579
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.4789745807647705,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00001_20260930_161030"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00025_20260930_161046",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 25 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:10:46.468704+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_161046/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_161046/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 25,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.372087983936808,
+      "val_ssim": 0.9003837191268518,
+      "val_ms_ssim": 0.9812790841399062,
+      "val_acutance_ratio": 0.9074827560332013,
+      "val_laplacian_ratio": 0.45727984815482,
+      "val_spectral_ratio": 0.29162319066895,
+      "val_gmsd": 0.15031369030475616,
+      "val_cbi": 0.05923987179994583,
+      "val_cqs": 0.6908301570221498,
+      "val_pcs": 1.3732114591161604,
+      "val_hfen": 0.32640698552131653
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.5991759300231934,
+      "feat": 0.0008268840610980988,
+      "tv": 0.02749287337064743,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00025_20260930_161046"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00075_20260930_161118",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:11:18.773518+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_161118/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_161118/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 75,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 23.350157982725026,
+      "val_ssim": 0.9077361285508189,
+      "val_ms_ssim": 0.9796225192093668,
+      "val_acutance_ratio": 0.9460002213816175,
+      "val_laplacian_ratio": 0.5120075034048323,
+      "val_spectral_ratio": 0.43991826344213536,
+      "val_gmsd": 0.15137749910354614,
+      "val_cbi": 0.05887830629944801,
+      "val_cqs": 0.6974803231478247,
+      "val_pcs": 1.4264841855410495,
+      "val_hfen": 0.3274718225002289
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 2.8785417079925537,
+      "feat": 0.0031704253051429987,
+      "tv": 0.09366083890199661,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00075_20260930_161118"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00175_20260930_161223",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 175 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:12:23.646100+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00175_20260930_161223/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00175_20260930_161223/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 175,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.2937237459113,
+      "val_ssim": 0.9100172839016066,
+      "val_ms_ssim": 0.9816278839777889,
+      "val_acutance_ratio": 0.8964691086126662,
+      "val_laplacian_ratio": 0.593623047807812,
+      "val_spectral_ratio": 0.5798630438077863,
+      "val_gmsd": 0.15517088770866394,
+      "val_cbi": 0.05864112079143524,
+      "val_cqs": 0.6962052754015075,
+      "val_pcs": 1.4412513536117464,
+      "val_hfen": 0.31414270401000977
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.3656554222106934,
+      "feat": 0.00816382560878992,
+      "tv": 0.19747063517570496,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00175_20260930_161223"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00275_20260930_161329",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 275 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:13:29.440337+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_161329/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_161329/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 275,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.683611937885637,
+      "val_ssim": 0.9034317228138722,
+      "val_ms_ssim": 0.9796780865965853,
+      "val_acutance_ratio": 0.8853805878569726,
+      "val_laplacian_ratio": 0.6307991260931071,
+      "val_spectral_ratio": 0.6270417832928079,
+      "val_gmsd": 0.15967878699302673,
+      "val_cbi": 0.058941733092069626,
+      "val_cqs": 0.6848112027287758,
+      "val_pcs": 1.4429010597038157,
+      "val_hfen": 0.3215181827545166
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.848799467086792,
+      "feat": 0.013372406363487244,
+      "tv": 0.293099969625473,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00275_20260930_161329"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00375_20260930_161437",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 375 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:14:37.072971+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00375_20260930_161437/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00375_20260930_161437/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 375,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.546392674474816,
+      "val_ssim": 0.8918778323886535,
+      "val_ms_ssim": 0.9797185366027045,
+      "val_acutance_ratio": 0.9001152265299242,
+      "val_laplacian_ratio": 0.6407143828959776,
+      "val_spectral_ratio": 0.6391026075593261,
+      "val_gmsd": 0.1593848168849945,
+      "val_cbi": 0.05887782201170921,
+      "val_cqs": 0.6736151934919498,
+      "val_pcs": 1.4440299982049007,
+      "val_hfen": 0.32650136947631836
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 4.169723987579346,
+      "feat": 0.01792656071484089,
+      "tv": 0.3593749403953552,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00375_20260930_161437"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_1_adaptation_00400_20260930_161454",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 400 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:14:54.349656+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_161454/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_161454/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 400,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 24.403402815915666,
+      "val_ssim": 0.8952580245050888,
+      "val_ms_ssim": 0.978643771885156,
+      "val_acutance_ratio": 1.0648511956102624,
+      "val_laplacian_ratio": 0.6752881827930423,
+      "val_spectral_ratio": 0.686584574782394,
+      "val_gmsd": 0.15535296499729156,
+      "val_cbi": 0.05976566672325134,
+      "val_cqs": 0.6801393927845459,
+      "val_pcs": 1.5502090819861982,
+      "val_hfen": 0.3365156054496765
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 4.273915767669678,
+      "feat": 0.019117016345262527,
+      "tv": 0.37922215461730957,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_1_adaptation_00400_20260930_161454"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_2_robustness_00501_20260930_161604",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 501 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:16:04.238334+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00501_20260930_161604/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00501_20260930_161604/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 501,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.362539060221646,
+      "val_ssim": 0.880769954015805,
+      "val_ms_ssim": 0.9812523383609263,
+      "val_acutance_ratio": 0.8353302874634072,
+      "val_laplacian_ratio": 0.6023897973754461,
+      "val_spectral_ratio": 0.6013319983072016,
+      "val_gmsd": 0.15571600198745728,
+      "val_cbi": 0.05830182135105133,
+      "val_cqs": 0.6667521306772964,
+      "val_pcs": 1.3856121730967232,
+      "val_hfen": 0.31317204236984253
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 4.605855464935303,
+      "feat": 0.022138211876153946,
+      "tv": 0.4401029050350189,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00501_20260930_161604"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_2_robustness_00525_20260930_161621",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 525 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:16:21.874361+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00525_20260930_161621/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00525_20260930_161621/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 525,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 26.120379786913315,
+      "val_ssim": 0.8845633316643866,
+      "val_ms_ssim": 0.9812517954740327,
+      "val_acutance_ratio": 0.8827825445498539,
+      "val_laplacian_ratio": 0.6142914061452733,
+      "val_spectral_ratio": 0.6268141338978828,
+      "val_gmsd": 0.15743713080883026,
+      "val_cbi": 0.05874386429786682,
+      "val_cqs": 0.6683823365576895,
+      "val_pcs": 1.4169193119052532,
+      "val_hfen": 0.3189857304096222
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 4.646700859069824,
+      "feat": 0.022517090663313866,
+      "tv": 0.4506327509880066,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00525_20260930_161621"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_2_robustness_00750_20260930_161855",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 750 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:18:55.093872+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00750_20260930_161855/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00750_20260930_161855/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 750,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.84864311819439,
+      "val_ssim": 0.8764851796049568,
+      "val_ms_ssim": 0.9799467539875524,
+      "val_acutance_ratio": 0.8971422521793407,
+      "val_laplacian_ratio": 0.6342775650564828,
+      "val_spectral_ratio": 0.666928690328682,
+      "val_gmsd": 0.160639688372612,
+      "val_cbi": 0.05897297337651253,
+      "val_cqs": 0.6568725178558322,
+      "val_pcs": 1.422582426473744,
+      "val_hfen": 0.32552897930145264
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.088847637176514,
+      "feat": 0.028381038457155228,
+      "tv": 0.5386970043182373,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00750_20260930_161855"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_2_robustness_00950_20260930_162114",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 950 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:21:14.903522+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00950_20260930_162114/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00950_20260930_162114/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 950,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.728178162130778,
+      "val_ssim": 0.875600961925591,
+      "val_ms_ssim": 0.9799466113570697,
+      "val_acutance_ratio": 0.8959623697662732,
+      "val_laplacian_ratio": 0.6425130803108022,
+      "val_spectral_ratio": 0.6741390711522584,
+      "val_gmsd": 0.16071456670761108,
+      "val_cbi": 0.059150323271751404,
+      "val_cqs": 0.6557360719462285,
+      "val_pcs": 1.4249737969847662,
+      "val_hfen": 0.32379698753356934
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.2889180183410645,
+      "feat": 0.03158259764313698,
+      "tv": 0.5695603489875793,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_00950_20260930_162114"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_2_robustness_01500_20260930_162728",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1500 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:27:28.506256+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_01500_20260930_162728/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_01500_20260930_162728/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 1500,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.720010902425866,
+      "val_ssim": 0.8777936458518545,
+      "val_ms_ssim": 0.9808025896641714,
+      "val_acutance_ratio": 0.9805569891311737,
+      "val_laplacian_ratio": 0.6675771784149076,
+      "val_spectral_ratio": 0.698295060991178,
+      "val_gmsd": 0.16120506823062897,
+      "val_cbi": 0.05990816280245781,
+      "val_cqs": 0.6566804148187677,
+      "val_pcs": 1.4807474985918083,
+      "val_hfen": 0.33255642652511597
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.738913536071777,
+      "feat": 0.037777129560709,
+      "tv": 0.6303820610046387,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_2_robustness_01500_20260930_162728"
+  },
+  {
+    "entry_id": "dbpn_2d_2x2_stage_3_refinement_01501_20260930_162733",
+    "tag": "v0.10.14_2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1501 by VisualConvergenceReporter",
+    "registered_at": "2026-09-30T16:27:33.028937+00:00",
+    "git_sha": "2927890",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_3_refinement_01501_20260930_162732/dbpn_2d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_3_refinement_01501_20260930_162732/dbpn_2d_best_cqs_config.json",
+    "model_type": "dbpn_2d",
+    "upsample_factor": [
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 1501,
+    "siq_version": "0.10.14",
+    "val_metrics": {
+      "val_psnr": 25.949921213465498,
+      "val_ssim": 0.8790015288046542,
+      "val_ms_ssim": 0.9810053809967421,
+      "val_acutance_ratio": 0.9161878521020044,
+      "val_laplacian_ratio": 0.6412528258966511,
+      "val_spectral_ratio": 0.6706915612822965,
+      "val_gmsd": 0.16144132614135742,
+      "val_cbi": 0.05938928946852684,
+      "val_cqs": 0.65817091319477,
+      "val_pcs": 1.4368912521940977,
+      "val_hfen": 0.32655659317970276
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 5.738913536071777,
+      "feat": 0.037777129560709,
+      "tv": 0.6303820610046387,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_3_refinement_01501_20260930_162732"
   }
 ]

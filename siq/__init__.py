@@ -34,6 +34,13 @@ from .get_data import compute_gmsd
 from .get_data import compute_hfen
 from .get_data import compute_psnr
 from .get_data import compute_ssim
+from .get_data import compute_tenengrad
+from .get_data import compute_acutance_ratio
+from .get_data import compute_laplacian_energy_ratio
+from .get_data import compute_spectral_energy_ratio
+from .get_data import compute_ms_ssim
+from .get_data import compute_lpips
+from .get_data import compute_perceptual_metrics
 from .get_data import (simulate_image, simulate_image_multi_scale, 
                         simulate_brain_procedural, simulate_sinewave, simulate_layered, 
                         simulate_vessel_tubes, simulate_cellular_voronoi, 

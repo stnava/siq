@@ -151,8 +151,9 @@ To refine and fine-tune pre-trained models using our advanced mixed-modality sim
 # Refine the Channel Attention ESPCN model (default: batch size 1)
 python tests/train_model_refinement.py espcn --batch-size 1
 
-# Refine the Lightweight DBPN model
-python tests/train_model_refinement.py ldbpn --batch-size 2
+# Refine the Lightweight DBPN model (recommended production 3D defaults: s=3, f=32)
+# See docs/ldbpn_3d_architecture.md for benchmarks and full training pipeline
+python tests/train_model_refinement.py ldbpn --batch-size 4
 
 # Refine the Reference DBPN model
 python tests/train_model_refinement.py ref-dbpn --batch-size 1

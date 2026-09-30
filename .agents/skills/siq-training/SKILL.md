@@ -264,13 +264,73 @@ python -u tests/train_model_refinement.py asdbpn --dim 3 --factor 1 1 2 \
 - **1D / Factor-aware CBI**: When only one or two axes are upsampled (e.g. $1 \times 1 \times 2$), training applies a factor-matched alternating filter along upsampled axes (normalized by $2.0$ for 1D, $4.0$ for 2D, $8.0$ for 3D), actively suppressing through-plane slice ripples while preserving relative weighting (`--cbi-weight 2.0`).
 - **Dynamic Resumption Precedence**: When resuming without `--reset-history`, `train_model_refinement.py` reads `last_iteration` directly from `convergence_history.csv` and skips stages 1 & 2 dynamically once `last_iteration >= stage2_max`.
 
-## Champion Model Selection: Composite Quality Score (CQS)
+## Champion Model Selection: Composite Quality Score (CQS) vs Perceptual Composite Score (PCS)
 
 Never use PSNR alone to choose the best model in super-resolution pipelines that employ perceptual or artifact regularization:
 - **The PSNR Selector Bug**: PSNR inherently favors blurred outputs over sharp textures because edge uncertainty increases squared error under minute sub-voxel phase differences. Furthermore, high-frequency transposed-convolution ripples have tiny mean squared magnitude ($0.02^2 = 0.0004$), meaning an artifact-ridden model can achieve higher PSNR than a clean model. Pure-PSNR selection freezes the "best" model in early smooth pre-training stages (e.g. Stage 2), ignoring subsequent Stage 3 perceptual refinements.
 - **Composite Quality Score (CQS)**:
   $$\text{CQS} = \text{val\_ssim} - \text{val\_gmsd} - \text{val\_cbi}$$
   Higher is better. CQS balances structural preservation ($\text{SSIM} \in [0, 1]$), gradient edge fidelity ($\text{GMSD} \ge 0$), and artifact cleanliness ($\text{CBI} \ge 0$).
-- **Stage Precedence**: Downstream refinement stages (Stage 3 Refinement) always supersede earlier pre-training stages for repo-root `*_best_mdl.keras`. The champion model is saved as `asdbpn_3d_best_cqs.keras` (and mirrored to `asdbpn_3d_{factor_str}_best_mdl.keras`), while `asdbpn_3d_best_psnr.keras` is preserved strictly for legacy reference.
+- **Perceptual Composite Score (PCS)**:
+  $$\text{PCS} = \text{val\_ssim} + 0.5 \cdot \text{val\_acutance} + 0.5 \cdot \text{val\_laplacian} - \text{val\_gmsd} - \text{val\_cbi}$$
+  Used when refining models with pure super-resolution objectives (`--selection-metric pcs`), actively rewarding edge acutance recovery and 2nd-order Laplacian structural details.
+- **Stage Precedence**: Downstream refinement stages (Stage 3 Refinement) always supersede earlier pre-training stages for repo-root `*_best_mdl.keras`. The champion model is saved as `asdbpn_3d_best_cqs.keras` (or `asdbpn_2d_best_cqs.keras`), while `asdbpn_3d_best_psnr.keras` is preserved strictly for legacy reference.
+
+## Perceptual Refinement & Independent Metric Monitoring
+
+To refine a trained model toward visible anatomical super-resolution (sharp cortical ribbons and sulcal crevices) rather than smoothed linear averaging:
+
+```bash
+PYTHONUNBUFFERED=1 python tests/train_model_refinement.py asdbpn \
+  --dim 2 \
+  --start-stage 3 \
+  --stage3-iter 6000 \
+  --target-percep 65.0 --target-mae 20.0 --target-tv 0.5 \
+  --edge-weight 2.0 \
+  --cbi-weight 0.0 \
+  --linear-blend 1.0 \
+  --selection-metric pcs \
+  --checkpoint-freq 25
+```
+
+### Key Refinement Invariants:
+1. **`--linear-blend 1.0`**: Operates in pure SR mode. Prevents 82% linear interpolation from smothering high-frequency cortical detail.
+2. **`--edge-weight 2.0`**: Pointwise directional gradient $L_1$ + gradient magnitude matching drives 25–30% of update gradients into boundary synthesis.
+3. **`--selection-metric pcs`**: Selects champion models using Perceptual Composite Score ($\text{SSIM} + 0.5\cdot\text{Acutance} + 0.5\cdot\text{Laplacian} - \text{GMSD} - \text{CBI}$) rather than PSNR.
+4. **Target Perceptual Benchmarks**:
+   - **Acutance Ratio**: Target `0.95–1.03` (vs Bilinear `~0.789`).
+   - **Laplacian Detail Ratio**: Target `0.55–0.62` (vs Bilinear `~0.441`, +25% to +40% gain).
+   - **Fourier Spectral Recovery**: Target `0.55–0.62` (vs Bilinear `~0.474`, +15% to +30% gain).
+   - **PSNR**: Expect `23.0–24.5 dB` (reflecting the Perception–Distortion Tradeoff for unblurred edges).
+
+## From-Scratch 4-Stage Training Curriculum (DBPN & AS-DBPN)
+
+When training a new architecture (or retraining without an existing refined checkpoint), strictly follow the 500 / 1500 / 5000 curriculum progression:
+
+```bash
+PYTHONUNBUFFERED=1 python tests/train_model_refinement.py dbpn \
+  --dim 2 \
+  --batch-size 4 \
+  --from-scratch \
+  --reset-history \
+  --stage1-iter 500 \
+  --stage2-iter 1500 \
+  --stage3-iter 5000 \
+  --target-percep 65.0 --target-mae 20.0 --target-tv 0.5 \
+  --edge-weight 2.0 \
+  --cbi-weight 0.0 \
+  --linear-blend 1.0 \
+  --selection-metric pcs \
+  --checkpoint-freq 25 \
+  --prefetch-size 4
+```
+
+### Staging Breakdown:
+- **Warmup (Gate)**: Pure MSE on clean data until validation PSNR meets or exceeds Bilinear baseline.
+- **Stage 1 (Iter 1 → 500)**: Clean patches, no noise. Balancer settles weights smoothly over 500 steps.
+- **Stage 2 (Iter 501 → 1500)**: Bulk training with Rician noise + zoom augmentations over 1,000 steps.
+- **Stage 3 (Iter 1501 → 5000)**: Dedicated perceptual refinement with pointwise directional gradient $L_1$ + gradient magnitude acutance loss, pure SR evaluation (`--linear-blend 1.0`), and PCS champion selection.
+
+
 
 
