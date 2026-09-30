@@ -613,9 +613,17 @@ class VisualConvergenceReporter:
             _save_config(ckpt_path, provenance_config)
             
         # Always maintain latest refined model at repo root for generate_summary_images.py
-        f_s = f"{_upfactor[0]}x{_upfactor[1]}x{_upfactor[2]}" if isinstance(_upfactor, (list, tuple)) else f"{_upfactor}x{_upfactor}x{_upfactor}"
-        refined_fn = "asdbpn_3d_refined.keras" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_refined.keras"
-        best_fn = "asdbpn_3d_best_mdl.keras" if f_s == "2x2x2" else f"asdbpn_3d_{f_s}_best_mdl.keras"
+        if isinstance(_upfactor, (list, tuple)):
+            f_s = "x".join(str(f) for f in _upfactor)
+        else:
+            f_s = f"{_upfactor}x{_upfactor}x{_upfactor}"
+        dim_str = "2d" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 2) else "3d"
+        refined_fn = f"asdbpn_{dim_str}_{f_s}_refined.keras"
+        best_fn = f"asdbpn_{dim_str}_{f_s}_best_mdl.keras"
+        # Legacy alias for default 3D 2x2x2
+        if f_s == "2x2x2":
+            refined_fn = "asdbpn_3d_refined.keras"
+            best_fn = "asdbpn_3d_best_mdl.keras"
         refined_root_path = os.path.join(self.workspace_dir, refined_fn)
         model.save(refined_root_path)
         _save_config(refined_root_path, provenance_config)
