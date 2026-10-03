@@ -630,7 +630,11 @@ def main():
     gt_np = hr_patch.numpy()
 
     # Initialize Visual Convergence Reporter
-    from tests.visual_convergence_report import VisualConvergenceReporter
+    try:
+        from scripts.visual_convergence_report import VisualConvergenceReporter
+    except ImportError:
+        from visual_convergence_report import VisualConvergenceReporter
+
     ckpt_dir = args.checkpoint_dir if args.checkpoint_dir else (f"checkpoints/{model_type}_{dim}d" if is_default_factor else f"checkpoints/{model_type}_{dim}d_{factor_str}")
     rep_dir = args.report_dir if args.report_dir else (f"reports/{model_type}_{dim}d" if is_default_factor else f"reports/{model_type}_{dim}d_{factor_str}")
     html_name = f"{model_type}_{dim}d_report.html" if is_default_factor else f"{model_type}_{dim}d_{factor_str}_report.html"

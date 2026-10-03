@@ -9,6 +9,9 @@ dist/
 *.csv
 test_out*
 dummy_*.nii.gz
+test_*_config.json
+test_*_report.html
+reports/test_*/
 siq_example_output/
 siq_multi_task_example_output/
 scratch/

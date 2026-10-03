@@ -24,66 +24,49 @@ import keras
 from pathlib import Path
 import glob as glob
 
-# --- 1. Configuration and Setup ---
-# These settings can improve performance on multi-core systems.
-print("--- Step 1: Configuring Environment & Parameters ---")
-mynt="8"
-os.environ["TF_NUM_INTEROP_THREADS"] = mynt
-os.environ["TF_NUM_INTRAOP_THREADS"] = mynt
-os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = mynt
 
-# Use clear variables for important parameters.
-UPSAMPLE_FACTOR = 2
-OUTPUT_DIR = Path("./siq_multi_task_example_output/")
-MODEL_PREFIX = OUTPUT_DIR / "siq_multi_task_demo_model"
-LOW_RES_PATCH_SIZE = [16, 16, 16]
-HIGH_RES_PATCH_SIZE = [dim * UPSAMPLE_FACTOR for dim in LOW_RES_PATCH_SIZE]
+def main():
+    # --- 1. Configuration and Setup ---
+    print("--- Step 1: Configuring Environment & Parameters ---")
+    mynt = "8"
+    os.environ["TF_NUM_INTEROP_THREADS"] = mynt
+    os.environ["TF_NUM_INTRAOP_THREADS"] = mynt
+    os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = mynt
 
-# Create the output directory.
-OUTPUT_DIR.mkdir(exist_ok=True)
-print(f"All outputs will be saved in: {OUTPUT_DIR.resolve()}")
+    UPSAMPLE_FACTOR = 2
+    OUTPUT_DIR = Path("./siq_multi_task_example_output/")
+    MODEL_PREFIX = OUTPUT_DIR / "siq_multi_task_demo_model"
+    LOW_RES_PATCH_SIZE = [16, 16, 16]
+    HIGH_RES_PATCH_SIZE = [dim * UPSAMPLE_FACTOR for dim in LOW_RES_PATCH_SIZE]
 
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    print(f"All outputs will be saved in: {OUTPUT_DIR.resolve()}")
 
-# --- 2. Data Acquisition and Splitting ---
-# We robustly download a standard dataset to ensure the example is reproducible.
-print("\n--- Step 2: Fetching and Splitting Data ---")
-all_files=glob.glob( os.path.expanduser( "~/.antspyt1w/2*T1w*gz" ) )
+    # --- 2. Data Acquisition and Splitting ---
+    print("\n--- Step 2: Fetching and Splitting Data ---")
+    all_files = glob.glob(os.path.expanduser("~/.antspyt1w/2*T1w*gz"))
+    if len(all_files) == 0:
+        print("No input data found in ~/.antspyt1w/2*T1w*gz. Skipping demonstration.")
+        return
 
-# CRITICAL: Always use separate files for training and testing to avoid data leakage.
-train_files = all_files[:-1]
-test_files = all_files[-1:]  # Use the last file for testing.
-print(f"Using {len(train_files)} file(s) for training.")
-print(f"Using {len(test_files)} file(s) for testing.")
+    train_files = all_files[:-1]
+    test_files = all_files[-1:]
+    print(f"Using {len(train_files)} file(s) for training.")
+    print(f"Using {len(test_files)} file(s) for testing.")
 
+    # --- 3. Model Initialization for Multi-Task Learning ---
+    print("\n--- Step 3: Initializing the Multi-Task Super-Resolution Model ---")
+    strides = [UPSAMPLE_FACTOR] * 3
+    model = siq.default_dbpn(
+        strides,
+        number_of_outputs=2,
+        number_of_channels=2
+    )
+    print("Multi-task model created successfully. Summary:")
+    model.summary()
 
-# --- 3. Model Initialization for Multi-Task Learning ---
-# We create a model with 2 input and 2 output channels.
-# Channel 0: Intensity Image
-# Channel 1: Segmentation Mask
-print("\n--- Step 3: Initializing the Multi-Task Super-Resolution Model ---")
-strides = [UPSAMPLE_FACTOR] * 3
-model = siq.default_dbpn(
-    strides,
-    nChannelsIn=2,
-    nChannelsOut=2,
-    sigmoid_second_channel=True  # Apply sigmoid to the segmentation output channel.
-)
-print("2-channel model created successfully. Summary:")
-model.summary()
-
-
-# --- 4. Model Training with `train_seg` ---
-# Run a very short training loop to demonstrate the function and save a model file.
-# The loss function will combine image similarity (MSE, Perceptual) and
-# segmentation similarity (Dice).
-print("\n--- Step 4: Starting a Short Demonstration Training for Multi-Task Model ---")
-# NOTE: For a real model, increase `max_iterations` significantly (e.g., to 10000+).
-mdlfn = f"{MODEL_PREFIX}_best_mdl.keras"
-if os.path.exists(mdlfn):
-    print(f"Model already exists at {mdlfn}, loading it.")
-    model = keras.models.load_model(mdlfn, compile=False)
-else:
-    print("Training a new model from scratch.")
+    # --- 4. Model Training ---
+    print("\n--- Step 4: Starting a Short Demonstration Training ---")
     training_history = siq.train_seg(
         mdl=model,
         filenames_train=train_files,
@@ -93,92 +76,68 @@ else:
         target_patch_size_low=LOW_RES_PATCH_SIZE,
         n_test=2,
         learning_rate=5e-05,
-        max_iterations=5,  # Keep low for a quick demo.
+        max_iterations=5,
         verbose=True
     )
     print("Demonstration training complete.")
 
+    # --- 5. Inference on a Test Case ---
+    print("\n--- Step 5: Running Inference on a Test Case ---")
+    best_model_path = f"{MODEL_PREFIX}_best_mdl.keras"
+    if not os.path.exists(best_model_path):
+        raise FileNotFoundError(f"Trained model not found at {best_model_path}.")
 
-# --- 5. Inference on a Test Image and Segmentation ---
-print("\n--- Step 5: Running Inference on a Test Case ---")
+    print(f"Loading trained multi-task model from: {best_model_path}")
+    trained_model = keras.models.load_model(best_model_path, compile=False)
 
-# First, load the BEST model that was saved during the training loop.
-best_model_path = f"{MODEL_PREFIX}_best_mdl.keras"
-if not os.path.exists(best_model_path):
-    raise FileNotFoundError(f"Trained model not found at {best_model_path}. Training may have failed.")
+    print("Preparing low-resolution input image and a simulated segmentation mask...")
+    test_image_high_res = ants.crop_image(ants.image_read(test_files[0]))
+    test_image_high_res = ants.resample_image(test_image_high_res, [2, 2, 2])
 
-print(f"Loading trained multi-task model from: {best_model_path}")
-trained_model = keras.models.load_model(best_model_path, compile=False)
+    segmentation_high_res = ants.threshold_image(test_image_high_res, "Otsu", 1)
 
-# Second, prepare a low-resolution test case (both image and segmentation).
-print("Preparing low-resolution input image and segmentation...")
-test_image_full = ants.crop_image(ants.image_read(test_files[0]))
-# Get a small 64^3 patch from the center of the image to keep inference fast and memory-safe
-img_shape = test_image_full.shape
-center = [s // 2 for s in img_shape]
-radius = 32
-lower_ind = [max(0, c - radius) for c in center]
-upper_ind = [min(s, c + radius) for s, c in zip(img_shape, center)]
-test_image_high_res = ants.crop_indices(test_image_full, lower_ind, upper_ind).iMath("Normalize")
+    low_res_spacing = [s * UPSAMPLE_FACTOR for s in test_image_high_res.spacing]
+    test_image_low_res = ants.resample_image(test_image_high_res, low_res_spacing, use_voxels=False, interp_type=0)
+    segmentation_low_res = ants.resample_image(segmentation_high_res, low_res_spacing, use_voxels=False, interp_type=1)
 
-# Create a ground-truth segmentation from the high-res image.
-# We'll use a simple threshold here for demonstration purposes.
-segmentation_high_res = ants.threshold_image(test_image_high_res, "Otsu", 2).threshold_image(2, 2)
+    print("Applying multi-task super-resolution model...")
+    inference_result = siq.inference(
+        image=test_image_low_res,
+        mdl=trained_model,
+        segmentation=segmentation_low_res,
+        verbose=True
+    )
 
-# Simulate the low-resolution inputs by downsampling both high-res sources.
-low_res_spacing = [s * UPSAMPLE_FACTOR for s in test_image_high_res.spacing]
-test_image_low_res = ants.resample_image(test_image_high_res, low_res_spacing, use_voxels=False, interp_type=0)
-segmentation_low_res = ants.resample_image(segmentation_high_res, low_res_spacing, use_voxels=False, interp_type=1) # Use Nearest Neighbor for masks
-
-# Now, run inference using both the low-res image and its corresponding segmentation.
-print("Applying multi-task super-resolution model...")
-inference_result = siq.inference(
-    test_image_low_res,
-    trained_model,
-    segmentation=segmentation_low_res,
-    verbose=True
-)
-
-
-# --- 6. Save All Outputs for Verification ---
-# To verify the result, we save the full set of images.
-print("\n--- Step 6: Saving All Images for Comparison ---")
-
-# The output from inference with segmentation is a dictionary.
-# Let's assume the keys are 'super_resolution' and 'super_resolution_segmentation'
-# or handle the case where it might be a single image (if logic changes).
-if isinstance(inference_result, dict):
     super_resolved_image = inference_result['super_resolution']
-    super_resolved_seg = inference_result.get('super_resolution_segmentation', None) # Safely get seg
-else: # Handle case of single-image output for robustness
-    super_resolved_image = inference_result
-    super_resolved_seg = None
+    super_resolved_seg = inference_result.get('segmentation', None)
+
+    # --- 6. Save Outputs for Verification ---
+    print("\n--- Step 6: Saving Images for Comparison ---")
+    path_lr_image = OUTPUT_DIR / "test_input_low_res_image.nii.gz"
+    path_lr_seg = OUTPUT_DIR / "test_input_low_res_seg.nii.gz"
+    path_sr_image = OUTPUT_DIR / "test_output_super_res_image.nii.gz"
+    path_gt_image = OUTPUT_DIR / "test_ground_truth_high_res_image.nii.gz"
+    path_gt_seg = OUTPUT_DIR / "test_ground_truth_high_res_seg.nii.gz"
+
+    ants.image_write(test_image_low_res, str(path_lr_image))
+    ants.image_write(segmentation_low_res, str(path_lr_seg))
+    ants.image_write(test_image_high_res, str(path_gt_image))
+    ants.image_write(segmentation_high_res, str(path_gt_seg))
+
+    ants.image_write(super_resolved_image, str(path_sr_image))
+    if super_resolved_seg:
+        path_sr_seg = OUTPUT_DIR / "test_output_super_res_seg.nii.gz"
+        ants.image_write(super_resolved_seg, str(path_sr_seg))
+        print(f"  - Output Segmentation: {path_sr_seg.name}")
+
+    print("\n--- Example Finished ---")
+    print(f"Check the directory '{OUTPUT_DIR.resolve()}' for the following files:")
+    print(f"  - Input Image: {path_lr_image.name}")
+    print(f"  - Input Segmentation: {path_lr_seg.name}")
+    print(f"  - Output Image: {path_sr_image.name}")
+    print(f"  - Ground Truth Image: {path_gt_image.name}")
+    print(f"  - Ground Truth Segmentation: {path_gt_seg.name}")
 
 
-# Define clear output paths
-path_lr_image = OUTPUT_DIR / "test_input_low_res_image.nii.gz"
-path_lr_seg = OUTPUT_DIR / "test_input_low_res_seg.nii.gz"
-path_sr_image = OUTPUT_DIR / "test_output_super_res_image.nii.gz"
-path_gt_image = OUTPUT_DIR / "test_ground_truth_high_res_image.nii.gz"
-path_gt_seg = OUTPUT_DIR / "test_ground_truth_high_res_seg.nii.gz"
-
-# Save the inputs and ground truths
-ants.image_write(test_image_low_res, str(path_lr_image))
-ants.image_write(segmentation_low_res, str(path_lr_seg))
-ants.image_write(test_image_high_res, str(path_gt_image))
-ants.image_write(segmentation_high_res, str(path_gt_seg))
-
-# Save the model's outputs
-ants.image_write(super_resolved_image, str(path_sr_image))
-if super_resolved_seg:
-    path_sr_seg = OUTPUT_DIR / "test_output_super_res_seg.nii.gz"
-    ants.image_write(super_resolved_seg, str(path_sr_seg))
-    print(f"  - Output Segmentation: {path_sr_seg.name}")
-
-print("\n--- Example Finished ---")
-print(f"Check the directory '{OUTPUT_DIR.resolve()}' for the following files:")
-print(f"  - Input Image: {path_lr_image.name}")
-print(f"  - Input Segmentation: {path_lr_seg.name}")
-print(f"  - Output Image: {path_sr_image.name}")
-print(f"  - Ground Truth Image: {path_gt_image.name}")
-print(f"  - Ground Truth Segmentation: {path_gt_seg.name}")
+if __name__ == "__main__":
+    main()
