@@ -42,7 +42,8 @@ Natural-image SR networks assume half-pixel-centre alignment; siq is decimation-
 −(f−1)/2 voxel shift EDSR loses ~2–4 dB. `phase="half-pixel"` is the analytic fix; `"auto"` estimates
 it with `compute_shift_lk` on calibration cases. Always report which was used (`_meta.phase_shift`).
 
-## Installing public models (isolated, doesn't touch the env)
+## Installing public models
+`pip install "siq[public-sr]"` (declared extra), or isolated from the main env:
 `pip install --target /tmp/sipkgs super-image "huggingface_hub<0.30"`; adapters add
 `$SIQ_PUBLIC_SR_PATH` (default `/tmp/sipkgs`) to `sys.path`. Weights download from HuggingFace on first use.
 

@@ -19,6 +19,10 @@ classifiers = [
   "Operating System :: OS Independent"
 ]
 
+[project.optional-dependencies]
+# Public pretrained SR models for siq.sr_benchmark(public=[...]) (pip install "siq[public-sr]")
+public-sr = ["super-image", "huggingface_hub<0.30", "torch"]
+
 [project.urls]
 Homepage = "https://github.com/stnava/siq"
 

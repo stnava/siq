@@ -53,8 +53,9 @@ PUBLIC_ZOO = {
     "carn-bam": ("eugenesiow/carn-bam", "CarnModel", False),
 }
 
-PUBLIC_INSTALL_HINT = ('pip install --target "$SIQ_PUBLIC_SR_PATH" super-image "huggingface_hub<0.30" '
-                       "(then export SIQ_PUBLIC_SR_PATH, default /tmp/sipkgs)")
+PUBLIC_INSTALL_HINT = ('pip install "siq[public-sr]"  (or, isolated from the main env: '
+                       'pip install --target "$SIQ_PUBLIC_SR_PATH" super-image "huggingface_hub<0.30"; '
+                       "SIQ_PUBLIC_SR_PATH defaults to /tmp/sipkgs)")
 
 
 @dataclass
