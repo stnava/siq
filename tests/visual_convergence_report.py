@@ -229,6 +229,83 @@ def save_4way_comparison_montage(orig_arr, down_arr, bilin_arr, sr_arr, out_path
     plt.close(fig)
 
 
+def save_training_samples_montage(x_batch, y_batch, out_path, title="Live Training Batches Fed to SR Model (LR Inputs vs HR Targets)"):
+    """
+    Renders live procedural training generator batches:
+    Shows Low-Resolution (LR input) vs High-Resolution (HR target) across orthogonal slices
+    for multiple batch elements.
+    """
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    if hasattr(x_batch, "numpy"):
+        x_np = x_batch.numpy()
+    else:
+        x_np = np.asarray(x_batch)
+    if hasattr(y_batch, "numpy"):
+        y_np = y_batch.numpy()
+    else:
+        y_np = np.asarray(y_batch)
+
+    b_size = min(2, x_np.shape[0])
+    is_2d = (x_np.ndim == 4)  # (B, H, W, C)
+    
+    def _to_eq(a):
+        arr = np.squeeze(a).astype(np.float32)
+        clean = np.where(arr < 0.01, 0.0, arr)
+        try:
+            t = ants.from_numpy(clean)
+            return ants.histogram_equalize_image(t, number_of_histogram_bins=256).numpy()
+        except Exception:
+            return clean
+
+    if is_2d:
+        fig, axes = plt.subplots(b_size, 2, figsize=(8, 4 * b_size), facecolor="#0b0f19")
+        if b_size == 1:
+            axes = np.expand_dims(axes, 0)
+        for b in range(b_size):
+            lr = _to_eq(x_np[b, ..., 0])
+            hr = _to_eq(y_np[b, ..., 0])
+            axes[b, 0].imshow(np.rot90(lr), cmap="gray")
+            axes[b, 0].set_title(f"Batch {b+1} LR Input ({lr.shape[0]}x{lr.shape[1]})", color="#38bdf8", fontsize=10, fontweight="bold")
+            axes[b, 0].axis("off")
+            axes[b, 1].imshow(np.rot90(hr), cmap="gray")
+            axes[b, 1].set_title(f"Batch {b+1} HR Target ({hr.shape[0]}x{hr.shape[1]})", color="#10b981", fontsize=10, fontweight="bold")
+            axes[b, 1].axis("off")
+    else:
+        fig, axes = plt.subplots(b_size, 6, figsize=(18, 3.2 * b_size), facecolor="#0b0f19")
+        if b_size == 1:
+            axes = np.expand_dims(axes, 0)
+        for b in range(b_size):
+            lr = x_np[b, ..., 0]
+            hr = y_np[b, ..., 0]
+            
+            lr_ax = np.rot90(lr[:, :, lr.shape[2] // 2])
+            lr_cor = np.rot90(lr[:, lr.shape[1] // 2, :])
+            lr_sag = np.rot90(lr[lr.shape[0] // 2, :, :])
+            
+            hr_ax = np.rot90(hr[:, :, hr.shape[2] // 2])
+            hr_cor = np.rot90(hr[:, hr.shape[1] // 2, :])
+            hr_sag = np.rot90(hr[hr.shape[0] // 2, :, :])
+            
+            slices = [_to_eq(lr_ax), _to_eq(lr_cor), _to_eq(lr_sag),
+                      _to_eq(hr_ax), _to_eq(hr_cor), _to_eq(hr_sag)]
+            titles = [
+                f"B{b+1} LR Axial ({lr.shape[0]}^3)", f"B{b+1} LR Coronal", f"B{b+1} LR Sagittal",
+                f"B{b+1} HR Axial ({hr.shape[0]}^3)", f"B{b+1} HR Coronal", f"B{b+1} HR Sagittal"
+            ]
+            for col, (sl, tit) in enumerate(zip(slices, titles)):
+                ax = axes[b, col]
+                ax.imshow(sl, cmap="gray")
+                c = "#38bdf8" if "LR" in tit else "#10b981"
+                ax.set_title(tit, color=c, fontsize=9, fontweight="bold", pad=4)
+                ax.axis("off")
+
+    if title:
+        fig.suptitle(title, color="#f8fafc", fontsize=12, fontweight="bold", y=0.98)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=130, facecolor=fig.get_facecolor(), bbox_inches="tight")
+    plt.close(fig)
+
+
 def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseline_label=None, color="#3b82f6", height=220, width=540, stage_markers=None, x_label="Step"):
     """
     Generates a standalone, dependency-free SVG chart for training metric trajectories.
@@ -524,13 +601,24 @@ class VisualConvergenceReporter:
                 
         print(f"[Convergence Reporter] Validation baselines initialized: Bilinear PSNR={lin_psnr:.2f} dB, SSIM={lin_ssim:.4f}")
 
-    def record_checkpoint(self, model, iteration, stage_name, train_loss, is_convergence_step=True, loss_weights=None):
+    def record_training_batch(self, x_batch, y_batch):
+        """Saves a visual montage of the latest training batch."""
+        out_path = os.path.join(self.report_dir, "val3d_train_samples.png")
+        try:
+            save_training_samples_montage(x_batch, y_batch, out_path)
+        except Exception as e:
+            print(f"[VisualConvergenceReporter] Warning: Could not save training sample montage: {e}")
+
+    def record_checkpoint(self, model, iteration, stage_name, train_loss, is_convergence_step=True, loss_weights=None, train_batch=None):
         """
         Evaluates the model on the validation patch, writes checkpoint files,
         renders visualization slices, logs metrics to CSV, and generates the updated HTML report.
         """
         import siq
         t0 = time.time()
+        
+        if train_batch is not None and len(train_batch) == 2:
+            self.record_training_batch(train_batch[0], train_batch[1])
         
         # 1. Run inference with provenance config
         cfg = getattr(self, "model_config", None)
@@ -562,6 +650,17 @@ class VisualConvergenceReporter:
         val_cbi = float(siq.compute_checkerboard_index(sr_np, self.gt_np, factor=getattr(self, "factor", None)))
         val_cqs = float(val_ssim - val_gmsd - val_cbi)
         val_pcs = float(val_ssim + 0.5 * val_acutance + 0.5 * val_laplacian - val_gmsd - val_cbi)
+
+        # Automated Fast Alignment & Bias QC (<35ms overhead)
+        b_ref = self.bilinear_sr.numpy() if hasattr(self, "bilinear_sr") and self.bilinear_sr is not None else None
+        qc_res = siq.compute_alignment_qc(
+            self.gt_np, sr_np, bilinear=b_ref, factor=getattr(self, "factor", None)
+        )
+        val_max_shift = float(qc_res["max_phase_shift"])
+        val_phase_shift = qc_res.get("shift_rel", qc_res["phase_shift"])
+        val_max_edge_corr = float(qc_res["max_edge_correlation"])
+        val_edge_corr = qc_res["edge_correlation"]
+        qc_status = qc_res["status"]
         
         # Determine champion model.
         # Stages are prioritized hierarchically so downstream perceptual refinement (Stage 3)
@@ -589,6 +688,18 @@ class VisualConvergenceReporter:
                 is_new_best = val_pcs > self.best_score
         else:
             is_new_best = False
+
+        # Alignment QC gate: a model with a systematic phase shift / edge bias
+        # (QC FAIL) must never overwrite a champion, regardless of its PCS/CQS.
+        # NaN gate (from for_review): a diverged model must never become champion
+        # nor overwrite the rolling refined checkpoint.
+        val_is_nan = bool(np.isnan(val_pcs) or np.isnan(val_psnr) or np.isnan(val_ssim) or np.isnan(val_cqs))
+        if val_is_nan:
+            is_new_best = False
+            print("  [NaN] non-finite validation metrics -> champion/refined save skipped", flush=True)
+        if is_new_best and qc_status == "FAIL":
+            is_new_best = False
+            print(f"  [QC] FAIL (phase {val_max_shift:.2f} vox, edge-corr {val_max_edge_corr:.2f}) -> champion promotion blocked", flush=True)
 
         if is_new_best:
             if self.selection_metric == "pcs":
@@ -679,10 +790,19 @@ class VisualConvergenceReporter:
                 "val_cqs": float(val_cqs),
                 "val_pcs": float(val_pcs),
                 "val_hfen": float(val_hfen),
+                "qc_status": qc_status,
+                "val_max_phase_shift": val_max_shift,
+                "val_max_edge_correlation": val_max_edge_corr,
             }
         }
         if loss_weights is not None:
-            provenance_config["loss_weights"] = {k: float(v) for k, v in loss_weights.items()}
+            clean_loss_weights = {}
+            for k, v in loss_weights.items():
+                try:
+                    clean_loss_weights[k] = float(v)
+                except (ValueError, TypeError):
+                    clean_loss_weights[k] = v
+            provenance_config["loss_weights"] = clean_loss_weights
             try:
                 wts_row = {
                     "msq": float(loss_weights.get("msq", 0.0)),
@@ -728,12 +848,13 @@ class VisualConvergenceReporter:
             refined_fn = f"{m_prefix}_3d_refined.keras"
             best_fn = f"{m_prefix}_3d_best_mdl.keras"
         refined_root_path = os.path.join(self.workspace_dir, refined_fn)
-        model.save(refined_root_path)
-        _save_config(refined_root_path, provenance_config)
-        if f_s == "2x2":
-            alias_ref_2d = os.path.join(self.workspace_dir, f"{m_prefix}_2d_refined.keras")
-            model.save(alias_ref_2d)
-            _save_config(alias_ref_2d, provenance_config)
+        if not val_is_nan:
+            model.save(refined_root_path)
+            _save_config(refined_root_path, provenance_config)
+            if f_s == "2x2":
+                alias_ref_2d = os.path.join(self.workspace_dir, f"{m_prefix}_2d_refined.keras")
+                model.save(alias_ref_2d)
+                _save_config(alias_ref_2d, provenance_config)
         
         if is_new_best:
             best_cqs_ckpt = os.path.join(self.checkpoint_dir, f"{m_prefix}_{dim_str}_best_cqs.keras")
@@ -761,7 +882,7 @@ class VisualConvergenceReporter:
                 print(f"[archive] WARNING: could not archive champion: {_ae}")
 
         if is_new_peak_psnr:
-            best_psnr_ckpt = os.path.join(self.checkpoint_dir, "asdbpn_3d_best_psnr.keras")
+            best_psnr_ckpt = os.path.join(self.checkpoint_dir, f"{m_prefix}_{dim_str}_best_psnr.keras")
             model.save(best_psnr_ckpt)
             _save_config(best_psnr_ckpt, provenance_config)
             
@@ -833,6 +954,12 @@ class VisualConvergenceReporter:
             "val_pcs": val_pcs,
             "val_hfen": val_hfen,
             "val_corr": val_corr,
+            "val_max_shift": val_max_shift,
+            "val_shift_y": float(val_phase_shift[0]) if len(val_phase_shift) > 0 else 0.0,
+            "val_shift_x": float(val_phase_shift[1]) if len(val_phase_shift) > 1 else 0.0,
+            "val_shift_z": float(val_phase_shift[2]) if len(val_phase_shift) > 2 else 0.0,
+            "val_max_edge_corr": val_max_edge_corr,
+            "qc_status": qc_status,
             "is_best": 1 if is_new_best else 0,
             "checkpoint_file": ckpt_filename if is_convergence_step else "asdbpn_3d_refined.keras",
             "ortho_image": step_img_name,
@@ -850,12 +977,14 @@ class VisualConvergenceReporter:
         
         psnr_delta = val_psnr - self.bilinear_metrics.get("psnr", 27.10)
         sign = "+" if psnr_delta >= 0 else ""
+        qc_badge = {"PASS": "✅ PASS", "WARN": "⚠️ WARN", "FAIL": "❌ FAIL"}.get(qc_status, qc_status)
         print(f"\n[Convergence Checkpoint] Iter {iteration:04d} ({stage_name}) - Loss: {train_loss:.6f}")
         print(f"  --> PSNR: {val_psnr:.2f} dB ({sign}{psnr_delta:.2f} dB vs Bilinear) | SSIM: {val_ssim:.4f} | GMSD: {val_gmsd:.4f} | CBI: {val_cbi:.4f} | CQS: {val_cqs:.4f} | HFEN: {val_hfen:.4f} | Corr: {val_corr:.4f}")
+        print(f"  --> Alignment QC: [{qc_badge}] Max Phase Shift: {val_max_shift:.4f} vox | Max Edge Corr: {val_max_edge_corr:.4f}")
         if is_new_best:
             print(f"  ★ NEW PEAK VALIDATION CQS! ({val_cqs:.4f}) [PSNR: {val_psnr:.2f} dB, SSIM: {val_ssim:.4f}, CBI: {val_cbi:.4f}] -> Saved champion model checkpoints")
         elif is_new_peak_psnr:
-            print(f"  ★ New peak PSNR ({val_psnr:.2f} dB) -> Saved asdbpn_3d_best_psnr.keras")
+            print(f"  ★ New peak PSNR ({val_psnr:.2f} dB) -> Saved {m_prefix}_{dim_str.lower()}_best_psnr.keras")
         print(f"  --> Convergence report refreshed: {self.html_path} (eval took {elapsed_eval:.2f}s)\n")
         
         return entry
@@ -898,6 +1027,12 @@ class VisualConvergenceReporter:
         psnr_gain = cur_psnr - lin_psnr
         gain_sign = "+" if psnr_gain >= 0 else ""
         gain_color = "#10b981" if psnr_gain >= 0 else "#f59e0b"
+        
+        cur_qc_status = latest_entry.get("qc_status", "PASS") if latest_entry else "PASS"
+        cur_max_shift = float(latest_entry.get("val_max_shift", 0.0)) if latest_entry else 0.0
+        cur_max_edge_corr = float(latest_entry.get("val_max_edge_corr", 0.0)) if latest_entry else 0.0
+        latest_qc_color = "#10b981" if cur_qc_status == "PASS" else ("#f59e0b" if cur_qc_status == "WARN" else "#ef4444")
+        latest_qc_badge = {"PASS": "PASS", "WARN": "WARNING", "FAIL": "FAILED"}.get(cur_qc_status, cur_qc_status)
         
         # Compute monotonic cumulative global steps and extract stage transition markers
         warmup_max_iter = 0
@@ -952,16 +1087,22 @@ class VisualConvergenceReporter:
             diff_rel = f"{rep_rel}/{r.get('diff_image', '')}"
             ckpt_rel = f"{ckpt_rel_dir}/{r.get('checkpoint_file', '')}"
             
+            qc_stat = r.get("qc_status", "PASS")
+            qc_c = "#10b981" if qc_stat == "PASS" else ("#f59e0b" if qc_stat == "WARN" else "#ef4444")
+            qc_badge_html = f'<span style="background: {qc_c}22; color: {qc_c}; border: 1px solid {qc_c}; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">{qc_stat}</span>'
+            sh_val = float(r.get("val_max_shift", 0.0))
+            ed_val = float(r.get("val_max_edge_corr", 0.0))
+
             checkpoint_rows += f"""
             <tr>
                 <td><strong>Step {g_step}</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter {r['iteration']})</span>{best_tag}</td>
                 <td><span class="stage-badge">{r['stage']}</span></td>
+                <td>{qc_badge_html}</td>
                 <td style="color: {p_color}; font-weight: bold;">{p_val:.2f} dB <span style="font-size: 0.8em; opacity: 0.8;">({p_sign}{p_diff:.2f})</span></td>
                 <td>{float(r['val_ssim']):.4f}</td>
-                <td>{float(r['val_hfen']):.4f}</td>
-                <td>{float(r['val_gmsd']):.4f}</td>
+                <td style="font-family: monospace; font-size: 0.85em;">{sh_val:.3f} vox</td>
+                <td style="font-family: monospace; font-size: 0.85em;">{ed_val:.4f}</td>
                 <td>{float(r.get('val_cbi', 0.0)):.4f}</td>
-                <td>{float(r['val_corr']):.4f}</td>
                 <td style="font-family: monospace;">{float(r['train_loss']):.5f}</td>
                 <td>
                     <a href="{ortho_rel}" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
@@ -1356,6 +1497,11 @@ class VisualConvergenceReporter:
             <span class="kpi-subtext">Iter {self.best_iter} ({self.best_stage or 'Best'}) &bull; PSNR: {self.best_psnr:.2f} dB</span>
         </div>
         <div class="kpi-card">
+            <span class="kpi-label">Spatial Alignment QC</span>
+            <span class="kpi-value" style="color: {latest_qc_color}; font-size: 1.5rem;">{latest_qc_badge}</span>
+            <span class="kpi-subtext">Phase Shift: {cur_max_shift:.3f} vox &bull; Edge Corr: {cur_max_edge_corr:.4f}</span>
+        </div>
+        <div class="kpi-card">
             <span class="kpi-label">Parameters & Architecture</span>
             <span class="kpi-value" style="color: #f8fafc; font-size: 1.5rem;">1,836,706</span>
             <span class="kpi-subtext">Proj Kernel: 6x6x6 &bull; Loops: T=4 &bull; SOCA</span>
@@ -1473,12 +1619,12 @@ class VisualConvergenceReporter:
                     <tr>
                         <th>Global Step (Iter)</th>
                         <th>Stage</th>
+                        <th>QC Status</th>
                         <th>Validation PSNR</th>
                         <th>SSIM</th>
-                        <th>HFEN</th>
-                        <th>GMSD</th>
+                        <th>Phase Shift</th>
+                        <th>Edge Corr</th>
                         <th>CBI</th>
-                        <th>Corr</th>
                         <th>Train Loss</th>
                         <th>Artifacts</th>
                     </tr>

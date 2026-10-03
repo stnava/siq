@@ -160,7 +160,12 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
         dim_str = "2d"
     else:
         dim_str = "3d"
-    m_display = "DBPN" if ("dbpn" in base_stem.lower() and "asdbpn" not in base_stem.lower()) else "AS-DBPN"
+    if "asdbpn" in base_stem.lower():
+        m_display = "AS-DBPN"
+    elif any(k in base_stem.lower() for k in ["dbpn", "grader", "vgg", "smallshort", "blind"]):
+        m_display = "DBPN"
+    else:
+        m_display = "SR Model"
         
     bilinear = bilinear_metrics or {"psnr": 27.10, "ssim": 0.9285, "hfen": 0.4500, "corr": 0.9320}
     ldbpn = ldbpn_metrics or {"psnr": 26.50, "ssim": 0.9150, "hfen": 0.4900, "corr": 0.9180}
@@ -364,6 +369,18 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
     champ_stat_val = f"{best_score:.4f}" if has_perceptual else f"{best_cqs:.4f}"
     champ_overlay_val = f"PCS: <strong>{best_score:.4f}</strong>" if has_perceptual else f"CQS: <strong>{best_cqs:.4f}</strong>"
     
+    train_samples_file = os.path.join(html_dir, report_dir, "val3d_train_samples.png")
+    has_train_samples = os.path.exists(train_samples_file) or os.path.exists(os.path.join(report_dir, "val3d_train_samples.png"))
+    train_samples_tab = '<button class="tab-btn" data-view="trainsamples" onclick="selectView(\'trainsamples\')">8. Training Batches (Procedural Generator)</button>' if has_train_samples else ""
+    train_samples_pane = f"""
+                <div id="view-trainsamples" class="view-pane">
+                    <img src="{report_dir}/val3d_train_samples.png" alt="Training Batches" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>8. Live Training Batches (Procedural Generator)</strong> &bull; Simulated Inputs (LR) vs Targets (HR)
+                    </div>
+                </div>
+    """ if has_train_samples else ""
+    
     tabs_html = f"""
         <button class="tab-btn" data-view="original" onclick="selectView('original')">1. Original Image (Ground Truth)</button>
         <button class="tab-btn" data-view="linear" onclick="selectView('linear')">2. Linear Upsampled ({lin_psnr:.2f} dB &bull; SSIM {lin_ssim:.4f})</button>
@@ -372,6 +389,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
         <button class="tab-btn" data-view="diff" onclick="selectView('diff')">5. Error Map |SR - Original|</button>
         <button class="tab-btn" data-view="downsampled" onclick="selectView('downsampled')">6. Downsampled Image (LR Input)</button>
         <button class="tab-btn" data-view="comparison4way" onclick="selectView('comparison4way')">7. 4-Way Comparison (Stacked)</button>
+        {train_samples_tab}
     """
 
     html = f"""<!DOCTYPE html>
@@ -780,7 +798,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 <div>
                     <h2 style="font-size: 1.3rem; font-weight: 600;">Interactive In-Place Comparison (Flicker Viewer)</h2>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
-                        💡 <strong>In-Place Flicker Navigation:</strong> Click tabs or press keyboard keys <span class="shortcut-key">1</span> (Original), <span class="shortcut-key">2</span> (Bilinear), <span class="shortcut-key">3</span> (Latest AS-DBPN) to rapidly flicker in-place and inspect edge sharpness and sub-voxel alignment.
+                        💡 <strong>In-Place Flicker Navigation:</strong> Click tabs or press keyboard keys <span class="shortcut-key">1</span> (Original), <span class="shortcut-key">2</span> (Bilinear), <span class="shortcut-key">3</span> (Latest {m_display}) to rapidly flicker in-place and inspect edge sharpness and sub-voxel alignment.
                     </p>
                 </div>
                 <div class="tab-group">
@@ -806,7 +824,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 <div id="view-sr" class="view-pane active">
                     <img src="{report_dir}/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>3. Latest AS-DBPN Image ({dim_str.upper()} &bull; Step {cur_step} &bull; Iter {cur_iter})</strong> &bull; PSNR: <strong>{cur_psnr:.2f} dB</strong> &bull; SSIM: <strong>{cur_ssim:.4f}</strong> &bull; CQS: <strong>{cur_cqs:.4f}</strong>{f' &bull; Acutance: <strong>{cur_acutance:.4f}</strong> &bull; Laplacian: <strong>{cur_laplacian:.4f}</strong>' if has_perceptual else ''} &bull; GMSD: <strong>{cur_gmsd:.4f}</strong> &bull; CBI: <strong>{cur_cbi:.4f}</strong> &bull; HFEN: <strong>{cur_hfen:.4f}</strong>
+                        <strong>3. Latest {m_display} Image ({dim_str.upper()} &bull; Step {cur_step} &bull; Iter {cur_iter})</strong> &bull; PSNR: <strong>{cur_psnr:.2f} dB</strong> &bull; SSIM: <strong>{cur_ssim:.4f}</strong> &bull; CQS: <strong>{cur_cqs:.4f}</strong>{f' &bull; Acutance: <strong>{cur_acutance:.4f}</strong> &bull; Laplacian: <strong>{cur_laplacian:.4f}</strong>' if has_perceptual else ''} &bull; GMSD: <strong>{cur_gmsd:.4f}</strong> &bull; CBI: <strong>{cur_cbi:.4f}</strong> &bull; HFEN: <strong>{cur_hfen:.4f}</strong>
                     </div>
                 </div>
 
@@ -834,9 +852,11 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 <div id="view-comparison4way" class="view-pane">
                     <img src="{report_dir}/val3d_4way_comparison.png" alt="4-Way Stacked Comparison" class="viewport-image">
                     <div class="view-overlay">
-                        <strong>7. Unified 4-Way Comparative Montage</strong> &bull; Original vs Downsampled vs Linear vs 3D AS-DBPN (Identical Scale &amp; Contrast)
+                        <strong>7. Unified 4-Way Comparative Montage</strong> &bull; Original vs Downsampled vs Linear vs {dim_str.upper()} {m_display} (Identical Scale &amp; Contrast)
                     </div>
                 </div>
+
+                {train_samples_pane}
             </div>
         </section>
 
@@ -901,7 +921,8 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             'best': 'view-best',
             'diff': 'view-diff',
             'downsampled': 'view-downsampled',
-            'comparison4way': 'view-comparison4way'
+            'comparison4way': 'view-comparison4way',
+            'trainsamples': 'view-trainsamples'
         }};
 
         function selectView(key) {{
@@ -918,7 +939,7 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
             if (activeBtn) activeBtn.classList.add('active');
         }}
 
-        // Keyboard shortcuts 1-7 for in-place flickering
+        // Keyboard shortcuts 1-8 for in-place flickering
         document.addEventListener('keydown', (e) => {{
             const keyMap = {{
                 '1': 'original',
@@ -927,7 +948,8 @@ def render_html_dashboard_from_csv(csv_path="checkpoints/asdbpn_3d/convergence_h
                 '4': 'best',
                 '5': 'diff',
                 '6': 'downsampled',
-                '7': 'comparison4way'
+                '7': 'comparison4way',
+                '8': 'trainsamples'
             }};
             if (keyMap[e.key]) {{
                 selectView(keyMap[e.key]);

@@ -16,6 +16,11 @@ Usage:
 
 import os
 import sys
+
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
 import argparse
 import numpy as np
 import keras
@@ -33,6 +38,15 @@ def main():
         type=str,
         default="siq_smallshort_train_2x2x2_1chan_featvggL6_blind",
         help="Output prefix for model and config (default: siq_smallshort_train_2x2x2_1chan_featvggL6_blind)",
+    )
+    parser.add_argument(
+        "--dim",
+        type=int,
+        choices=[2, 3],
+        default=3,
+        help="Dimensionality (default 3). --dim 2 runs the identical blind pipeline, "
+             "DBPN-small architecture and VGG layer-6 perceptual loss on 2D patches, "
+             "validated on the head-cropped ANTs r16 slice, for fast iteration.",
     )
     parser.add_argument(
         "--factor",
@@ -84,16 +98,34 @@ def main():
         help="Path to initial weights (e.g. transferred small model) (default: dbpn_small_3d_from_refined.keras if exists)",
     )
     parser.add_argument(
-        "--msq-weight",
+        "--feature-type",
+        choices=["vgg", "grader"],
+        default="vgg",
+        help="Perceptual feature extractor backend: vgg or grader (default: vgg)",
+    )
+    parser.add_argument(
+        "--feature-layer",
+        type=int,
+        default=6,
+        help="Feature layer index (default: 6)",
+    )
+    parser.add_argument(
+        "--l1-weight",
         type=float,
         default=3.86,
-        help="MSE reconstruction loss weight (default: 3.86)",
+        help="L1 (MAE) reconstruction loss weight (default: 3.86 for sharp edges)",
+    )
+    parser.add_argument(
+        "--msq-weight",
+        type=float,
+        default=0.0,
+        help="MSE reconstruction loss weight (default: 0.0)",
     )
     parser.add_argument(
         "--feat-weight",
         type=float,
-        default=1.14e-4,
-        help="VGG19 Layer 6 perceptual loss weight (default: 1.14e-4)",
+        default=None,
+        help="Perceptual loss weight (default: 1.14e-4 for vgg, 565.0 for grader)",
     )
     parser.add_argument(
         "--tv-weight",
@@ -101,25 +133,71 @@ def main():
         default=0.39,
         help="Total variation loss weight (default: 0.39)",
     )
+    parser.add_argument(
+        "--blur-lam",
+        type=float,
+        default=0.2,
+        help="Poisson blur lambda (default: 0.2, biased toward minimal blur)",
+    )
+    parser.add_argument(
+        "--blur-scale",
+        type=float,
+        default=0.5,
+        help="Poisson blur scale factor (default: 0.5)",
+    )
+    parser.add_argument(
+        "--val-image",
+        type=str,
+        default=None,
+        help="Path to real MRI validation image (default: sub-BLAST022 or OASIS)",
+    )
+    parser.add_argument(
+        "--eval-freq",
+        type=int,
+        default=50,
+        help="Validation evaluation and HTML dashboard refresh frequency (default: 50 steps)",
+    )
+    parser.add_argument(
+        "--no-html-report",
+        action="store_true",
+        help="Disable interactive HTML dashboard generation",
+    )
 
     args = parser.parse_args()
 
+    # Determine default feat_weight if not explicitly provided
+    if args.feat_weight is None:
+        feat_weight = 565.0 if args.feature_type == "grader" else 1.14e-4
+    else:
+        feat_weight = args.feat_weight
+
     # Normalize factor tuple
     if len(args.factor) == 1:
-        factor_tuple = (args.factor[0], args.factor[0], args.factor[0])
-    elif len(args.factor) == 3:
+        factor_tuple = tuple([args.factor[0]] * args.dim)
+    elif len(args.factor) == args.dim:
         factor_tuple = tuple(args.factor)
+    elif args.dim == 2 and args.factor == [2, 2, 2]:
+        factor_tuple = (2, 2)  # untouched 3D default
     else:
-        raise ValueError(f"Invalid factor: {args.factor}. Must be 1 or 3 values.")
+        raise ValueError(f"Invalid factor: {args.factor}. Must be 1 or {args.dim} values.")
+
+    # 2D defaults: no 3D-transfer weights, validate on r16
+    if args.dim == 2:
+        if args.load_model == "dbpn_small_3d_from_refined.keras":
+            args.load_model = None
+        if args.val_image is None:
+            args.val_image = "r16"
 
     print("=" * 70)
-    print("Blind 3D Super-Resolution Training (VGG19 Layer 6)")
+    print(f"Blind {args.dim}D Super-Resolution Training")
     print(f"  Model Type:        {args.model_type}")
     print(f"  Scaling Factor:    {factor_tuple}")
-    print(f"  Warmup Iterations: {args.pretrain_iters} (pure MSE)")
-    print(f"  Perceptual Iters:  {args.iterations} (VGG19 Layer 6 + MSE + TV)")
-    print(f"  Batch Size:        {args.batch_size} (LR {args.lr_patch_size}^3 -> HR {[args.lr_patch_size * f for f in factor_tuple]}^3)")
-    print(f"  Loss Weights:      MSE={args.msq_weight}, Feat={args.feat_weight}, TV={args.tv_weight}")
+    print(f"  Feature Backend:   {args.feature_type} Layer {args.feature_layer}")
+    print(f"  Warmup Iterations: {args.pretrain_iters} (pure MSE/L1)")
+    print(f"  Perceptual Iters:  {args.iterations} ({args.feature_type.upper()} Layer {args.feature_layer} + L1 + TV)")
+    print(f"  Batch Size:        {args.batch_size} (LR {args.lr_patch_size}^3 -> HR {[args.lr_patch_size * f for f in factor_tuple]})")
+    print(f"  Loss Weights:      L1={args.l1_weight}, MSE={args.msq_weight}, Feat={feat_weight}, TV={args.tv_weight}")
+    print(f"  Blur Settings:     Poisson(lam={args.blur_lam}, scale={args.blur_scale})")
     print(f"  Output Prefix:     {args.output_prefix}")
     print("=" * 70)
 
@@ -128,10 +206,10 @@ def main():
         print(f"Loading transferred model from {args.load_model}...")
         model, _ = siq.load_siq_model(args.load_model)
     elif args.model_type == "dbpn-small":
-        print("Instantiating Small 3D DBPN (option='small', 9.88M parameters)...")
+        print(f"Instantiating Small {args.dim}D DBPN (option='small')...")
         model = siq.default_dbpn(
             strider=list(factor_tuple),
-            dimensionality=3,
+            dimensionality=args.dim,
             nChannelsIn=1,
             nChannelsOut=1,
             sigmoid_second_channel=False,
@@ -141,13 +219,15 @@ def main():
         print("Instantiating Large/Default 3D DBPN (option='large', 66.86M parameters)...")
         model = siq.default_dbpn(
             strider=list(factor_tuple),
-            dimensionality=3,
+            dimensionality=args.dim,
             nChannelsIn=1,
             nChannelsOut=1,
             sigmoid_second_channel=False,
             option="large",
         )
     elif args.model_type == "espcn-residual":
+        if args.dim != 3:
+            raise ValueError("espcn-residual is 3D only")
         print("Instantiating Residual 3D ESPCN (sub-pixel blind model)...")
         model = siq.create_espcn_3d_residual(
             input_shape=(None, None, None, 1),
@@ -158,7 +238,8 @@ def main():
 
     print(f"Model instantiated successfully with {model.count_params():,} parameters.")
 
-    # 2. Train using Kitchen Sink Blind SR Pipeline with VGG19 Layer 6
+    # 2. Train using Kitchen Sink Blind SR Pipeline
+    blur_sigma_cfg = {"type": "poisson", "lam": args.blur_lam, "scale": args.blur_scale}
     trained_model = siq.train_blind_sr_kitchen_sink(
         output_prefix=args.output_prefix,
         factor=factor_tuple,
@@ -167,13 +248,19 @@ def main():
         learning_rate=args.learning_rate,
         batch_size=args.batch_size,
         lr_patch_size=args.lr_patch_size,
-        feature_type="vgg",
-        feature_layer=6,
+        feature_type=args.feature_type,
+        feature_layer=args.feature_layer,
         model=model,
         msq_weight=args.msq_weight,
-        feat_weight=args.feat_weight,
+        l1_weight=args.l1_weight,
+        feat_weight=feat_weight,
         tv_weight=args.tv_weight,
         use_cache=False,
+        blur_sigma_range=blur_sigma_cfg,
+        eval_freq=args.eval_freq,
+        val_image=args.val_image,
+        enable_html_report=not args.no_html_report,
+        dimensionality=args.dim,
     )
 
     print("\nTraining complete!")

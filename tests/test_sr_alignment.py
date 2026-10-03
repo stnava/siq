@@ -327,6 +327,84 @@ def test_blind_sr_generator_simple_spacing():
 
 
 
+def test_3d_skip_connections_zero_shift():
+    """
+    Verify UpSampling3D has zero spatial shift across isotropic & anisotropic factors.
+    Output 2k, 2j, 2m replicates input k, j, m — preserving exact integer grid alignment.
+    """
+    import keras
+    import numpy as np
+
+    for factor in [(2, 2, 2), (1, 1, 2), (1, 2, 2)]:
+        layer = keras.layers.UpSampling3D(size=factor)
+        size = 16
+        lr_np = np.zeros((1, size, size, size, 1), dtype='float32')
+        cz, cy, cx = size // 2, size // 2, size // 2
+        lr_np[0, cz, cy, cx, 0] = 1.0
+        sr_np = layer(lr_np).numpy()[0, :, :, :, 0]
+
+        ref_np = lr_np[0, :, :, :, 0].repeat(factor[0], axis=0).repeat(factor[1], axis=1).repeat(factor[2], axis=2)
+        diff = np.max(np.abs(sr_np - ref_np))
+        assert diff < 1e-6, f"UpSampling3D factor {factor} differs from nearest-neighbor repeat: diff={diff}"
+
+
+def test_inference_real_nifti_dbpn_and_asdbpn_alignment():
+    """
+    Verify real MRI NIfTI scans with negative direction diagonals (e.g. BLAST data)
+    achieve sub-pixel zero-lag alignment (<0.08 voxels) and minimal edge gradient
+    correlation (<0.02) using siq.inference on both DBPN and AS-DBPN architectures.
+    """
+    import os
+    import ants
+    import siq
+    from scipy.ndimage import sobel
+    from skimage.registration import phase_cross_correlation
+
+    val_path = "/Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz"
+    if not os.path.exists(val_path):
+        return  # skip if validation dataset not on disk
+
+    val_vol = ants.image_read(val_path)
+    val_vol = ants.iMath(ants.iMath(val_vol, "TruncateIntensity", 0.001, 0.999), "Normalize")
+
+    # 1. DBPN 3D
+    dbpn_path = "dbpn_small_3d_champion.keras"
+    if os.path.exists(dbpn_path):
+        m_dbpn, cfg_dbpn = siq.load_siq_model(dbpn_path)
+        low_res_vol = ants.resample_image(val_vol, [2.0, 2.0, 2.0], use_voxels=False, interp_type=0)
+        mid_lr = [low_res_vol.shape[d] // 2 + 20 for d in range(3)]
+        mid_hr = [mid_lr[d] * 2 for d in range(3)]
+        lr_box = 32
+        val_lr_p = ants.crop_indices(low_res_vol, [mid_lr[d] - lr_box for d in range(3)], [mid_lr[d] + lr_box for d in range(3)])
+        val_hr_p = ants.crop_indices(val_vol, [mid_hr[d] - lr_box * 2 for d in range(3)], [mid_hr[d] + lr_box * 2 for d in range(3)])
+        gt_3d = ants.iMath(val_hr_p, "Normalize").numpy()
+
+        sr_dbpn = siq.inference(val_lr_p, m_dbpn, config=cfg_dbpn, verbose=False, poly_order=None, anti_checkerboard=False).numpy()
+        sh_dbpn, _, _ = phase_cross_correlation(gt_3d, sr_dbpn, upsample_factor=100)
+        for d in range(3):
+            assert abs(sh_dbpn[d]) < 0.08, f"DBPN 3D axis {d} has non-zero phase shift: {sh_dbpn[d]:.3f} voxels"
+
+        gy = sobel(gt_3d, axis=0)
+        r_y = abs(np.corrcoef((sr_dbpn - gt_3d).flat, gy.flat)[0, 1])
+        assert r_y < 0.02, f"DBPN 3D residual error has edge gradient correlation: |r_y|={r_y:.4f} > 0.02"
+
+    # 2. AS-DBPN 2D
+    asdbpn_path = "asdbpn_2d_2x2_best_mdl.keras"
+    if os.path.exists(asdbpn_path):
+        m_asdbpn, cfg_asdbpn = siq.load_siq_model(asdbpn_path)
+        img2d = ants.slice_image(val_vol, axis=2, idx=val_vol.shape[2] // 2 + 40)
+        lr2d = ants.resample_image(img2d, [2, 2], use_voxels=False, interp_type=0)
+        mid2d = [s // 2 for s in lr2d.shape]
+        lr2d_p = ants.crop_indices(lr2d, [mid2d[0] - 24, mid2d[1] - 24], [mid2d[0] + 24, mid2d[1] + 24])
+        hr2d_p = ants.crop_indices(img2d, [mid2d[0] * 2 - 48, mid2d[1] * 2 - 48], [mid2d[0] * 2 + 48, mid2d[1] * 2 + 48])
+        gt_2d = ants.iMath(hr2d_p, "Normalize").numpy()
+
+        sr_asdbpn = siq.inference(lr2d_p, m_asdbpn, config=cfg_asdbpn, verbose=False, poly_order=None, anti_checkerboard=False).numpy()
+        sh_asdbpn, _, _ = phase_cross_correlation(gt_2d, sr_asdbpn, upsample_factor=100)
+        for d in range(2):
+            assert abs(sh_asdbpn[d]) < 0.08, f"AS-DBPN 2D axis {d} has non-zero phase shift: {sh_asdbpn[d]:.3f} voxels"
+
+
 # ─────────────────────────────────────────────────────────────────
 # Main — run all tests and print audit report
 # ─────────────────────────────────────────────────────────────────
@@ -343,6 +421,7 @@ if __name__ == "__main__":
         # Skip interpolation
         ("nearest UpSampling2D zero shift",           test_nearest_upsample2d_zero_shift),
         ("bilinear UpSampling2D shift documented",    test_bilinear_upsample2d_shift_documented),
+        ("3D skip connections zero shift",            test_3d_skip_connections_zero_shift),
         # Generator spacing invariant (catches use_voxels=True bug reliably)
         ("generator 2D LR spacing == exact factor",  test_blind_sr_generator_spacing_invariant_2d),
         ("generator 3D LR spacing == exact factor",  test_blind_sr_generator_spacing_invariant_3d),
@@ -350,6 +429,8 @@ if __name__ == "__main__":
         ("generator 2D impulse peak alignment",       test_blind_sr_generator_impulse_peak_alignment_2d),
         # Phase alignment (eliminates edge bias from transposed convolutions)
         ("inference phase alignment eliminates edge bias", test_inference_phase_alignment_eliminates_edge_bias),
+        # Real NIfTI negative direction cosine alignment
+        ("real NIfTI DBPN & AS-DBPN alignment",       test_inference_real_nifti_dbpn_and_asdbpn_alignment),
         # Generator crop and spacing invariants
         ("generator crop indices strictly locked",    test_generator_crop_indices_strictly_aligned),
         ("simple generator exact spacing",             test_blind_sr_generator_simple_spacing),

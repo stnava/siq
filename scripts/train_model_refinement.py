@@ -378,6 +378,7 @@ def main():
     parser.add_argument("--stage1-lr", type=float, default=None, help="Learning rate for Stage 1 (default: 1e-4 for 3D, 5e-5 for 2D)")
     parser.add_argument("--stage2-lr", type=float, default=None, help="Learning rate for Stage 2 (default: 5e-5 for 3D, 2e-5 for 2D)")
     parser.add_argument("--stage3-lr", type=float, default=None, help="Learning rate for Stage 3 (default: 2e-5 for 3D, 1e-5 for 2D)")
+    parser.add_argument("--start-iteration", type=int, default=None, help="Override detected last iteration when resuming (used by supervised_training_monitor.py)")
     parser.add_argument("--skip-warmup", action="store_true", default=False, help="Skip MSE warmup phase (useful when resuming/fine-tuning from an existing trained model)")
     parser.add_argument("--load-model", type=str, default=None, help="Explicit path to pretrained/checkpoint model to load weights from")
     parser.add_argument("--factor", nargs="+", type=int, default=[2], help="Super-resolution scaling factor (e.g. 2 or 1 1 2) (default: 2)")
@@ -646,6 +647,9 @@ def main():
     if not args.reset_history and len(reporter.history) > 0:
         last_iteration = max(last_iteration, int(reporter.history[-1].get("iteration", 0)))
         print(f"Detected last logged convergence iteration from history: {last_iteration}")
+    if getattr(args, "start_iteration", None) is not None:
+        last_iteration = args.start_iteration
+        print(f"Explicit start iteration specified: last_iteration = {last_iteration}")
     
     # 2. Cache disabled by default (generating raw volumes on-the-fly)
     print("Cache disabled by default. Training volumes will be generated raw on the fly.")
@@ -1209,6 +1213,15 @@ def main():
     if args.edge_weight is None:
         args.edge_weight = 0.0
     edge_weight_var.assign(args.edge_weight)
+
+    # Pre-flight LR/HR alignment audit (bypass: SIQ_SKIP_ALIGNMENT_AUDIT=1)
+    if os.environ.get("SIQ_SKIP_ALIGNMENT_AUDIT", "0") != "1":
+        siq.audit_pair_alignment(
+            siq.blind_sr_generator(
+                hr_base_cache=None, batch_size=max(2, batch_size), lr_patch_size=lr_patch_size,
+                factor=factor_tuple, simulation_classes=simulation_classes, use_cache=False,
+                dimensionality=dim, use_layer2=args.use_layer2),
+            factor_tuple, n_batches=2)
 
     if not wts_loaded:
 
@@ -1794,12 +1807,15 @@ def main():
         for warmup_iter in range(1, warmup_max_iter + 1):
             x_batch, y_batch = next(train_gen_warmup)
             mse_loss = model.train_on_batch(x_batch, y_batch)
+            if not np.all(np.isfinite(np.asarray(mse_loss, dtype=float))):
+                print(f"\n[FATAL] Non-finite loss ({mse_loss}) at warmup iteration {warmup_iter}; halting stage to protect weights.")
+                break
             
             is_eval = (warmup_iter % args.eval_freq == 0 or warmup_iter == 1)
             is_ckpt = (warmup_iter % args.checkpoint_freq == 0)
             
             if is_eval or is_ckpt:
-                entry = reporter.record_checkpoint(model, warmup_iter, "Warmup", mse_loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
+                entry = reporter.record_checkpoint(model, warmup_iter, "Warmup", mse_loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights(), train_batch=(x_batch, y_batch))
                 val_psnr = entry.get("val_psnr", 0.0)
                 val_ssim = entry.get("val_ssim", 0.0)
                 print(f"[Warmup] Iter {warmup_iter:04d}/{warmup_max_iter} - MSE Loss: {mse_loss:.6f} - Val PSNR: {val_psnr:.2f} dB (Target: {target_psnr:.2f} dB) - Val SSIM: {val_ssim:.4f}")
@@ -1880,6 +1896,9 @@ def main():
         for iteration in range(max(1, last_iteration + 1), stage1_max + 1):
             x_batch, y_batch = next(train_gen_clean)
             loss = model.train_on_batch(x_batch, y_batch)
+            if not np.all(np.isfinite(np.asarray(loss, dtype=float))):
+                print(f"\n[FATAL] Non-finite loss ({loss}) at iteration {iteration}; halting stage to protect weights.")
+                break
             step_dynamic_balancer(iteration, x_batch, y_batch)
             
             # Print iteration log immediately
@@ -1906,7 +1925,7 @@ def main():
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
                 is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage1_max)
-                entry = reporter.record_checkpoint(model, iteration, "Stage 1 Adaptation", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
+                entry = reporter.record_checkpoint(model, iteration, "Stage 1 Adaptation", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights(), train_batch=(x_batch, y_batch))
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -1981,6 +2000,9 @@ def main():
         for iteration in range(start_iter, stage2_max + 1):
             x_batch, y_batch = next(train_gen_robust)
             loss = model.train_on_batch(x_batch, y_batch)
+            if not np.all(np.isfinite(np.asarray(loss, dtype=float))):
+                print(f"\n[FATAL] Non-finite loss ({loss}) at iteration {iteration}; halting stage to protect weights.")
+                break
             step_dynamic_balancer(iteration, x_batch, y_batch)
             
             # Print iteration log immediately
@@ -2007,7 +2029,7 @@ def main():
                     print(f"  [Warning] Failed to save actual training batch images: {e}")
 
                 is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage2_max)
-                entry = reporter.record_checkpoint(model, iteration, "Stage 2 Robustness", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
+                entry = reporter.record_checkpoint(model, iteration, "Stage 2 Robustness", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights(), train_batch=(x_batch, y_batch))
                 
                 if loss < best_val_loss:
                     best_val_loss = loss
@@ -2121,6 +2143,9 @@ def main():
     for iteration in range(start_iter, stage3_max + 1):
         x_batch, y_batch = next(train_gen_refine)
         loss = model.train_on_batch(x_batch, y_batch)
+        if not np.all(np.isfinite(np.asarray(loss, dtype=float))):
+            print(f"\n[FATAL] Non-finite loss ({loss}) at iteration {iteration}; halting stage to protect weights.")
+            break
         step_dynamic_balancer(iteration, x_batch, y_batch)
         
         # Print iteration log immediately
@@ -2147,7 +2172,7 @@ def main():
                 print(f"  [Warning] Failed to save actual training batch images: {e}")
 
             is_ckpt = (iteration % args.checkpoint_freq == 0 or iteration == stage3_max)
-            entry = reporter.record_checkpoint(model, iteration, "Stage 3 Refinement", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights())
+            entry = reporter.record_checkpoint(model, iteration, "Stage 3 Refinement", loss, is_convergence_step=is_ckpt, loss_weights=get_current_loss_weights(), train_batch=(x_batch, y_batch))
             
             if loss < best_val_loss:
                 best_val_loss = loss

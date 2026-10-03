@@ -334,9 +334,9 @@ def create_espcn_3d_attention(input_shape=(None, None, None, 1), factor=2, n_fil
     x = layers.Conv3D(16, kernel_size=3, padding="same", activation="relu", name="hr_conv2")(x)
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
-    # Optional Global Skip connection
+    # Optional Global Skip connection (nearest-neighbor replication preserves exact integer grid alignment)
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         # Learnable scale initialized to 1.0
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
@@ -589,6 +589,14 @@ def _adapt_weight_shape(src_w, target_shape):
                 out = padded
         if out.shape == tuple(target_shape):
             return out
+    # 5-D conv kernel subpixel channel expansion (e.g. 32x2 -> 32x8 for PixelShuffle3D);
+    # replicates learned filters across new sub-voxel positions (heuristic init, from for_review).
+    if src_np.ndim == 5 and len(target_shape) == 5:
+        if src_np.shape[:4] == tuple(target_shape[:4]) and target_shape[-1] % src_np.shape[-1] == 0:
+            return np.repeat(src_np, target_shape[-1] // src_np.shape[-1], axis=-1)
+    # 1-D bias vector expansion matching the subpixel expansion
+    if src_np.ndim == 1 and len(target_shape) == 1 and target_shape[0] % src_np.shape[0] == 0:
+        return np.repeat(src_np, target_shape[0] // src_np.shape[0], axis=-1)
     return None
 
 def transfer_siq_weights(src_model, dst_model, verbose=True):
@@ -968,7 +976,7 @@ def create_wdsr_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1072,7 +1080,7 @@ def create_rcan_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1168,7 +1176,7 @@ def create_carn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_
     outputs = keras.layers.Conv3D(1, kernel_size=3, padding="same", name="hr_conv3")(x)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = keras.layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1341,7 +1349,7 @@ def create_srfbn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="recon_conv2")(outputs)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1505,7 +1513,7 @@ def create_san_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, n_g
     outputs = layers.Conv3D(1, kernel_size=3, padding="same", name="final_conv")(x)
     
     if use_global_skip:
-        skip = TrilinearUpSampling3D(size=factor_tuple, name="global_skip")(inputs)
+        skip = layers.UpSampling3D(size=factor_tuple, name="global_skip")(inputs)
         scaled_skip = LearnableScale(initial_value=1.0, name="scaled_global_skip")(skip)
         outputs = layers.add([outputs, scaled_skip], name="add_global_skip")
         
@@ -1584,9 +1592,9 @@ def create_asdbpn_3d(input_shape=(None, None, None, 1), factor=2, n_filters=64, 
     It combines recurrent feedback loops with channel attention to guide refinement.
     Supports isotropic integer factors (e.g. 2, 4) or anisotropic tuple factors (e.g. (1, 1, 2), (2, 2, 4)).
 
-    Note: the global skip connection upsamples with smooth trilinear
-    interpolation (`TrilinearUpSampling3D`), matching the bilinear continuous
-    upsampling quality of `create_asdbpn_2d`.
+    Note: the global skip connection uses nearest-neighbor replication
+    (`UpSampling3D`), matching the 2D models and preserving exact discrete
+    voxel alignment without sub-pixel phase shifts.
     """
     factor_tuple = _normalize_factor(factor, 3)
 
