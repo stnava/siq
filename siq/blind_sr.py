@@ -80,7 +80,8 @@ def blind_sr_generator(
     cache_size=1024,
     use_cache=True,
     dimensionality=3,
-    use_layer2=False
+    use_layer2=False,
+    return_provenance=False
 ):
     """
     Advanced generator for Blind Super-Resolution.
@@ -155,13 +156,14 @@ def blind_sr_generator(
                 vol = simulate_fractal_noise(hr_large_shape, zoom_range=zoom_range, use_layer2=use_layer2)
             else:
                 raise ValueError(f"Unknown simulation class: {sim_class}")
-            hr_base_cache.append(vol)
+            hr_base_cache.append((vol, sim_class))
         
     is_numpy_cache = hr_base_cache is not None and hasattr(hr_base_cache, "shape") and len(hr_base_cache.shape) == (dimensionality + 1)
     
     while True:
         x_batch = []
         y_batch = []
+        meta_batch = [] if return_provenance else None
         for _ in range(batch_size):
             if not use_cache or hr_base_cache is None:
                 # 1. Generate directly on the fly
@@ -196,6 +198,7 @@ def blind_sr_generator(
                 if is_numpy_cache:
                     idx = np.random.randint(0, hr_base_cache.shape[0])
                     vol = hr_base_cache[idx]
+                    sim_class = "real_slice"
                     h_size = hr_large_shape[0]
                     if vol.shape[0] > h_size:
                         if dimensionality == 2:
@@ -211,8 +214,13 @@ def blind_sr_generator(
                         hr_large_np = vol.astype("float32")
                     hr_large = ants.from_numpy(hr_large_np)
                 else:
-                    hr_large = random.choice(hr_base_cache)
-                    hr_large_np = hr_large.numpy().astype("float32")
+                    cached_entry = random.choice(hr_base_cache)
+                    if isinstance(cached_entry, tuple) and len(cached_entry) == 2:
+                        hr_large, sim_class = cached_entry
+                    else:
+                        hr_large = cached_entry
+                        sim_class = getattr(hr_large, "_sim_class", "unknown_sim")
+                    hr_large_np = hr_large.numpy().astype("float32") if hasattr(hr_large, "numpy") else np.asarray(hr_large, dtype="float32")
             
             # Geometric augmentation on the HR volume BEFORE degradation so that the
             # LR image is derived on the (reflected) HR grid — alignment preserved.
@@ -293,10 +301,21 @@ def blind_sr_generator(
                 else:
                     lr_crop = np.clip(lr_crop + np.random.normal(0, noise_std, lr_crop.shape), 0, 1)
                 
+            if return_provenance:
+                meta_batch.append({
+                    "class": str(sim_class),
+                    "gamma": float(gamma),
+                    "blur_sigma": float(sigma),
+                    "interp": int(interp),
+                    "noise_std": float(noise_std),
+                })
             x_batch.append(np.expand_dims(lr_crop, -1))
             y_batch.append(np.expand_dims(hr_crop, -1))
             
-        yield np.array(x_batch, dtype="float32"), np.array(y_batch, dtype="float32")
+        if return_provenance:
+            yield np.array(x_batch, dtype="float32"), np.array(y_batch, dtype="float32"), meta_batch
+        else:
+            yield np.array(x_batch, dtype="float32"), np.array(y_batch, dtype="float32")
 
 def train_blind_espcn_perceptual(factor=2, epochs=20, steps_per_epoch=50, feature_weight=2.0):
     """

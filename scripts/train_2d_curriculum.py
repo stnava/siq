@@ -43,6 +43,8 @@ def main():
     ap.add_argument("--lrs", nargs=4, type=float, default=None, metavar=("WARM", "S1", "S2", "S3"))
     ap.add_argument("--beta", type=float, default=0.97, help="balancer dampening")
     ap.add_argument("--balancer-freq", type=int, default=10)
+    ap.add_argument("--provenance-log", action="store_true",
+                    help="Record per-sample simulation class provenance and loss attribution to CSV")
     a = ap.parse_args()
 
     import siq
@@ -88,12 +90,13 @@ def main():
     results = []
     for seed in a.seeds:
         out = os.path.join(a.out, f"{a.tag}_s{seed}")
-        os.makedirs(out, exist_ok=True)
+        prov_file = os.path.join(out, f"{a.tag}_s{seed}_attribution.csv") if a.provenance_log else None
         model, trace = siq.train_blind_sr_curriculum(
             output_prefix=f"dbpn_small_2d_{a.tag}_s{seed}", dimensionality=2, factor=2, stages=stages,
             batch_size=a.batch_size, lr_patch_size=a.patch, feature_layer=a.feature_layer,
             edge_weight=a.edge_weight, patience=a.patience, balancer_beta=a.beta,
             balancer_freq=a.balancer_freq, seed=seed, out_dir=out,
+            provenance_log_file=prov_file,
             eval_freq=10 if a.smoke else 50, checkpoint_freq=20 if a.smoke else 100, **gen_kw)
         ev = trace.get("final_eval_latest", {})
         ev.update(seed=seed, seconds=trace["seconds_total"],

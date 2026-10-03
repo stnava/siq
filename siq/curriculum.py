@@ -91,6 +91,7 @@ def train_blind_sr_curriculum(
     seed=0,
     out_dir=".",
     enable_report=True,
+    provenance_log_file=None,
     **generator_kwargs,
 ):
     """Run the staged curriculum and return (model, trace).
@@ -198,6 +199,8 @@ def train_blind_sr_curriculum(
         kw = dict(generator_kwargs)
         kw.update(noise_std_range=tuple(st["noise"]), use_rician_noise=bool(st["rician"]),
                   zoom_range=tuple(st["zoom"]))
+        if provenance_log_file:
+            kw["return_provenance"] = True
         return blind_sr_generator(batch_size=batch_size, lr_patch_size=lr_patch_size, factor=factor,
                                   dimensionality=dim, **kw)
 
@@ -220,6 +223,22 @@ def train_blind_sr_curriculum(
     step = 0
     cur_w = {k: 0.0 for k in V}
     t_total = time.time()
+
+    prov_fp = None
+    prov_writer = None
+    if provenance_log_file:
+        import csv
+        prov_dir = os.path.dirname(provenance_log_file)
+        if prov_dir:
+            os.makedirs(prov_dir, exist_ok=True)
+        prov_fp = open(provenance_log_file, "w", newline="")
+        prov_writer = csv.writer(prov_fp)
+        prov_writer.writerow([
+            "step", "stage", "it", "sample_idx", "class",
+            "blur_sigma", "gamma", "interp", "noise_std",
+            "loss_total", "loss_msq", "loss_l1", "loss_feat", "loss_tv", "loss_edge",
+            "w_msq", "w_l1", "w_feat", "w_tv", "w_edge"
+        ])
 
     for st in stages:
         name = st["name"]
@@ -244,7 +263,8 @@ def train_blind_sr_curriculum(
             # median term magnitude over a few clean batches -> weights at their share targets.
             _g = make_gen(st)
             for _ in range(5):
-                _x, _y = next(_g)
+                _batch = next(_g)
+                _x, _y = _batch[0], _batch[1]
                 _t = terms(ops.convert_to_tensor(_y), model(_x, training=False))
                 mags.append({k: float(ops.mean(_t[k])) for k in ("l1", "feat", "tv")})
             _med = {k: float(np.median([m[k] for m in mags])) for k in ("l1", "feat", "tv")}
@@ -258,7 +278,12 @@ def train_blind_sr_curriculum(
         gate_reached = None
         # Stage 1 starts from near-zero feat/tv weights and ramps via the dampened balancer
         for it in range(1, int(st["iters"]) + 1):
-            x, y = next(gen)
+            batch_data = next(gen)
+            if len(batch_data) == 3:
+                x, y, meta_batch = batch_data
+            else:
+                x, y = batch_data
+                meta_batch = None
             loss = model.train_on_batch(x, y)
             if not np.all(np.isfinite(np.asarray(loss, dtype=float))):
                 print(f"[FATAL] non-finite loss at {name} it {it}; halting.", flush=True)
@@ -266,21 +291,56 @@ def train_blind_sr_curriculum(
                 break
             step += 1
             used = it
-            if shares is not None:
+            if shares is not None or (prov_fp is not None and meta_batch):
                 # measure term magnitudes on this batch (forward only)
                 yp = model(x, training=False)
                 tm = terms(ops.convert_to_tensor(y), yp)
-                mags.append({k: float(ops.mean(tm[k])) for k in ("l1", "feat", "tv")})
-                if it % balancer_freq == 0 and len(mags) >= 3:
-                    med = {k: float(np.median([m[k] for m in mags])) for k in ("l1", "feat", "tv")}
-                    tot = float(sum(shares.values()))
-                    for k in ("l1", "feat", "tv"):
-                        target_w = (shares[k] / tot) * total_scale / (med[k] + 1e-12)
-                        if V[k].value == 0.0:
-                            V[k].assign(target_w)
-                        else:
-                            V[k].assign(balancer_beta * float(V[k].value) + (1 - balancer_beta) * target_w)
-            cur_w = {k: float(V[k].value) for k in V}
+                if shares is not None:
+                    mags.append({k: float(ops.mean(tm[k])) for k in ("l1", "feat", "tv")})
+                    if it % balancer_freq == 0 and len(mags) >= 3:
+                        med = {k: float(np.median([m[k] for m in mags])) for k in ("l1", "feat", "tv")}
+                        tot = float(sum(shares.values()))
+                        for k in ("l1", "feat", "tv"):
+                            target_w = (shares[k] / tot) * total_scale / (med[k] + 1e-12)
+                            if V[k].value == 0.0:
+                                V[k].assign(target_w)
+                            else:
+                                V[k].assign(balancer_beta * float(V[k].value) + (1 - balancer_beta) * target_w)
+                cur_w = {k: float(V[k].value) for k in V}
+                if prov_fp is not None and meta_batch:
+                    msq_arr = np.asarray(ops.convert_to_numpy(tm["msq"]))
+                    l1_arr = np.asarray(ops.convert_to_numpy(tm["l1"]))
+                    feat_arr = np.asarray(ops.convert_to_numpy(tm["feat"]))
+                    tv_arr = np.asarray(ops.convert_to_numpy(tm["tv"]))
+                    edge_arr = np.asarray(ops.convert_to_numpy(tm["edge"]))
+                    for i in range(len(meta_batch)):
+                        m_info = meta_batch[i]
+                        c_name = m_info.get("class", "unknown")
+                        msq_i = float(msq_arr[i])
+                        l1_i = float(l1_arr[i])
+                        feat_i = float(feat_arr[i])
+                        tv_i = float(tv_arr[i])
+                        edge_i = float(edge_arr[i])
+                        tot_i = (cur_w.get("msq", 0.0) * msq_i +
+                                 cur_w.get("l1", 0.0) * l1_i +
+                                 cur_w.get("feat", 0.0) * feat_i +
+                                 cur_w.get("tv", 0.0) * tv_i +
+                                 cur_w.get("edge", 0.0) * edge_i)
+                        prov_writer.writerow([
+                            step, name, it, i, c_name,
+                            round(float(m_info.get("blur_sigma", 0.0)), 4),
+                            round(float(m_info.get("gamma", 1.0)), 4),
+                            int(m_info.get("interp", 0)),
+                            round(float(m_info.get("noise_std", 0.0)), 5),
+                            round(tot_i, 6),
+                            round(msq_i, 6), round(l1_i, 6), round(feat_i, 6),
+                            round(tv_i, 6), round(edge_i, 6),
+                            round(cur_w.get("msq", 0.0), 6), round(cur_w.get("l1", 0.0), 6),
+                            round(cur_w.get("feat", 0.0), 8), round(cur_w.get("tv", 0.0), 6),
+                            round(cur_w.get("edge", 0.0), 6)
+                        ])
+            else:
+                cur_w = {k: float(V[k].value) for k in V}
             if it % 50 == 0 or it == 1:
                 print(f"{name} {it}/{st['iters']} loss {float(loss):.5f}  w={ {k: round(v, 6) for k, v in cur_w.items() if v} }",
                       flush=True)
@@ -326,6 +386,10 @@ def train_blind_sr_curriculum(
                                 "gate_step": gate_reached, "pcs_history": ckpt_pcs})
 
     trace["seconds_total"] = time.time() - t_total
+    if prov_fp is not None:
+        prov_fp.flush()
+        prov_fp.close()
+        trace["provenance_log_file"] = provenance_log_file
     config = default_siq_config(model)
     config["model_type"] = "blind_sr_curriculum"
     config["upsample_factor"] = list(factor_tuple) if len(factor_tuple) > 1 else factor_tuple[0]

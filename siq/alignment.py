@@ -118,7 +118,8 @@ def audit_pair_alignment(generator, factor, n_batches=2, verbose=True):
     bad = []
     total = 0
     for _ in range(n_batches):
-        x, y = next(generator)
+        batch = next(generator)
+        x, y = batch[0], batch[1]
         if isinstance(y, (tuple, list)):
             y = y[0]
         for i in range(len(x)):

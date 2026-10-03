@@ -92,3 +92,23 @@ def test_default_stage_schedule_is_ordered_and_gated():
     assert C.DEFAULT_STAGES[0].get("gate") and C.DEFAULT_STAGES[0]["shares"] is None
     for s in C.DEFAULT_STAGES[1:]:
         assert abs(sum(s["shares"].values()) - 100.0) < 1e-6
+
+
+def test_provenance_attribution_log(tmp_path):
+    stages = [
+        dict(name="Warmup", iters=2, lr=1e-4, noise=(0.0, 0.0), rician=False, zoom=(1.0, 1.0), shares=None),
+        dict(name="Stage 1", iters=2, lr=5e-5, noise=(0.0, 0.0), rician=False, zoom=(1.0, 1.0),
+             shares=dict(l1=70.0, feat=25.0, tv=5.0)),
+    ]
+    log_p = str(tmp_path / "prov.csv")
+    model, trace = siq.train_blind_sr_curriculum(
+        output_prefix="prov_test", dimensionality=2, factor=2, stages=stages,
+        batch_size=2, lr_patch_size=16, out_dir=str(tmp_path), enable_report=False,
+        provenance_log_file=log_p, eval_freq=1000)
+    import os, csv
+    assert os.path.exists(log_p)
+    rows = list(csv.DictReader(open(log_p)))
+    assert len(rows) == 4 * 2  # 4 total steps * batch_size 2 = 8 rows
+    assert set(rows[0].keys()) >= {"step", "stage", "sample_idx", "class", "loss_total", "loss_l1", "loss_feat"}
+    assert all(float(r["loss_total"]) > 0 for r in rows)
+
