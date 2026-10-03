@@ -2,13 +2,13 @@ import os
 import sys
 import time
 try:
-    from tests.render_convergence_dashboard import render_html_dashboard_from_csv
+    from scripts.render_convergence_dashboard import render_html_dashboard_from_csv
 except (ModuleNotFoundError, ImportError):
     try:
         from render_convergence_dashboard import render_html_dashboard_from_csv
     except (ModuleNotFoundError, ImportError):
         sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-        from tests.render_convergence_dashboard import render_html_dashboard_from_csv
+        from scripts.render_convergence_dashboard import render_html_dashboard_from_csv
 
 
 def watch_and_protect():

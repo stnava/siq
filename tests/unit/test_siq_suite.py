@@ -28,7 +28,7 @@ from siq.get_data import (
     inference,
     overlapping_patch_inference
 )
-from tests.train_model_refinement import (
+from scripts.train_model_refinement import (
     lowess_smooth,
     LossHistoryTracker,
     get_smoothed_losses_and_weights,

@@ -306,97 +306,14 @@ def save_training_samples_montage(x_batch, y_batch, out_path, title="Live Traini
     plt.close(fig)
 
 
-def generate_svg_chart(x_vals, y_vals, title, y_label, baseline_val=None, baseline_label=None, color="#3b82f6", height=220, width=540, stage_markers=None, x_label="Step"):
-    """
-    Generates a standalone, dependency-free SVG chart for training metric trajectories.
-    Supports stage demarcation lines and non-overlapping cumulative progressions.
-    """
-    if not x_vals or not y_vals or len(x_vals) == 0:
-        return f'<div style="color: #64748b; padding: 20px;">No data recorded yet for {title}.</div>'
-    
-    pad_left = 65
-    pad_right = 30
-    pad_top = 35
-    pad_bottom = 40
-    
-    w = width
-    h = height
-    plot_w = w - pad_left - pad_right
-    plot_h = h - pad_top - pad_bottom
-    
-    min_x = min(x_vals)
-    max_x = max(x_vals)
-    if min_x == max_x:
-        max_x = min_x + 1
-        
-    all_y = list(y_vals)
-    if baseline_val is not None:
-        all_y.append(baseline_val)
-    min_y = min(all_y)
-    max_y = max(all_y)
-    
-    # Add 8% padding to Y range
-    range_y = max(1e-6, max_y - min_y)
-    min_y -= range_y * 0.08
-    max_y += range_y * 0.08
-    range_y = max_y - min_y
-    
-    def map_x(x):
-        return pad_left + ((x - min_x) / (max_x - min_x)) * plot_w
-        
-    def map_y(y):
-        return pad_top + plot_h - ((y - min_y) / range_y) * plot_h
-        
-    svg = f'<svg viewBox="0 0 {w} {h}" class="chart-svg" style="width: 100%; height: auto; display: block;">\n'
-    # Background rect
-    svg += f'  <rect width="{w}" height="{h}" fill="#0f172a" rx="8" />\n'
-    
-    # Title
-    svg += f'  <text x="{pad_left}" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">{title}</text>\n'
-    
-    # Grid lines (4 horizontal)
-    for i in range(5):
-        val = min_y + (i / 4.0) * range_y
-        y_pos = map_y(val)
-        svg += f'  <line x1="{pad_left}" y1="{y_pos:.1f}" x2="{w - pad_right}" y2="{y_pos:.1f}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />\n'
-        svg += f'  <text x="{pad_left - 8}" y="{y_pos + 4:.1f}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">{val:.2f}</text>\n'
-        
-    # Baseline line if present
-    if baseline_val is not None:
-        b_y = map_y(baseline_val)
-        svg += f'  <line x1="{pad_left}" y1="{b_y:.1f}" x2="{w - pad_right}" y2="{b_y:.1f}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />\n'
-        svg += f'  <text x="{w - pad_right}" y="{b_y - 5:.1f}" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">{baseline_label or "Baseline"}: {baseline_val:.2f}</text>\n'
-        
-    # Stage boundary vertical dividers
-    if stage_markers:
-        for bx, b_name in stage_markers:
-            if min_x < bx < max_x:
-                mx = map_x(bx)
-                svg += f'  <line x1="{mx:.1f}" y1="{pad_top}" x2="{mx:.1f}" y2="{pad_top + plot_h}" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />\n'
-                svg += f'  <text x="{mx + 4:.1f}" y="{pad_top + 14}" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">{b_name}</text>\n'
+try:
+    from .render_convergence_dashboard import generate_svg_chart
+except ImportError:
+    try:
+        from scripts.render_convergence_dashboard import generate_svg_chart
+    except ImportError:
+        from render_convergence_dashboard import generate_svg_chart
 
-    # Points and line
-    pts = [f"{map_x(x):.1f},{map_y(y):.1f}" for x, y in zip(x_vals, y_vals)]
-    svg += f'  <polyline points="{" ".join(pts)}" fill="none" stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />\n'
-    
-    # Draw points
-    for x, y in zip(x_vals, y_vals):
-        cx = map_x(x)
-        cy = map_y(y)
-        svg += f'  <circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.5" fill="#0f172a" stroke="{color}" stroke-width="2" />\n'
-        
-    # Latest value pill
-    latest_x = map_x(x_vals[-1])
-    latest_y = map_y(y_vals[-1])
-    svg += f'  <circle cx="{latest_x:.1f}" cy="{latest_y:.1f}" r="5.5" fill="{color}" />\n'
-    svg += f'  <text x="{pad_left + plot_w}" y="22" fill="{color}" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: {y_vals[-1]:.2f}</text>\n'
-    
-    # X axis labels
-    svg += f'  <text x="{pad_left}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10">{x_label} {min_x}</text>\n'
-    svg += f'  <text x="{pad_left + plot_w}" y="{h - 12}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">{x_label} {max_x}</text>\n'
-    
-    svg += '</svg>\n'
-    return svg
 
 
 class VisualConvergenceReporter:
@@ -998,7 +915,10 @@ class VisualConvergenceReporter:
         Compiles the visual HTML dashboard with interactive viewports, SVG charts, and convergence history.
         """
         try:
-            from tests.render_convergence_dashboard import render_html_dashboard_from_csv
+            try:
+                from .render_convergence_dashboard import render_html_dashboard_from_csv
+            except ImportError:
+                from scripts.render_convergence_dashboard import render_html_dashboard_from_csv
             if render_html_dashboard_from_csv(
                 csv_path=self.csv_path,
                 html_path=self.html_path,

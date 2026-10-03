@@ -535,16 +535,17 @@ def train_blind_sr_kitchen_sink(
     reporter = None
     if enable_html_report:
         try:
-            from tests.visual_convergence_report import VisualConvergenceReporter
+            from scripts.visual_convergence_report import VisualConvergenceReporter
         except Exception:
             try:
-                from scripts.visual_convergence_report import VisualConvergenceReporter
+                from tests.visual_convergence_report import VisualConvergenceReporter
             except Exception:
                 try:
                     from visual_convergence_report import VisualConvergenceReporter
                 except Exception as _err:
                     print(f"[blind_sr] Note: VisualConvergenceReporter could not be imported: {_err}")
                     VisualConvergenceReporter = None
+
 
         if VisualConvergenceReporter is not None:
             default_fpa = "/Users/stnava/data/blast_cohorts/BIDS/FPA/sub-BLAST022/ses-01/anat/sub-BLAST022_ses-01_run-001_T1w.nii.gz"
@@ -589,9 +590,13 @@ def train_blind_sr_kitchen_sink(
     if enable_html_report and dim == 2 and reporter is None:
         try:
             try:
-                from tests.visual_convergence_report import VisualConvergenceReporter as _VCR
-            except Exception:
                 from scripts.visual_convergence_report import VisualConvergenceReporter as _VCR
+            except Exception:
+                try:
+                    from tests.visual_convergence_report import VisualConvergenceReporter as _VCR
+                except Exception:
+                    from visual_convergence_report import VisualConvergenceReporter as _VCR
+
             val_lr_patch, val_hr_patch = prepare_2d_validation(val_image, factor_tuple)
             reporter = _VCR(
                 workspace_dir=".",

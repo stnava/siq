@@ -177,9 +177,13 @@ def train_blind_sr_curriculum(
     if dim == 2 and enable_report:
         try:
             try:
-                from tests.visual_convergence_report import VisualConvergenceReporter as VCR
-            except Exception:
                 from scripts.visual_convergence_report import VisualConvergenceReporter as VCR
+            except Exception:
+                try:
+                    from tests.visual_convergence_report import VisualConvergenceReporter as VCR
+                except Exception:
+                    from visual_convergence_report import VisualConvergenceReporter as VCR
+
             val_lr, val_hr = prepare_2d_validation(val_image, factor_tuple)
             reporter = VCR(workspace_dir=out_dir, checkpoint_dir=os.path.join(out_dir, f"checkpoints/{output_prefix}"),
                            report_dir=os.path.join(out_dir, f"reports/{output_prefix}"),

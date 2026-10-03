@@ -201,7 +201,11 @@ def prune_artifacts_above(ckpt_dir, rep_dir, html_report, max_valid_iter, select
             log(f"Warning trimming convergence_history: {e}", log_path)
 
         try:
-            from tests.visual_convergence_report import VisualConvergenceReporter
+            try:
+                from scripts.visual_convergence_report import VisualConvergenceReporter
+            except ImportError:
+                from visual_convergence_report import VisualConvergenceReporter
+
             reporter = VisualConvergenceReporter(
                 checkpoint_dir=ckpt_dir,
                 report_dir=rep_dir,
