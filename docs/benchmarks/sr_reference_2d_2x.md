@@ -1,35 +1,3 @@
-# 2D 2x super-resolution reference results (siq v0.10.20)
-
-Generated with `siq.sr_benchmark` (see `.agents/skills/siq-benchmark/SKILL.md`):
-
-```
-python scripts/sr_reference_benchmark.py --public edsr-base --public msrn-bam \
-  --model real_mse_matched=<results/2d_matched_real_mse/..._latest.keras> \
-  --model fast_curriculum_procedural=<results/2d_curriculum/fast_s0/..._latest.keras> \
-  --out docs/benchmarks --name sr_reference_2d_2x
-```
-
-**Case sets.** `r16c`: cropped ANTs r16 (1 slice, nearest decimation, out-of-domain smooth image).
-`heldout`: 24 real BLAST/EAS axial T1 slices from 8 subjects disjoint from the 40-subject training cache,
-nearest decimation (siq training contract). `heldout_aa`: same slices with Gaussian(1) anti-aliasing before
-decimation (the degradation public networks were trained for). Public models use the analytic half-pixel
-phase correction (`phase="half-pixel"`; `"auto"` agrees to 0.03 voxel).
-
-**Models.**
-* `real_mse_matched` - DBPN-small, plain MSE, 1200 steps, trained on the real-slice cache with the nearest-decimation degradation
-  (`train_2d_curriculum.py --cache ... --degradation matched --mse-only --iters 1200 0 0 0`).
-* `fast_curriculum_procedural` - DBPN-small, 4-stage perceptual curriculum (`--fast`, ~10 min) on procedural simulated images.
-* `PUBLIC eugenesiow/*` - super-image pretrained EDSR-base / MSRN-bam (DIV2K natural images).
-
-**Reading the table.** CQS decides (PSNR is informational; it rewards blur). `PCSc` bounds the sharpness reward that
-raw `PCS` leaves unbounded. A model has *learned gain* only if it beats the in-sample linear oracle ("beats ceiling").
-
-**Findings at this commit.**
-1. Only `real_mse_matched` on `heldout` (in-domain) beats best-classical and the linear ceiling (CQS +0.0084 / +0.0048); the margin is small.
-2. Procedurally-trained models lose to bilinear on real held-out slices (CQS -0.056 vs bilinear on `heldout`): never validate on procedural data alone.
-3. Public EDSR/MSRN are a valid reference only with anti-aliased input + phase correction (`heldout_aa`: +0.10 CQS over bilinear, still 0.0085 below the linear oracle). On nearest-decimated input they amplify aliasing and lose.
-4. Under nearest decimation the linear headroom is tiny (oracle +0.011 CQS over bilinear); under anti-aliasing it is large (+0.11).
-
 ### r16c
 
 | method | psnr | ssim | gmsd | cbi | cqs | pcs | pcsc | acutance | laplacian |
@@ -60,51 +28,51 @@ raw `PCS` leaves unbounded. A model has *learned gain* only if it beats the in-s
 
 | method | psnr | ssim | gmsd | cbi | cqs | pcs | pcsc | acutance | laplacian |
 |:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| nearest | 23.13 | 0.8274 | 0.1739 | 0.0969 | 0.5566 | 1.6132 | 0.4895 | 1.0026 | 1.1105 |
-| bilinear | 26.98 | 0.9105 | 0.1449 | 0.0700 | 0.6956 | 1.2588 | 0.2588 | 0.6985 | 0.4278 |
-| bspline | 27.03 | 0.9121 | 0.1375 | 0.0712 | 0.7034 | 1.4226 | 0.4226 | 0.8982 | 0.5402 |
-| windowed-sinc | 26.90 | 0.9100 | 0.1389 | 0.0718 | 0.6992 | 1.4478 | 0.4478 | 0.9330 | 0.5642 |
-| linear-LS REAL (K=9) | 26.46 | 0.8980 | 0.1472 | 0.0709 | 0.6799 | 1.2716 | 0.2716 | 0.6594 | 0.5240 |
-| linear-LS oracle in-sample (K=9) | 27.44 | 0.9150 | 0.1386 | 0.0694 | 0.7070 | 1.3335 | 0.3335 | 0.7701 | 0.4830 |
-| MODEL real_mse_matched | 26.76 | 0.9164 | 0.1374 | 0.0672 | 0.7118 | 1.4109 | 0.3845 | 0.8757 | 0.5227 |
-| MODEL fast_curriculum_procedural | 25.43 | 0.8652 | 0.1537 | 0.0716 | 0.6399 | 1.4535 | 0.3868 | 0.9818 | 0.6454 |
-| PUBLIC eugenesiow/edsr-base | 23.60 | 0.8670 | 0.1674 | 0.1085 | 0.5911 | 2.1062 | 0.0760 | 1.7839 | 1.2463 |
-| PUBLIC eugenesiow/msrn-bam | 23.61 | 0.8676 | 0.1667 | 0.1093 | 0.5915 | 2.1100 | 0.0731 | 1.7848 | 1.2521 |
-| bil+unsharp best-CQS (s=2.0,a=0.25) | 26.87 | 0.9137 | 0.1405 | 0.0706 | 0.7026 | 1.4317 | 0.4317 | 0.9283 | 0.5300 |
-| bil+unsharp best-PCSc (s=1.0,a=0.5) | 26.68 | 0.9111 | 0.1425 | 0.0716 | 0.6970 | 1.4631 | 0.4631 | 0.9413 | 0.5910 |
+| nearest | 24.30 | 0.8593 | 0.1700 | 0.0835 | 0.6058 | 1.6955 | 0.5091 | 1.0057 | 1.1736 |
+| bilinear | 28.26 | 0.9337 | 0.1348 | 0.0594 | 0.7396 | 1.3199 | 0.3199 | 0.7117 | 0.4489 |
+| bspline | 28.40 | 0.9354 | 0.1289 | 0.0602 | 0.7462 | 1.4809 | 0.4809 | 0.9054 | 0.5641 |
+| windowed-sinc | 28.29 | 0.9335 | 0.1304 | 0.0608 | 0.7423 | 1.5062 | 0.5062 | 0.9388 | 0.5890 |
+| linear-LS REAL (K=9) | 27.77 | 0.9234 | 0.1396 | 0.0602 | 0.7236 | 1.3346 | 0.3346 | 0.6654 | 0.5567 |
+| linear-LS oracle in-sample (K=9) | 28.83 | 0.9362 | 0.1303 | 0.0607 | 0.7452 | 1.4169 | 0.4053 | 0.7922 | 0.5512 |
+| MODEL real_mse_matched | 26.38 | 0.9359 | 0.1238 | 0.0567 | 0.7553 | 1.6032 | 0.4953 | 1.0878 | 0.6079 |
+| MODEL fast_curriculum_procedural | 23.98 | 0.8862 | 0.1400 | 0.0620 | 0.6842 | 1.6796 | 0.4469 | 1.2323 | 0.7584 |
+| PUBLIC eugenesiow/edsr-base | 24.89 | 0.8977 | 0.1591 | 0.0989 | 0.6397 | 2.1803 | 0.0991 | 1.7847 | 1.2964 |
+| PUBLIC eugenesiow/msrn-bam | 24.91 | 0.8984 | 0.1584 | 0.0997 | 0.6403 | 2.1819 | 0.0988 | 1.7796 | 1.3035 |
+| bil+unsharp best-CQS (s=2.0,a=0.25) | 28.17 | 0.9359 | 0.1313 | 0.0599 | 0.7446 | 1.4935 | 0.4935 | 0.9425 | 0.5552 |
+| bil+unsharp best-PCSc (s=1.0,a=0.5) | 27.97 | 0.9334 | 0.1332 | 0.0609 | 0.7394 | 1.5244 | 0.5244 | 0.9513 | 0.6186 |
 
 **Verdicts (CQS; PSNR is informational):**
 
 | method | Δ vs bilinear | Δ vs best classical | Δ vs linear ceiling | beats classical | beats ceiling |
 |:--|:-:|:-:|:-:|:-:|:-:|
-| MODEL real_mse_matched | +0.0161 | +0.0084 | +0.0048 | yes | yes |
-| MODEL fast_curriculum_procedural | -0.0557 | -0.0635 | -0.0671 | no | no |
-| PUBLIC eugenesiow/edsr-base | -0.1045 | -0.1123 | -0.1159 | no | no |
-| PUBLIC eugenesiow/msrn-bam | -0.1041 | -0.1119 | -0.1154 | no | no |
+| MODEL real_mse_matched | +0.0157 | +0.0091 | +0.0101 | yes | yes |
+| MODEL fast_curriculum_procedural | -0.0554 | -0.0620 | -0.0610 | no | no |
+| PUBLIC eugenesiow/edsr-base | -0.0999 | -0.1065 | -0.1055 | no | no |
+| PUBLIC eugenesiow/msrn-bam | -0.0993 | -0.1059 | -0.1049 | no | no |
 
 ### heldout_aa
 
 | method | psnr | ssim | gmsd | cbi | cqs | pcs | pcsc | acutance | laplacian |
 |:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| nearest | 24.08 | 0.8298 | 0.1917 | 0.0797 | 0.5583 | 1.0844 | 0.0844 | 0.4304 | 0.6217 |
-| bilinear | 25.45 | 0.8623 | 0.1883 | 0.0757 | 0.5983 | 0.8806 | -0.1194 | 0.3607 | 0.2041 |
-| bspline | 26.24 | 0.8859 | 0.1709 | 0.0745 | 0.6405 | 0.9701 | -0.0299 | 0.4249 | 0.2343 |
-| windowed-sinc | 26.31 | 0.8882 | 0.1685 | 0.0743 | 0.6454 | 0.9848 | -0.0152 | 0.4341 | 0.2448 |
-| linear-LS REAL (K=9) | 25.27 | 0.8567 | 0.1885 | 0.0757 | 0.5925 | 0.9012 | -0.0988 | 0.3447 | 0.2727 |
-| linear-LS oracle in-sample (K=9) | 28.09 | 0.9250 | 0.1351 | 0.0786 | 0.7113 | 1.4423 | 0.3878 | 0.8308 | 0.6314 |
-| MODEL real_mse_matched | 22.58 | 0.8733 | 0.1754 | 0.0737 | 0.6243 | 1.0885 | 0.0867 | 0.6323 | 0.2960 |
-| MODEL fast_curriculum_procedural | 22.15 | 0.8344 | 0.1778 | 0.0740 | 0.5827 | 1.1217 | 0.1159 | 0.6935 | 0.3846 |
-| PUBLIC eugenesiow/edsr-base | 27.89 | 0.9152 | 0.1434 | 0.0691 | 0.7027 | 1.1105 | 0.1105 | 0.5029 | 0.3127 |
-| PUBLIC eugenesiow/msrn-bam | 27.89 | 0.9152 | 0.1433 | 0.0691 | 0.7028 | 1.1104 | 0.1104 | 0.5033 | 0.3119 |
-| bil+unsharp best-CQS (s=2.0,a=1.0) | 26.87 | 0.9117 | 0.1549 | 0.0737 | 0.6830 | 1.2496 | 0.2496 | 0.7517 | 0.3813 |
-| bil+unsharp best-PCSc (s=2.0,a=1.0) | 26.87 | 0.9117 | 0.1549 | 0.0737 | 0.6830 | 1.2496 | 0.2496 | 0.7517 | 0.3813 |
+| nearest | 25.13 | 0.8621 | 0.1843 | 0.0684 | 0.6093 | 1.1831 | 0.1831 | 0.4505 | 0.6971 |
+| bilinear | 26.60 | 0.8946 | 0.1775 | 0.0644 | 0.6527 | 0.9545 | -0.0455 | 0.3779 | 0.2256 |
+| bspline | 27.43 | 0.9149 | 0.1607 | 0.0633 | 0.6909 | 1.0424 | 0.0424 | 0.4443 | 0.2587 |
+| windowed-sinc | 27.51 | 0.9167 | 0.1582 | 0.0632 | 0.6953 | 1.0580 | 0.0580 | 0.4541 | 0.2713 |
+| linear-LS REAL (K=9) | 26.46 | 0.8897 | 0.1784 | 0.0644 | 0.6468 | 0.9769 | -0.0231 | 0.3556 | 0.3045 |
+| linear-LS oracle in-sample (K=9) | 29.81 | 0.9492 | 0.1251 | 0.0614 | 0.7627 | 1.4617 | 0.4617 | 0.8282 | 0.5699 |
+| MODEL real_mse_matched | 18.93 | 0.8762 | 0.1629 | 0.0618 | 0.6515 | 1.2846 | 0.2697 | 0.8885 | 0.3777 |
+| MODEL fast_curriculum_procedural | 18.23 | 0.8427 | 0.1584 | 0.0626 | 0.6217 | 1.3687 | 0.2953 | 0.9963 | 0.4976 |
+| PUBLIC eugenesiow/edsr-base | 29.45 | 0.9382 | 0.1327 | 0.0581 | 0.7474 | 1.1761 | 0.1761 | 0.5196 | 0.3379 |
+| PUBLIC eugenesiow/msrn-bam | 29.45 | 0.9382 | 0.1329 | 0.0581 | 0.7472 | 1.1757 | 0.1757 | 0.5200 | 0.3370 |
+| bil+unsharp best-CQS (s=2.0,a=1.0) | 28.05 | 0.9346 | 0.1463 | 0.0626 | 0.7257 | 1.3293 | 0.3293 | 0.7882 | 0.4190 |
+| bil+unsharp best-PCSc (s=2.0,a=1.0) | 28.05 | 0.9346 | 0.1463 | 0.0626 | 0.7257 | 1.3293 | 0.3293 | 0.7882 | 0.4190 |
 
 **Verdicts (CQS; PSNR is informational):**
 
 | method | Δ vs bilinear | Δ vs best classical | Δ vs linear ceiling | beats classical | beats ceiling |
 |:--|:-:|:-:|:-:|:-:|:-:|
-| MODEL real_mse_matched | +0.0260 | -0.0588 | -0.0870 | no | no |
-| MODEL fast_curriculum_procedural | -0.0156 | -0.1004 | -0.1286 | no | no |
-| PUBLIC eugenesiow/edsr-base | +0.1045 | +0.0197 | -0.0085 | yes | no |
-| PUBLIC eugenesiow/msrn-bam | +0.1045 | +0.0198 | -0.0085 | yes | no |
+| MODEL real_mse_matched | -0.0012 | -0.0742 | -0.1111 | no | no |
+| MODEL fast_curriculum_procedural | -0.0310 | -0.1040 | -0.1410 | no | no |
+| PUBLIC eugenesiow/edsr-base | +0.0947 | +0.0216 | -0.0153 | yes | no |
+| PUBLIC eugenesiow/msrn-bam | +0.0945 | +0.0215 | -0.0154 | yes | no |
 

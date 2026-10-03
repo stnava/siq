@@ -12,6 +12,8 @@ ap.add_argument("--n-subjects", type=int, default=40)
 ap.add_argument("--stride", type=int, default=5)
 ap.add_argument("--size", type=int, default=192)
 ap.add_argument("--skip-subjects", type=int, default=0, help="skip the first K distinct subjects (use for a disjoint held-out set)")
+ap.add_argument("--zrange", type=float, nargs=2, default=[0.2, 0.8],
+                help="fraction of the brain z-extent to sample (mid-cerebrum ~ 0.5 0.75)")
 ap.add_argument("--out", default="results/real_slice_cache.npy")
 a = ap.parse_args()
 
@@ -33,7 +35,7 @@ for f in picked:
         m = v > 0.08
         zs = np.where(m.reshape(-1, m.shape[2]).mean(0) > 0.04)[0]
         if len(zs) < 20: continue
-        z0, z1 = int(zs[0] + 0.2 * len(zs)), int(zs[0] + 0.8 * len(zs))
+        z0, z1 = int(zs[0] + a.zrange[0] * len(zs)), int(zs[0] + a.zrange[1] * len(zs))
         for z in range(z0, z1, a.stride):
             sl = v[:, :, z]
             if min(sl.shape) < S:
