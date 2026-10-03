@@ -367,3 +367,30 @@ Hard-won lessons (see `docs/benchmarks/sr_reference_2d_2x.md`):
 * **Never validate on r16c alone** (one smooth out-of-domain slice) or on PSNR; use `siq.sr_benchmark` (`heldout` case) and beat
   the best classical method and linear ceiling on CQS. PCS rewards unbounded over-sharpening; read PCSc beside it.
 * The nearest-decimation task has little linear headroom (+0.011 CQS); expect small learned gains unless the degradation includes blur.
+
+## Recipe for Beating Public Models (EDSR/MSRN) on Real MRI
+
+This verified recipe produced `real_curr_aa` (CQS **0.7740** on `heldout_aa`), beating public EDSR (`0.7474`, +0.0266 CQS, +0.75 dB PSNR, +0.3144 PCSc), windowed-sinc (`0.6953`), and the linear oracle ceiling (`0.7627`).
+
+### 1. Build Mid-Cerebrum Real Slice Cache
+```bash
+python scripts/build_real_slice_cache.py \
+  --n-subjects 40 --stride 4 --size 192 \
+  --zrange 0.64 0.78 \
+  --out results/real_slice_cache.npy
+```
+- Constraining to `zrange=[0.64, 0.78]` ensures training on high parenchyma and cortical edge density (excluding neck and cerebellum).
+
+### 2. Launch 4-Stage Perceptual Curriculum with Fixed Radiometry
+```bash
+python scripts/train_2d_curriculum.py \
+  --cache results/real_slice_cache.npy \
+  --degradation aa \
+  --fast \
+  --tag real_curr_aa \
+  --out results/2d_real_curr_aa
+```
+- `--degradation aa`: Applies Gaussian(1.0) anti-aliasing + decimation with stochastic gamma perturbation `(0.6, 1.7)`.
+- **Radiometric Contract**: Never apply independent min-max normalization to blurred LR (`siq/blind_sr.py`).
+- **Pre-Normalized Inference**: Benchmark models directly on pre-normalized slices (`siq.benchmark.siq_model_method`) to prevent double TruncateIntensity and output min-max stretching.
+

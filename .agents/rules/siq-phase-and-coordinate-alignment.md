@@ -63,3 +63,14 @@ Rules:
 ## 6. Mandatory Alignment QC
 
 Use `siq.compute_alignment_qc` (FFT phase + Lucas-Kanade shift, directional edge-error correlation with the **signed** error, all measured **relative to the bilinear baseline**; PSNR/SSIM vs bilinear are reported only). Per-axis shift is the smaller magnitude of the FFT and LK estimates (both must agree; FFT is unreliable on small patches). Calibrated thresholds: PASS shift < 0.08 vox and edge-corr < 0.16; WARN shift 0.08–0.15 or edge-corr 0.16–0.26; FAIL shift >= 0.15 or edge-corr >= 0.26. **PSNR never fails or warns** (it rewards blur; perception–distortion tradeoff). It runs at every validation checkpoint in `VisualConvergenceReporter`; the standalone CLI is `scripts/sr_alignment_qc.py` (see the `siq-qc` skill).
+
+## 7. Radiometric Gain Invariant: Never Independently Min-Max Rescale Degraded LR
+
+In `siq.blind_sr_generator` and all training pipelines:
+- High-resolution (HR) training patches are normalized to $[0.0, 1.0]$.
+- When stochastic blur, downsampling, or filtering is applied to produce LR, the blurred LR image naturally exhibits attenuated local maxima (e.g. peak intensity drops from $1.0$ to $\sim 0.8$).
+- **Strict Prohibition**: Never apply independent min-max stretching (`(lr - lr_min) / (lr_max - lr_min)`) to the LR patch.
+  - Stretching LR relative to HR forces a synthetic gain mismatch ($\text{LR} > \text{HR}$ by up to $1.3\times$).
+  - The convolutional network learns this as a systematic darkening operator (gain $\sim 0.75 - 0.85\times$), causing severe radiometric distortion, washed-out appearances, and $\sim 8-10\text{ dB}$ PSNR penalties at test time.
+- **Rule**: LR and HR must share identical absolute radiometric calibration: `lr_crop = np.clip(lr_crop, 0.0, 1.0)`. Enforced by `tests/test_alignment_contract.py:test_generator_pair_is_radiometrically_consistent`.
+

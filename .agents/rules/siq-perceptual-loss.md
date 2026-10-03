@@ -94,3 +94,11 @@ Never report a super-resolution model as "good" from its own numbers or from PSN
 - Report PCSc (bounded sharpness) next to PCS: PCS rewards over-sharpening beyond the ground truth.
 - Public pretrained models (super-image EDSR/MSRN/...) are evaluated through `siq.public_model_method` with an explicit phase calibration (`half-pixel` or `auto`); never compare an uncalibrated public model.
 - Never conclude from procedural-simulation validation alone: procedural-trained models lost to bilinear on real held-out slices. Real-slice held-out evaluation is mandatory.
+
+## Pre-Normalized Benchmark & Direct Inference Invariant
+
+When evaluating pre-normalized $[0, 1]$ benchmark slices or patches:
+- Never pass pre-normalized data through preprocessing that re-applies `TruncateIntensity` and `Normalize`, or re-normalizes output tensors upon linear blending.
+- Doing so skews slice gain by $\sim 19\%$ (collapsing PSNR to $\sim 18\text{ dB}$ on models that achieve $>30\text{ dB}$ raw).
+- For benchmark validation cases with known $[0, 1]$ bounds, evaluate via direct forward prediction while preserving direction-cosine reflection compensation and architecture-aware phase shifts.
+
