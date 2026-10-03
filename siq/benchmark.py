@@ -379,20 +379,28 @@ def save_results(results, out_dir="results/sr_reference", name="reference"):
     return md
 
 
+def build_methods(models=None, public=None, factor=(2, 2), phase="half-pixel", calibration_cases=None,
+                  train_cache="results/real_slice_cache.npy", K=9):
+    """Reference + model + public methods as one list (shared by tables and image reports)."""
+    factor = tuple(int(f) for f in factor)
+    methods = classical_methods() + unsharp_methods() + linear_ls_methods(train_cache, K)
+    for n, p in (models or {}).items():
+        methods.append(siq_model_method(n, p))
+    for pid in (public or []):
+        methods.append(public_model_method(pid, factor, phase, calibration_cases=calibration_cases))
+    return methods
+
+
 def benchmark(models=None, public=None, factor=(2, 2), phase="half-pixel", case_names=None,
               heldout="results/heldout_slice_cache.npy", train_cache="results/real_slice_cache.npy",
               out_dir="results/sr_reference", name="reference", K=9, verbose=True):
     """One call: references + ``models`` ({name: path.keras}) + ``public`` ([zoo names / HF ids]).
 
-    Returns (results, markdown).  Written to ``out_dir/{name}.json|md``."""
+    Returns (results, markdown).  Written to ``out_dir/{name}.json|md|html``."""
     factor = tuple(int(f) for f in factor)
     cases = build_cases(factor, heldout=heldout, include=case_names)
-    methods = classical_methods() + unsharp_methods() + linear_ls_methods(train_cache, K)
-    for n, p in (models or {}).items():
-        methods.append(siq_model_method(n, p))
     calib = cases.get("heldout_aa") or next(iter(cases.values()))
-    for pid in (public or []):
-        methods.append(public_model_method(pid, factor, phase, calibration_cases=calib))
+    methods = build_methods(models, public, factor, phase, calib, train_cache, K)
     results = run_benchmark(methods, cases, factor, verbose)
     return results, save_results(results, out_dir, name)
 
@@ -471,6 +479,114 @@ const T=[...document.querySelectorAll('.tab')],P=[...document.querySelectorAll('
 function show(i){{if(i<0||i>=P.length)return;T.forEach((t,j)=>t.classList.toggle('on',j==i));P.forEach((p,j)=>p.classList.toggle('on',j==i));}}
 T.forEach((t,i)=>t.onclick=()=>show(i));
 document.addEventListener('keydown',e=>{{const n=parseInt(e.key);if(n)show(n-1);}});
+</script></body></html>"""
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w") as fh:
+        fh.write(doc)
+    return path
+
+
+def render_image_report(methods, cases, path, factor=(2, 2), picks=None, title="siq SR comparison (images)",
+                        notes_html="", keep=None, zoom=3):
+    """Single-viewport, in-place flicker report of the actual SR images.
+
+    One canvas (same coordinates, size and zoom for every state): number keys 1..9,0 swap the shown
+    method in place (no layout shift), ``e`` toggles the residual |SR-GT| map, ``c`` cycles the case,
+    ``z`` toggles zoom.  Display contrast uses ``ants.histogram_equalize_image`` on the joint stack of
+    all states of a case (ONE shared lookup table, so flicker differences are real, not LUT artefacts);
+    equalization is applied to display arrays only -- metrics use the raw outputs.
+
+    ``picks``: {case_name: [case indices]} (default: first case; two spread slices for multi-slice sets).
+    ``keep``: iterable of method names to show (default: bilinear, bspline, the best-CQS unsharp setting,
+    linear-LS oracle, then every model/public method).  Max 8 + GT + LR = 10 keys."""
+    import base64, io, html as _h
+    import ants
+    from PIL import Image
+
+    def png(a):
+        buf = io.BytesIO(); Image.fromarray(np.clip(a * 255, 0, 255).astype("uint8")).save(buf, "PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+
+    factor = tuple(int(f) for f in factor)
+    views = []
+    for cname, cl in cases.items():
+        idxs = (picks or {}).get(cname)
+        if idxs is None:
+            idxs = [0] if len(cl) == 1 else [len(cl) // 4, (3 * len(cl)) // 4]
+        views += [(cname, i, cl[i]) for i in idxs]
+    # method selection: references first, the per-view best-CQS unsharp setting after bspline, then the rest
+    by_name = {m.name: m for m in methods}
+    if keep:
+        pre, post = [n for n in keep if by_name[n].group in ("classical",)], \
+                    [n for n in keep if by_name[n].group not in ("classical",)]
+    else:
+        pre = [n for n in ("bilinear", "bspline") if n in by_name]
+        post = [m.name for m in methods if m.meta.get("oracle")] + \
+               [m.name for m in methods if m.group in ("model", "public")]
+    unsharp_all = [m for m in methods if m.group == "unsharp"] if not keep else []
+
+    def run_one(m, lr, gt, g):
+        return np.clip(np.asarray(m.run(lr, gt))[tuple(slice(0, s) for s in g.shape)], 0, 1)
+
+    payload = []
+    for cname, idx, (lr, gt) in views:
+        g = gt.numpy().astype("float32")
+        outs = {"Ground truth (HR)": g,
+                "LR input (nearest-upsampled)": np.clip(
+                    ants.resample_image_to_target(lr, gt, interp_type=1).numpy(), 0, 1)[tuple(slice(0, s) for s in g.shape)]}
+        stats = {k: None for k in outs}
+
+        def add(name, x):
+            outs[name] = x
+            st = sr_metrics(g, x, factor); stats[name] = (st["psnr"], st["cqs"], st["pcsc"])
+        for n in pre:
+            add(n, run_one(by_name[n], lr, gt, g))
+        if unsharp_all:
+            cand = {m.name: run_one(m, lr, gt, g) for m in unsharp_all}
+            best = max(cand, key=lambda k: sr_metrics(g, cand[k], factor)["cqs"])
+            add(best, cand[best])
+        for n in post:
+            add(n, run_one(by_name[n], lr, gt, g))
+        assert len(outs) <= 10, "image report supports at most 10 states (keys 1-9,0)"
+        # one shared display LUT: joint histogram equalisation of the stacked states (display only)
+        keys = list(outs)
+        stack = np.concatenate([outs[k] for k in keys], axis=1)
+        eq = ants.histogram_equalize_image(ants.from_numpy(stack.astype("float32")), number_of_histogram_bins=256).numpy()
+        W = g.shape[1]
+        imgs, errs = {}, {}
+        for j, k in enumerate(keys):
+            imgs[k] = png(eq[:, j * W:(j + 1) * W])
+            errs[k] = png(1.0 - np.clip(np.abs(outs[k] - g) / 0.25, 0, 1))   # white=0 error; same scale for ALL states
+        payload.append(dict(case=cname, idx=int(idx), shape=list(g.shape), keys=keys, stats=stats, imgs=imgs, errs=errs))
+    import json as _json
+    data = _json.dumps(payload)
+    doc = f"""<!doctype html><html><head><meta charset="utf-8"><title>{_h.escape(title)}</title><style>
+body{{font:14px -apple-system,Segoe UI,sans-serif;margin:18px;color:#0f172a;background:#0b1220;color:#e2e8f0}}
+h1{{margin:0 0 4px;font-size:20px}} .sub{{color:#94a3b8;margin-bottom:10px}}
+#bar{{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}} button{{border:1px solid #334155;background:#111a2e;color:#cbd5e1;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}}
+button.on{{background:#e2e8f0;color:#0b1220;border-color:#e2e8f0}} #wrap{{display:flex;gap:18px;align-items:flex-start}}
+#view{{width:calc(var(--w)*var(--z)*1px);height:calc(var(--h)*var(--z)*1px);border:1px solid #334155;background:#000;flex:none}}
+#view img{{width:100%;height:100%;image-rendering:pixelated;display:block}}
+#info{{min-width:340px}} #info b{{color:#fff}} .k{{color:#94a3b8}} table{{border-collapse:collapse}} td{{padding:3px 8px;border-bottom:1px solid #1e293b}}
+code{{background:#1e293b;padding:1px 5px;border-radius:3px}} .note{{max-width:1000px;color:#94a3b8;margin-top:14px;line-height:1.5}}
+</style></head><body><h1>{_h.escape(title)}</h1>
+<div class="sub">Single viewport &mdash; every state shares the same canvas, zoom and display LUT. Keys: <code>1</code>&ndash;<code>9</code>,<code>0</code> method &middot; <code>e</code> residual map &middot; <code>c</code> next case &middot; <code>z</code> zoom.</div>
+<div id="bar"></div><div id="bar2"></div>
+<div id="wrap"><div id="view"><img id="im"></div><div id="info"></div></div>
+<div class="note">{notes_html}</div>
+<script>
+const D={data};let ci=0,mi=0,err=false,Z={zoom};
+const bar=document.getElementById('bar'),bar2=document.getElementById('bar2'),im=document.getElementById('im'),info=document.getElementById('info'),view=document.getElementById('view');
+function keyLabel(i){{return i==9?'0':String(i+1)}}
+function build(){{bar.innerHTML='';D.forEach((d,i)=>{{const b=document.createElement('button');b.textContent=(i+1)+': '+d.case+(D.filter(x=>x.case==d.case).length>1?' #'+d.idx:'');b.className=i==ci?'on':'';b.onclick=()=>{{ci=i;render()}};bar.appendChild(b)}});
+bar2.innerHTML='';D[ci].keys.forEach((k,i)=>{{const b=document.createElement('button');b.textContent=keyLabel(i)+' '+k;b.className=i==mi?'on':'';b.onclick=()=>{{mi=i;render()}};bar2.appendChild(b)}})}}
+function render(){{const d=D[ci];if(mi>=d.keys.length)mi=0;const k=d.keys[mi];build();
+view.style.setProperty('--w',d.shape[1]);view.style.setProperty('--h',d.shape[0]);view.style.setProperty('--z',Z);
+im.src='data:image/png;base64,'+(err?d.errs[k]:d.imgs[k]);
+const s=d.stats[k];let rows='';d.keys.forEach((kk,i)=>{{const t=d.stats[kk];rows+=`<tr style="${{i==mi?'background:#1e293b':''}}"><td class=k>${{keyLabel(i)}}</td><td>${{kk}}</td><td>${{t?t[0].toFixed(2):'-'}}</td><td>${{t?t[1].toFixed(4):'-'}}</td><td>${{t?t[2].toFixed(3):'-'}}</td></tr>`}});
+info.innerHTML=`<div><b>${{k}}</b> &nbsp; <span class=k>${{err?'residual |SR-GT| (white=0, black&ge;0.25)':'display: shared joint histogram equalisation'}}</span></div><div class=k>case ${{d.case}} #${{d.idx}} &middot; ${{d.shape[0]}}&times;${{d.shape[1]}}</div><table><tr><td></td><td class=k>method</td><td class=k>PSNR</td><td class=k>CQS</td><td class=k>PCSc</td></tr>${{rows}}</table>`}}
+document.addEventListener('keydown',e=>{{if(e.key=='e')err=!err;else if(e.key=='c')ci=(ci+1)%D.length;else if(e.key=='z')Z=Z==3?5:(Z==5?2:3);else{{const n=e.key=='0'?9:parseInt(e.key)-1;if(n>=0&&n<D[ci].keys.length)mi=n;else return}}render()}});
+render();
 </script></body></html>"""
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     with open(path, "w") as fh:

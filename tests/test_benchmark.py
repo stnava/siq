@@ -102,3 +102,13 @@ def test_html_report_is_self_contained_and_tabbed(tmp_path):
     html = open(p).read()
     assert html.count('class="tab') >= 2 and "MODEL perfect" in html and "Verdicts" in html
     assert "http://" not in html and "https://" not in html          # no external assets
+
+
+def test_image_report_single_viewport_self_contained(tmp_path):
+    cases = {"toy": _case(2)}
+    methods = B.classical_methods() + B.unsharp_methods() + [
+        B.SRMethod("MODEL perfect", lambda l, g: g.numpy(), "model")]
+    p = B.render_image_report(methods, cases, str(tmp_path / "i.html"), (2, 2), keep=None)
+    html = open(p).read()
+    assert html.count('id="view"') == 1 and "data:image/png;base64" in html
+    assert "http://" not in html and "https://" not in html
