@@ -36,7 +36,7 @@ $$\Delta = \arg\max_{\mathbf{s}} \mathcal{F}^{-1}\{Y_{\text{true}}(\mathbf{u}) Y
 Computes the Pearson correlation magnitude $|r_d|$ between the signed prediction error $(y_{\text{pred}} - y_{\text{true}})$ and the true directional Sobel spatial gradient $\nabla_d y_{\text{true}}$ along each spatial axis:
 $$r_d = \left|\mathrm{corr}\left(y_{\text{pred}} - y_{\text{true}}, \nabla_d y_{\text{true}}\right)\right|$$
 By Taylor expansion, spatial misregistration causes error directly proportional to directional gradients ($y(\mathbf{x} - \boldsymbol{\delta}) - y(\mathbf{x}) \approx -\boldsymbol{\delta} \cdot \nabla y(\mathbf{x})$).
-- **Target**: $|r_d| < 0.02$ across all axes.
+- **Target**: $|r_d| < 0.16$ across all axes (measured relative to the bilinear baseline; ≈1.5–2× the shift in voxels).
 - **Function**: `siq.compute_edge_error_correlation(y_true, y_pred)`
 
 ### C. Structural & Artifact Metrics
@@ -53,9 +53,9 @@ Evaluated using native `siq` metric routines:
 
 | Status | Phase Shift $\|\Delta\|_\infty$ | Edge Correlation $\max_d |r_d|$ | PSNR Delta vs Bilinear | Action Required |
 |:---:|:---:|:---:|:---:|:---|
-| **✅ PASS** | $< 0.08$ voxels | $< 0.020$ | $\ge -0.2$ dB | None (model is zero-lag aligned and sharp). |
-| **⚠️ WARN** | $0.08 - 0.15$ voxels | $0.020 - 0.050$ | $-1.0$ to $-0.2$ dB | Monitor; verify coordinate flipping logic. |
-| **❌ FAIL** | $\ge 0.15$ voxels | $\ge 0.050$ | $< -1.0$ dB | Critical misregistration; check deconvolution shift. |
+| **✅ PASS** | $< 0.08$ voxels | $< 0.16$ | (info only) | None (model is zero-lag aligned and sharp). |
+| **⚠️ WARN** | $0.08 - 0.15$ voxels | $0.16 - 0.26$ | (info only) | Monitor; verify coordinate flipping logic. |
+| **❌ FAIL** | $\ge 0.15$ voxels | $\ge 0.26$ | (info only) | Critical misregistration; check deconvolution shift. |
 
 ---
 
@@ -70,7 +70,7 @@ qc_results = siq.compute_alignment_qc(
     y_pred=sr_image,
     bilinear=bilinear_image,
     phase_thresh=0.08,
-    edge_corr_thresh=0.02,
+    edge_corr_thresh=0.16,
     verbose=True,
 )
 
@@ -120,3 +120,6 @@ The QC engine is automatically executed at every validation checkpoint:
 - `VisualConvergenceReporter` blocks champion promotion when `qc_status == "FAIL"`.
 - Diagnostic recipe: for each flip state, `siq.decimation_offset(lr, hr, factor)`. Aligned pairs give `(0, 0, 0)`; a reflected-after-degradation pair gives `f_d - 1` on the reflected axes.
 - Note: `compute_phase_shift` uses `normalization=None` (the default phase normalization biases sub-voxel estimates by ~20%).
+
+
+**Notes:** Shifts are relative to the bilinear baseline and require both the FFT and Lucas-Kanade (`siq.compute_shift_lk`) estimators to agree (FFT is unreliable on small patches). PSNR vs bilinear is reported but never fails or warns — PSNR rewards blur.

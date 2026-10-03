@@ -62,4 +62,4 @@ Rules:
 
 ## 6. Mandatory Alignment QC
 
-Use `siq.compute_alignment_qc` (FFT phase lag, directional edge-error correlation with the **signed** error, PSNR/SSIM vs bilinear). Thresholds: PASS phase < 0.08 vox and edge-corr < 0.02; FAIL phase >= 0.15, edge-corr >= 0.05, or PSNR < bilinear - 1 dB. It runs at every validation checkpoint in `VisualConvergenceReporter`; the standalone CLI is `scripts/sr_alignment_qc.py` (see the `siq-qc` skill).
+Use `siq.compute_alignment_qc` (FFT phase + Lucas-Kanade shift, directional edge-error correlation with the **signed** error, all measured **relative to the bilinear baseline**; PSNR/SSIM vs bilinear are reported only). Per-axis shift is the smaller magnitude of the FFT and LK estimates (both must agree; FFT is unreliable on small patches). Calibrated thresholds: PASS shift < 0.08 vox and edge-corr < 0.16; WARN shift 0.08–0.15 or edge-corr 0.16–0.26; FAIL shift >= 0.15 or edge-corr >= 0.26. **PSNR never fails or warns** (it rewards blur; perception–distortion tradeoff). It runs at every validation checkpoint in `VisualConvergenceReporter`; the standalone CLI is `scripts/sr_alignment_qc.py` (see the `siq-qc` skill).

@@ -350,3 +350,20 @@ PYTHONUNBUFFERED=1 python tests/train_model_refinement.py dbpn \
 
 
 
+
+## Fast 2D Curriculum (experiment engine for 3D)
+
+`siq.train_blind_sr_curriculum` / `scripts/train_2d_curriculum.py` run the Warmup -> Stage 1 -> 2 -> 3 curriculum in 2D
+with share-driven loss weights (each term's weight = share x scale / median term magnitude, dampened by beta).
+Stage entry calibrates weights from 5 batches first (never train a step with zero loss). `--fast` (~10 min, 200/150/450/600
+iters, beta 0.9) is for plumbing and tuning; the curriculum trace JSON (`*_curriculum_trace.json`) records final weights,
+measured shares and PCS history for transfer to 3D (re-calibrate the feature scale for the pseudo-3D VGG; keep the ratios).
+
+Hard-won lessons (see `docs/benchmarks/sr_reference_2d_2x.md`):
+* **Train on real slices.** Procedurally simulated HR images produced models that lose to bilinear on real held-out slices;
+  even a linear filter fit on simulated pairs loses. Use `scripts/build_real_slice_cache.py` + `--cache`.
+* **Match the validation degradation** (`--degradation matched`) or evaluate on the degradation you trained for; blind training
+  against a nearest-decimation validation set is a distribution shift.
+* **Never validate on r16c alone** (one smooth out-of-domain slice) or on PSNR; use `siq.sr_benchmark` (`heldout` case) and beat
+  the best classical method and linear ceiling on CQS. PCS rewards unbounded over-sharpening; read PCSc beside it.
+* The nearest-decimation task has little linear headroom (+0.011 CQS); expect small learned gains unless the degradation includes blur.

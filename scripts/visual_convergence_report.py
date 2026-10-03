@@ -729,8 +729,12 @@ class VisualConvergenceReporter:
             _siq_ver = 'unknown'
         in_s = list(model.input_shape[1:])
         out_s = list(model.output_shape[1:])
-        _input_patch  = [64, 64, 64, in_s[-1] if in_s[-1] is not None else 1] if any(s is None for s in in_s[:-1]) else in_s
-        _output_patch = [128, 128, 128, out_s[-1] if out_s[-1] is not None else 1] if any(s is None for s in out_s[:-1]) else out_s
+        # dimension-correct placeholder for dynamic-size models (2D models must not record a 3D patch)
+        _nd = len(in_s) - 1
+        _fx = list(self.factor) if isinstance(getattr(self, "factor", None), (list, tuple)) else [getattr(self, "factor", None) or 2] * _nd
+        _fx = (_fx + [_fx[-1]] * _nd)[:_nd]
+        _input_patch  = [64] * _nd + [in_s[-1] if in_s[-1] is not None else 1] if any(s is None for s in in_s[:-1]) else in_s
+        _output_patch = [64 * int(f) for f in _fx] + [out_s[-1] if out_s[-1] is not None else 1] if any(s is None for s in out_s[:-1]) else out_s
         try:
             if getattr(self, "factor", None) is not None:
                 _upfactor = list(self.factor) if isinstance(self.factor, (list, tuple)) else self.factor

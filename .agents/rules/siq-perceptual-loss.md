@@ -86,3 +86,11 @@ When training super-resolution models from scratch or without pre-calibrated wei
 2. **Never Collapse Stages 1 and 2**: Stage 1 isolates weight calibration on clean geometry; Stage 2 introduces noise robustness once weights are stationary. Conflating them causes optimizer oscillation.
 
 
+
+## Every SR Claim Needs a Reference Table (Benchmark Invariant)
+
+Never report a super-resolution model as "good" from its own numbers or from PSNR/PCS alone:
+- Run `siq.sr_benchmark(...)` (see the `siq-benchmark` skill). The model must beat the best classical interpolator / bilinear+unsharp on **CQS** on the `heldout` case set (real slices, disjoint subjects); to claim *learned* gain it must also beat the in-sample linear least-squares ceiling.
+- Report PCSc (bounded sharpness) next to PCS: PCS rewards over-sharpening beyond the ground truth.
+- Public pretrained models (super-image EDSR/MSRN/...) are evaluated through `siq.public_model_method` with an explicit phase calibration (`half-pixel` or `auto`); never compare an uncalibrated public model.
+- Never conclude from procedural-simulation validation alone: procedural-trained models lost to bilinear on real held-out slices. Real-slice held-out evaluation is mandatory.

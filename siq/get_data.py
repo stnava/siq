@@ -2936,12 +2936,15 @@ def default_siq_config(model=None):  # pragma: no cover
     if model is not None:
         in_s = list(model.input_shape[1:])
         out_s = list(model.output_shape[1:])
+        # Dynamic-size models: record a dimension-correct placeholder patch (64^ndim -> 128^ndim),
+        # never a 3D placeholder for a 2D model.
+        ndim = len(in_s) - 1
         if any(s is None for s in in_s[:-1]):
-            cfg["input_patch_shape"] = [64, 64, 64, in_s[-1] if in_s[-1] is not None else 1]
+            cfg["input_patch_shape"] = [64] * ndim + [in_s[-1] if in_s[-1] is not None else 1]
         else:
             cfg["input_patch_shape"] = in_s
         if any(s is None for s in out_s[:-1]):
-            cfg["output_patch_shape"] = [128, 128, 128, out_s[-1] if out_s[-1] is not None else 1]
+            cfg["output_patch_shape"] = [128] * ndim + [out_s[-1] if out_s[-1] is not None else 1]
         else:
             cfg["output_patch_shape"] = out_s
         try:
@@ -4822,7 +4825,8 @@ def compute_alignment_qc(
       - PASS: max |shift| < phase_thresh (0.08) and max edge corr < edge_corr_thresh (0.16)
       - WARN: max |shift| in [0.08, 0.15) or max edge corr in [0.16, 0.26)
       - FAIL: max |shift| >= phase_fail (0.15) or edge corr >= edge_corr_fail (0.26)
-              or PSNR < Bilinear PSNR - 1.0 dB
+      PSNR vs bilinear is reported for information only and never fails or warns
+      (PSNR rewards blur; see the perception-distortion tradeoff).
 
     Returns
     -------
@@ -4873,14 +4877,12 @@ def compute_alignment_qc(
     is_fail = (
         max_phase_shift >= phase_fail
         or max_edge_corr >= edge_corr_fail
-        or (delta_psnr is not None and delta_psnr < -1.0)
     )
     is_warn = (
         not is_fail
         and (
             max_phase_shift >= phase_thresh
             or max_edge_corr >= edge_corr_thresh
-            or (delta_psnr is not None and delta_psnr < 0.0)
         )
     )
 

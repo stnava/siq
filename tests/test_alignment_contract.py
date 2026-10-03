@@ -106,6 +106,6 @@ def test_no_interpolating_global_skips_in_architectures():
 def test_refinement_and_kitchen_sink_run_preflight_audit():
     """Every training entry point that forms LR/HR pairs must run the audit."""
     root = os.path.dirname(os.path.dirname(__file__))
-    for rel in ("siq/blind_sr.py", "scripts/train_model_refinement.py"):
+    for rel in ("siq/blind_sr.py", "siq/curriculum.py", "scripts/train_model_refinement.py"):
         assert "audit_pair_alignment" in open(os.path.join(root, rel)).read(), \
             f"{rel} does not run siq.audit_pair_alignment before training"

@@ -20,3 +20,10 @@ logs/
 # These are large and should not be committed to git (use DVC or similar
 # for binary versioning). model_registry.json (the index) IS tracked.
 model_archive/
+
+# Large generated experiment artifacts (caches, trained models, per-run outputs).
+# Canonical small reference tables are committed under docs/benchmarks/.
+results/*.npy
+results/2d_curriculum/
+results/2d_matched*/
+results/sr_reference/

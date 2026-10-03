@@ -196,6 +196,27 @@ python tests/train_model_refinement.py asdbpn --dim 3 \
 * If a refined model checkpoint already exists (e.g., `espcn_3d_attention_refined.keras`, `ldbpn_3d_refined.keras`, or `ref_dbpn_3d_refined.keras`), the script automatically loads it, **skips Stage 1 and Stage 2**, and proceeds directly to **Stage 3 (Dedicated Refinement)**.
 * To train from scratch starting from the baseline model, delete or rename the existing refined `.keras` file in the workspace.
 
+### Fast 2D Curriculum and SR Reference Benchmark
+
+2D trains ~60x faster than 3D, so it is the experiment engine: the same DBPN-small model, VGG layer-6 perceptual
+loss, HR-first blind generator, alignment audit and QC reporter run in 2D (`siq.train_blind_sr_curriculum`).
+
+```bash
+# 4-stage curriculum (Warmup gate -> L1-dominant -> noise robustness -> refinement); ~10 min with --fast
+python scripts/train_2d_curriculum.py --fast --tag fast
+# train on REAL slices with the validation degradation (the classical SR recipe)
+python scripts/build_real_slice_cache.py
+python scripts/train_2d_curriculum.py --cache results/real_slice_cache.npy --degradation matched --mse-only --iters 1200 0 0 0 --tag real_mse
+```
+
+Every SR claim needs a reference table: `siq.sr_benchmark` scores classical interpolators, unsharp mask, the linear
+least-squares ceiling, our models and public pretrained networks (super-image EDSR/MSRN, phase-calibrated) on common
+case sets and prints CQS verdicts. See `docs/benchmarks/sr_reference_2d_2x.md` and `.agents/skills/siq-benchmark/SKILL.md`.
+
+```bash
+python scripts/sr_reference_benchmark.py --model mine=path/to/model.keras --public edsr-base
+```
+
 ### Generating Evaluation Reports
 
 `generate_summary_images.py` builds the interactive HTML comparison report (see [Evaluations & Visual Reports](#evaluations--visual-reports)) from whichever refined checkpoints are present in the repo root. It also accepts `--dim`:
