@@ -118,6 +118,8 @@ from .espcn import (
     LearnableSharpening3D,
 )
 from .blind_sr import (
+    DEFAULT_SIMULATION_CLASSES,
+    REVISED_SIMULATION_CLASSES,
     blind_sr_generator_simple,
     blind_sr_generator,
     train_blind_espcn_perceptual,

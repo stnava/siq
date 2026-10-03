@@ -45,6 +45,10 @@ def main():
     ap.add_argument("--balancer-freq", type=int, default=10)
     ap.add_argument("--provenance-log", action="store_true",
                     help="Record per-sample simulation class provenance and loss attribution to CSV")
+    ap.add_argument("--sim-preset", choices=["all9", "revised"], default="all9",
+                    help="all9: all 9 procedural simulation classes (default); revised: empirical top-7 classes (no sinewave/blobs, value-weighted)")
+    ap.add_argument("--real-mix", type=float, default=None,
+                    help="Fraction of real slices when --cache is provided (e.g. 0.5 for 50/50 real/procedural hybrid)")
     a = ap.parse_args()
 
     import siq
@@ -68,8 +72,11 @@ def main():
         stages[2]["shares"] = dict(sh); stages[3]["shares"] = dict(sh)
 
     gen_kw = {}
+    if a.sim_preset == "revised":
+        gen_kw["simulation_classes"] = siq.REVISED_SIMULATION_CLASSES
+    if a.real_mix is not None:
+        gen_kw["real_mix_prob"] = float(a.real_mix)
     if a.cache:
-        import numpy as np
         gen_kw["hr_base_cache"] = np.load(a.cache)
     if a.degradation == "matched":
         gen_kw.update(blur_sigma_range=(0.0, 0.0), interp_types=(0,))

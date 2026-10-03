@@ -64,6 +64,16 @@ DEFAULT_SIMULATION_CLASSES = {
     "fractal_noise": 1.0 / 9.0,
 }
 
+REVISED_SIMULATION_CLASSES = {
+    "grid_patterns": 0.40,
+    "cellular_voronoi": 0.24,
+    "brain_procedural": 0.11,
+    "geometric_phantoms": 0.08,
+    "vessel_tubes": 0.08,
+    "layered": 0.05,
+    "fractal_noise": 0.04,
+}
+
 def blind_sr_generator(
     hr_base_cache=None,
     batch_size=4,
@@ -81,7 +91,8 @@ def blind_sr_generator(
     use_cache=True,
     dimensionality=3,
     use_layer2=False,
-    return_provenance=False
+    return_provenance=False,
+    real_mix_prob=None
 ):
     """
     Advanced generator for Blind Super-Resolution.
@@ -159,14 +170,36 @@ def blind_sr_generator(
             hr_base_cache.append((vol, sim_class))
         
     is_numpy_cache = hr_base_cache is not None and hasattr(hr_base_cache, "shape") and len(hr_base_cache.shape) == (dimensionality + 1)
+    if real_mix_prob is None:
+        real_mix_prob = 1.0 if is_numpy_cache else 0.0
     
     while True:
         x_batch = []
         y_batch = []
         meta_batch = [] if return_provenance else None
         for _ in range(batch_size):
-            if not use_cache or hr_base_cache is None:
-                # 1. Generate directly on the fly
+            is_real = is_numpy_cache and (np.random.random() < real_mix_prob)
+            if is_real:
+                # 1. Sample from real cache
+                idx = np.random.randint(0, hr_base_cache.shape[0])
+                vol = hr_base_cache[idx]
+                sim_class = "real_slice"
+                h_size = hr_large_shape[0]
+                if vol.shape[0] > h_size:
+                    if dimensionality == 2:
+                        x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
+                        y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
+                        hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size].astype("float32")
+                    else:
+                        x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
+                        y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
+                        z_s = np.random.randint(0, vol.shape[2] - h_size + 1)
+                        hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size, z_s:z_s+h_size].astype("float32")
+                else:
+                    hr_large_np = vol.astype("float32")
+                hr_large = ants.from_numpy(hr_large_np)
+            elif not use_cache or hr_base_cache is None or is_numpy_cache:
+                # 2. Generate on the fly from simulation_classes
                 sim_class = np.random.choice(classes, p=probs)
                 if sim_class == "organic_blobs":
                     s_params = sim_params.copy()
@@ -194,33 +227,14 @@ def blind_sr_generator(
                 hr_large = vol
                 hr_large_np = hr_large.numpy().astype("float32")
             else:
-                # 1. Sample from cache
-                if is_numpy_cache:
-                    idx = np.random.randint(0, hr_base_cache.shape[0])
-                    vol = hr_base_cache[idx]
-                    sim_class = "real_slice"
-                    h_size = hr_large_shape[0]
-                    if vol.shape[0] > h_size:
-                        if dimensionality == 2:
-                            x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
-                            y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
-                            hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size].astype("float32")
-                        else:
-                            x_s = np.random.randint(0, vol.shape[0] - h_size + 1)
-                            y_s = np.random.randint(0, vol.shape[1] - h_size + 1)
-                            z_s = np.random.randint(0, vol.shape[2] - h_size + 1)
-                            hr_large_np = vol[x_s:x_s+h_size, y_s:y_s+h_size, z_s:z_s+h_size].astype("float32")
-                    else:
-                        hr_large_np = vol.astype("float32")
-                    hr_large = ants.from_numpy(hr_large_np)
+                # 3. Sample from fallback cache
+                cached_entry = random.choice(hr_base_cache)
+                if isinstance(cached_entry, tuple) and len(cached_entry) == 2:
+                    hr_large, sim_class = cached_entry
                 else:
-                    cached_entry = random.choice(hr_base_cache)
-                    if isinstance(cached_entry, tuple) and len(cached_entry) == 2:
-                        hr_large, sim_class = cached_entry
-                    else:
-                        hr_large = cached_entry
-                        sim_class = getattr(hr_large, "_sim_class", "unknown_sim")
-                    hr_large_np = hr_large.numpy().astype("float32") if hasattr(hr_large, "numpy") else np.asarray(hr_large, dtype="float32")
+                    hr_large = cached_entry
+                    sim_class = getattr(hr_large, "_sim_class", "unknown_sim")
+                hr_large_np = hr_large.numpy().astype("float32") if hasattr(hr_large, "numpy") else np.asarray(hr_large, dtype="float32")
             
             # Geometric augmentation on the HR volume BEFORE degradation so that the
             # LR image is derived on the (reflected) HR grid — alignment preserved.
