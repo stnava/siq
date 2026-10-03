@@ -56,7 +56,7 @@ from .get_data import region_wise_super_resolution_blended
 from .auto import auto
 from .espcn import (create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D,
                     create_espcn_3d_attention, create_ldbpn_3d, LearnableScale,
-                    transfer_espcn_weights, transfer_dbpn_weights, transfer_siq_weights,
+                    transfer_espcn_weights, transfer_dbpn_weights, transfer_dbpn_to_smaller, transfer_siq_weights,
                     extract_siq_loss_weights,
                     create_espcn_2d_attention, create_ldbpn_2d, PixelShuffle2D,
                     create_wdsr_2d, create_wdsr_3d,

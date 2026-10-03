@@ -1,0 +1,44 @@
+{
+  "model_type": "dbpn_small_3d",
+  "siq_version": "unknown",
+  "saved_at": "unknown",
+  "input_patch_shape": [
+    64,
+    64,
+    64,
+    1
+  ],
+  "output_patch_shape": [
+    128,
+    128,
+    128,
+    1
+  ],
+  "upsample_factor": 2,
+  "normalization": {
+    "method": "volume",
+    "truncate_quantiles": [
+      0.001,
+      0.999
+    ],
+    "output_range": [
+      0.0,
+      1.0
+    ],
+    "note": "Apply ants.iMath(vol,'TruncateIntensity',0.001,0.999) then ants.iMath(vol,'Normalize') to the WHOLE volume. Do NOT normalize per-patch."
+  },
+  "inference": {
+    "preferred_method": "direct_single_patch_if_fits",
+    "patch_overlap": 16,
+    "output_clip": [
+      0.0,
+      1.0
+    ],
+    "antspynet_wrapper": false,
+    "anti_checkerboard": "auto",
+    "anti_checkerboard_sigma": "auto"
+  },
+  "source_model": "dbpn_3d_refined.keras",
+  "transferred_from_params": 22286721,
+  "transferred_to_params": 3294561
+}

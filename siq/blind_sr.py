@@ -7,8 +7,9 @@ from .get_data import (simulate_image, simulate_image_multi_scale,
                        simulate_vessel_tubes, simulate_cellular_voronoi,
                        simulate_geometric_phantoms, simulate_grid_patterns,
                        simulate_fractal_noise,
-                       add_rician_noise, get_grader_feature_network, _sample_param)
-from .espcn import create_espcn_3d, create_espcn_3d_residual
+                       add_rician_noise, get_grader_feature_network, _sample_param,
+                       pseudo_3d_vgg_features_unbiased, save_siq_model, default_siq_config)
+from .espcn import create_espcn_3d, create_espcn_3d_residual, _normalize_factor
 import os
 import time
 import random
@@ -361,29 +362,59 @@ def train_blind_sr_kitchen_sink(
     msq_weight=10.0,
     feat_weight=2.0,
     tv_weight=0.1,
+    feature_type="grader",
+    feature_layer=6,
+    model=None,
+    pretrain_iterations=0,
+    batch_size=4,
+    lr_patch_size=16,
     **generator_kwargs
 ):
     """
     Advanced 'Kitchen-Sink' training loop for Blind Super-Resolution.
-    Uses custom loss (MSE + Perceptual + TV) and dynamic weight initialization.
+    Uses custom loss (MSE + Perceptual + TV) with support for VGG or ResNet Grader.
     
     Args:
+        output_prefix: Prefix for saved model files.
+        factor: Super-resolution scaling factor (integer or tuple).
+        iterations: Number of perceptual training iterations.
+        hr_base_cache: Optional cache of HR images.
+        learning_rate: Adam optimizer learning rate.
+        use_residual: If True and model is None, builds residual ESPCN.
         msq_weight: Weight for MSE loss.
         feat_weight: Weight for perceptual loss.
         tv_weight: Weight for Total Variation loss.
-        **generator_kwargs: Passed to blind_sr_generator (e.g., gamma_range, sim_params).
+        feature_type: 'vgg' (pseudo-3D VGG19) or 'grader' (3D ResNet grader).
+        feature_layer: Internal layer index for feature extraction (default: 6).
+        model: Optional pre-instantiated model (e.g. siq.default_dbpn(..., option='small')).
+        pretrain_iterations: Number of MSE-only warmup iterations before activating perceptual loss.
+        batch_size: Number of patches per batch.
+        lr_patch_size: Size of low-resolution patch.
+        **generator_kwargs: Passed to blind_sr_generator.
     """
-    # 1. Instantiate Model
-    if use_residual:
-        model = create_espcn_3d_residual(input_shape=(None, None, None, 1), factor=factor, n_filters=128, n_res_blocks=8)
+    factor_tuple = _normalize_factor(factor, 3)
+    if isinstance(lr_patch_size, (list, tuple)):
+        hr_patch_shape = tuple(int(p * f) for p, f in zip(lr_patch_size, factor_tuple))
     else:
-        model = create_espcn_3d(input_shape=(None, None, None, 1), factor=factor)
+        hr_patch_shape = tuple(int(lr_patch_size * f) for f in factor_tuple)
+
+    # 1. Instantiate or use provided Model
+    if model is None:
+        if use_residual:
+            model = create_espcn_3d_residual(input_shape=(None, None, None, 1), factor=factor, n_filters=128, n_res_blocks=8)
+        else:
+            model = create_espcn_3d(input_shape=(None, None, None, 1), factor=factor)
         
     # 2. Setup Perceptual Model
     try:
-        feature_extractor = get_grader_feature_network(layer=6)
-        feature_extractor.trainable = False
-        print("Loaded perceptual feature extractor.")
+        if feature_type == "vgg":
+            feature_extractor = pseudo_3d_vgg_features_unbiased(inshape=list(hr_patch_shape), layer=feature_layer)
+            feature_extractor.trainable = False
+            print(f"Loaded pseudo-3D VGG19 Layer {feature_layer} feature extractor for perceptual loss.")
+        else:
+            feature_extractor = get_grader_feature_network(layer=feature_layer)
+            feature_extractor.trainable = False
+            print(f"Loaded 3D ResNet grader Layer {feature_layer} feature extractor for perceptual loss.")
     except Exception as e:
         print(f"Warning: Could not load perceptual model ({e}). Using MSE only.")
         feature_extractor = None
@@ -392,6 +423,18 @@ def train_blind_sr_kitchen_sink(
     msq_weight_var = keras.Variable(float(msq_weight), dtype="float32")
     feat_weight_var = keras.Variable(float(feat_weight), dtype="float32") if feature_extractor else keras.Variable(0.0)
     tv_weight_var = keras.Variable(float(tv_weight), dtype="float32")
+
+    def _call_fe(tensor):
+        if feature_type == "grader":
+            # Rank normalization required for ResNet grader
+            s = ops.shape(tensor)
+            flat = ops.reshape(tensor, (s[0], -1))
+            ranks = ops.cast(ops.argsort(ops.argsort(flat, axis=-1), axis=-1), "float32")
+            denom = ops.cast(ops.shape(flat)[-1] - 1, "float32")
+            return feature_extractor(ops.reshape(ranks / ops.maximum(denom, 1.0), s), training=False)
+        else:
+            # VGG has internal Rescaling(255, -127.5) baked in
+            return feature_extractor(tensor, training=False)
     
     def custom_loss(y_true, y_pred):
         squared_diff = ops.square(y_true - y_pred)
@@ -400,9 +443,13 @@ def train_blind_sr_kitchen_sink(
         loss = msq_term * msq_weight_var
         
         if feature_extractor:
-            f_true = feature_extractor(y_true)
-            f_pred = feature_extractor(y_pred)
-            feat_term = ops.mean(ops.square(f_true - f_pred), axis=list(range(1, len(f_true.shape))))
+            f_true = _call_fe(y_true)
+            f_pred = _call_fe(y_pred)
+            if not isinstance(f_true, list):
+                f_true = [f_true]
+                f_pred = [f_pred]
+            feat_term = sum(ops.mean(ops.square(ft - fp), axis=list(range(1, len(ft.shape))))
+                            for ft, fp in zip(f_true, f_pred))
             loss += feat_term * feat_weight_var
             
         # TV Term
@@ -417,9 +464,28 @@ def train_blind_sr_kitchen_sink(
     model.compile(optimizer=keras.optimizers.Adam(learning_rate), loss=custom_loss)
     
     # Initialize Generator
-    gen = blind_sr_generator(hr_base_cache=hr_base_cache, batch_size=4, factor=factor, **generator_kwargs)
+    gen = blind_sr_generator(
+        hr_base_cache=hr_base_cache,
+        batch_size=batch_size,
+        lr_patch_size=lr_patch_size,
+        factor=factor,
+        **generator_kwargs
+    )
     
-    print(f"Starting Blind SR training for {iterations} iterations...")
+    # Warmup Phase (if requested)
+    if pretrain_iterations > 0:
+        print(f"Starting warmup pretraining for {pretrain_iterations} iterations (MSE only)...")
+        active_feat_wt = float(feat_weight_var.value)
+        feat_weight_var.assign(0.0)
+        for i in range(1, pretrain_iterations + 1):
+            x, y = next(gen)
+            loss = model.train_on_batch(x, y)
+            if i % 50 == 0 or i == 1:
+                print(f"Warmup Iteration {i}/{pretrain_iterations} - loss: {float(loss):.6f}")
+        feat_weight_var.assign(active_feat_wt)
+
+    # Main Perceptual Phase
+    print(f"Starting Blind SR perceptual training for {iterations} iterations...")
     for i in range(1, iterations + 1):
         x, y = next(gen)
         loss = model.train_on_batch(x, y)
@@ -427,7 +493,17 @@ def train_blind_sr_kitchen_sink(
         if i % 50 == 0 or i == 1:
             print(f"Iteration {i}/{iterations} - loss: {float(loss):.6f}")
             
-    model.save(f"{output_prefix}_best.keras")
+    best_path = f"{output_prefix}_best.keras"
+    config = default_siq_config(factor=factor_tuple, model_type="blind_sr")
+    config["loss_weights"] = {
+        "msq": float(msq_weight),
+        "feat": float(feat_weight),
+        "tv": float(tv_weight),
+        "feature_type": feature_type,
+        "feature_layer": feature_layer
+    }
+    save_siq_model(best_path, model, config)
+    print(f"Model and config saved to {best_path}")
     return model
 
 if __name__ == "__main__":

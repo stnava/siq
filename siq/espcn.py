@@ -449,10 +449,10 @@ def transfer_espcn_weights(src_model, dst_model):
                 matched += 1
     return matched
 
-def transfer_dbpn_weights(src_model, dst_model):
+def transfer_dbpn_weights(src_model, dst_model, allow_channel_slicing=True):
     """
     Transfers weights from legacy DBPN model (src_model)
-    to Lightweight DBPN model (dst_model) by shape.
+    to Lightweight DBPN model (dst_model) by shape or channel slicing.
     """
     src_convs = [l for l in src_model.layers if isinstance(l, layers.Conv3D)]
     dst_convs = [l for l in dst_model.layers if isinstance(l, layers.Conv3D)]
@@ -474,7 +474,76 @@ def transfer_dbpn_weights(src_model, dst_model):
     for dst_l in dst_convs:
         if hasattr(dst_l, "_weight_transferred"):
             delattr(dst_l, "_weight_transferred")
+
+    if matched == 0 and allow_channel_slicing:
+        matched = transfer_dbpn_to_smaller(src_model, dst_model)
             
+    return matched
+
+def transfer_dbpn_to_smaller(src_model, dst_model, verbose=False):
+    """
+    Transfers weights from large DBPN model to small DBPN model via channel slicing.
+    Transfers 100% of Conv3D layers and PReLU activation units.
+    """
+    import numpy as np
+    src_convs = [l for l in src_model.layers if isinstance(l, layers.Conv3D)]
+    dst_convs = [l for l in dst_model.layers if isinstance(l, layers.Conv3D)]
+    src_prelu = [l for l in src_model.layers if isinstance(l, layers.PReLU)]
+    dst_prelu = [l for l in dst_model.layers if isinstance(l, layers.PReLU)]
+
+    matched = 0
+    # 1. Intermediate Conv3D projection layers
+    for i in range(len(dst_convs) - 1):
+        if i >= len(src_convs):
+            break
+        s_l = src_convs[i]
+        d_l = dst_convs[i]
+        s_w = s_l.get_weights()
+        d_w = d_l.get_weights()
+        if len(s_w) > 0 and len(d_w) > 0:
+            s_k, d_k = s_w[0], d_w[0]
+            cin = min(s_k.shape[3], d_k.shape[3])
+            cout = min(s_k.shape[4], d_k.shape[4])
+            scale = np.sqrt(float(s_k.shape[3]) / float(cin))
+            new_k = np.copy(d_k)
+            new_k[:, :, :, :cin, :cout] = s_k[:, :, :, :cin, :cout] * scale
+            new_w = [new_k]
+            if len(d_w) > 1 and len(s_w) > 1:
+                new_b = np.copy(d_w[1])
+                new_b[:cout] = s_w[1][:cout]
+                new_w.append(new_b)
+            d_l.set_weights(new_w)
+            matched += 1
+
+    # 2. Final Reconstruction Conv3D layer
+    if len(src_convs) > 0 and len(dst_convs) > 0:
+        s_last = src_convs[-1]
+        d_last = dst_convs[-1]
+        s_w, d_w = s_last.get_weights(), d_last.get_weights()
+        if len(s_w) > 0 and len(d_w) > 0:
+            cin = min(s_w[0].shape[3], d_w[0].shape[3])
+            scale = float(s_w[0].shape[3]) / float(cin)
+            new_k = np.copy(d_w[0])
+            new_k[:, :, :, :cin, :] = s_w[0][:, :, :, :cin, :] * scale
+            new_w = [new_k]
+            if len(d_w) > 1 and len(s_w) > 1:
+                new_w.append(s_w[1])
+            d_last.set_weights(new_w)
+            matched += 1
+
+    # 3. PReLU Activation layers
+    for i in range(min(len(src_prelu), len(dst_prelu))):
+        s_l = src_prelu[i]
+        d_l = dst_prelu[i]
+        s_w = s_l.get_weights()
+        d_w = d_l.get_weights()
+        if len(s_w) > 0 and len(d_w) > 0:
+            c = min(s_w[0].shape[-1], d_w[0].shape[-1])
+            new_a = np.copy(d_w[0])
+            new_a[:, :, :, :c] = s_w[0][:, :, :, :c]
+            d_l.set_weights([new_a])
+            matched += 1
+
     return matched
 
 def _adapt_weight_shape(src_w, target_shape):
