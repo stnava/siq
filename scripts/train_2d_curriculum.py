@@ -30,9 +30,10 @@ def main():
     ap.add_argument("--feature-layer", type=int, default=6)
     ap.add_argument("--shares2", nargs=3, type=float, default=None, metavar=("L1", "FEAT", "TV"))
     ap.add_argument("--cache", default=None, help=".npy (N,H,W) stack of REAL HR slices instead of procedural simulation")
-    ap.add_argument("--degradation", choices=["blind", "matched"], default="blind",
+    ap.add_argument("--degradation", choices=["blind", "matched", "aa"], default="blind",
                     help="blind: random blur/noise/zoom per stage (default); matched: decimation only "
-                         "(exactly the validation degradation; no blur/noise/gamma)")
+                         "(exactly the validation degradation; no blur/noise/gamma); aa: Gaussian(1) "
+                         "anti-alias + decimation with gamma diversity (heldout_aa degradation)")
     ap.add_argument("--mse-only", action="store_true", help="Warmup stage only (pure MSE; the classical SR recipe)")
     ap.add_argument("--patience", type=int, default=6)
     ap.add_argument("--out", default="results/2d_curriculum")
@@ -72,6 +73,13 @@ def main():
         gen_kw.update(blur_sigma_range=(0.0, 0.0), interp_types=(0,))
         if a.cache:
             gen_kw["gamma_range"] = (1.0, 1.0)
+        for st in stages:
+            st.update(noise=(0.0, 0.0), rician=False, zoom=(1.0, 1.0))
+    elif a.degradation == "aa":
+        # = the `heldout_aa` benchmark degradation (Gaussian(1) anti-alias, nearest decimation) but with
+        # gamma/intensity diversity kept: `matched` pinned gamma=1, and the resulting narrow intensity
+        # distribution made the model darken bright slices (r16c gain ~1.11).
+        gen_kw.update(blur_sigma_range=(1.0, 1.0), interp_types=(0,), gamma_range=(0.6, 1.7))
         for st in stages:
             st.update(noise=(0.0, 0.0), rician=False, zoom=(1.0, 1.0))
     if a.mse_only:

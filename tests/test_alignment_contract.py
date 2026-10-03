@@ -109,3 +109,16 @@ def test_refinement_and_kitchen_sink_run_preflight_audit():
     for rel in ("siq/blind_sr.py", "siq/curriculum.py", "scripts/train_model_refinement.py"):
         assert "audit_pair_alignment" in open(os.path.join(root, rel)).read(), \
             f"{rel} does not run siq.audit_pair_alignment before training"
+
+
+def test_generator_pair_is_radiometrically_consistent():
+    """Blurred LR must not be min-max stretched relative to HR (gain mismatch -> learned darkening)."""
+    import numpy as np, siq
+    rng = np.random.RandomState(0)
+    cache = np.clip(rng.rand(4, 96, 96) * 0.5, 0, 1).astype("float32")
+    cache[:, 0, 0] = 1.0
+    gen = siq.blind_sr_generator(hr_base_cache=cache, batch_size=8, lr_patch_size=16, factor=2, dimensionality=2,
+                                 blur_sigma_range=(1.0, 1.0), interp_types=(0,), gamma_range=(1.0, 1.0),
+                                 noise_std_range=(0.0, 0.0), zoom_range=(1.0, 1.0))
+    x, y = next(gen)
+    assert abs(float(x.mean()) - float(y.mean())) < 0.03

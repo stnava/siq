@@ -261,9 +261,10 @@ def blind_sr_generator(
             lr_large = ants.resample_image(lr_large, lr_target_spacing, use_voxels=False, interp_type=interp)
             
             lr_large_np = lr_large.numpy()
-            lr_min, lr_max = lr_large_np.min(), lr_large_np.max()
-            if lr_max > lr_min:
-                lr_large_np = (lr_large_np - lr_min) / (lr_max - lr_min + 1e-8)
+            # NOTE: no LR-only min-max stretch. HR is already in [0, 1]; stretching the blurred LR by
+            # 1/max(blur) gives the pair a gain mismatch (LR brighter than HR by up to ~1/0.8) which
+            # the model learns as a systematic darkening and which never occurs at inference.
+            lr_large_np = np.clip(lr_large_np, 0.0, 1.0)
                 
             hr_large_np = hr_large.numpy()
             
