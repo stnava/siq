@@ -481,20 +481,34 @@ def train_blind_sr_kitchen_sink(
             x, y = next(gen)
             loss = model.train_on_batch(x, y)
             if i % 50 == 0 or i == 1:
-                print(f"Warmup Iteration {i}/{pretrain_iterations} - loss: {float(loss):.6f}")
+                print(f"Warmup Iteration {i}/{pretrain_iterations} - loss: {float(loss):.6f}", flush=True)
         feat_weight_var.assign(active_feat_wt)
 
     # Main Perceptual Phase
-    print(f"Starting Blind SR perceptual training for {iterations} iterations...")
+    print(f"Starting Blind SR perceptual training for {iterations} iterations...", flush=True)
     for i in range(1, iterations + 1):
         x, y = next(gen)
         loss = model.train_on_batch(x, y)
         
         if i % 50 == 0 or i == 1:
-            print(f"Iteration {i}/{iterations} - loss: {float(loss):.6f}")
+            print(f"Iteration {i}/{iterations} - loss: {float(loss):.6f}", flush=True)
+        if i % 100 == 0:
+            config = default_siq_config(model)
+            config["model_type"] = "blind_sr"
+            config["upsample_factor"] = factor_tuple if len(factor_tuple) > 1 else factor_tuple[0]
+            config["loss_weights"] = {
+                "msq": float(msq_weight),
+                "feat": float(feat_weight),
+                "tv": float(tv_weight),
+                "feature_type": feature_type,
+                "feature_layer": feature_layer
+            }
+            save_siq_model(f"{output_prefix}_best.keras", model, config)
             
     best_path = f"{output_prefix}_best.keras"
-    config = default_siq_config(factor=factor_tuple, model_type="blind_sr")
+    config = default_siq_config(model)
+    config["model_type"] = "blind_sr"
+    config["upsample_factor"] = factor_tuple if len(factor_tuple) > 1 else factor_tuple[0]
     config["loss_weights"] = {
         "msq": float(msq_weight),
         "feat": float(feat_weight),

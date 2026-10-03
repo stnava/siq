@@ -78,6 +78,12 @@ def main():
         help="Model architecture: dbpn-small (9.88M), dbpn-large (66.86M), or espcn-residual (default: dbpn-small)",
     )
     parser.add_argument(
+        "--load-model",
+        type=str,
+        default="dbpn_small_3d_from_refined.keras",
+        help="Path to initial weights (e.g. transferred small model) (default: dbpn_small_3d_from_refined.keras if exists)",
+    )
+    parser.add_argument(
         "--msq-weight",
         type=float,
         default=3.86,
@@ -117,8 +123,11 @@ def main():
     print(f"  Output Prefix:     {args.output_prefix}")
     print("=" * 70)
 
-    # 1. Instantiate Model Architecture
-    if args.model_type == "dbpn-small":
+    # 1. Instantiate or Load Model Architecture
+    if args.load_model and os.path.exists(args.load_model):
+        print(f"Loading transferred model from {args.load_model}...")
+        model, _ = siq.load_siq_model(args.load_model)
+    elif args.model_type == "dbpn-small":
         print("Instantiating Small 3D DBPN (option='small', 9.88M parameters)...")
         model = siq.default_dbpn(
             strider=list(factor_tuple),
@@ -164,6 +173,7 @@ def main():
         msq_weight=args.msq_weight,
         feat_weight=args.feat_weight,
         tv_weight=args.tv_weight,
+        use_cache=False,
     )
 
     print("\nTraining complete!")
