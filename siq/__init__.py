@@ -1,87 +1,157 @@
 import os
 try:
     from .version import __version__
-except:
+except Exception:
     pass
 
-from .get_data import dbpn
-from .get_data import get_random_patch
-from .get_data import get_random_base_ind 
-from .get_data import get_random_patch_pair 
-from .get_data import get_grader_feature_network
-from .get_data import default_dbpn
-from .get_data import inference
-from .get_data import train
-from .get_data import train_seg
-from .get_data import auto_weight_loss
-from .get_data import image_patch_training_data_from_filenames
-from .get_data import seg_patch_training_data_from_filenames
-from .get_data import image_generator
-from .get_data import seg_generator
-from .get_data import numpy_generator
-from .get_data import read
-from .get_data import binary_dice_loss
-from .get_data import pseudo_3d_vgg_features
-from .get_data import pseudo_3d_vgg_features_unbiased
-from .get_data import vgg_features_2d
-from .get_data import read_srmodel
-from .get_data import load_siq_model
-from .get_data import save_siq_model
-from .get_data import default_siq_config
-from .get_data import overlapping_patch_inference
-from .get_data import compute_checkerboard_index
-from .get_data import estimate_anti_checkerboard_sigma
-from .get_data import compute_gmsd
-from .get_data import compute_hfen
-from .get_data import compute_psnr
-from .get_data import compute_ssim
-from .get_data import compute_tenengrad
-from .get_data import compute_acutance_ratio
-from .get_data import compute_laplacian_energy_ratio
-from .get_data import compute_spectral_energy_ratio
-from .get_data import compute_ms_ssim
-from .get_data import compute_lpips
-from .get_data import compute_cqs
-from .get_data import compute_pcs
-from .get_data import compute_perceptual_metrics
-from .get_data import compute_phase_shift
-from .get_data import compute_shift_lk
-from .get_data import compute_edge_error_correlation
-from .get_data import compute_alignment_qc
-from .alignment import (augment_geometry_hr, audit_pair_alignment,
-                        decimation_offset, reflection_shift)
-from .get_data import (simulate_image, simulate_image_multi_scale, 
-                        simulate_brain_procedural, simulate_sinewave, simulate_layered, 
-                        simulate_vessel_tubes, simulate_cellular_voronoi, 
-                        simulate_geometric_phantoms, simulate_grid_patterns, 
-                        simulate_fractal_noise, add_rician_noise)
-from .get_data import compare_models
-from .get_data import optimize_upsampling_shape
-from .get_data import region_wise_super_resolution
-from .get_data import region_wise_super_resolution_blended
-
+from .inference import (
+    inference,
+    overlapping_patch_inference,
+    gaussian_weight_map_numpy,
+    estimate_anti_checkerboard_sigma,
+)
+from .losses import (
+    ops_total_variation,
+    ops_psnr,
+    compute_gmsd,
+    compute_hfen,
+    compute_psnr,
+    compute_ssim,
+    compute_checkerboard_index,
+    compute_tenengrad,
+    compute_acutance_ratio,
+    compute_laplacian_energy_ratio,
+    compute_spectral_energy_ratio,
+    compute_ms_ssim,
+    compute_lpips,
+    compute_cqs,
+    compute_pcs,
+    compute_perceptual_metrics,
+    pseudo_3d_vgg_features,
+    pseudo_3d_vgg_features_unbiased,
+    vgg_features_2d,
+    get_grader_feature_network,
+    auto_weight_loss,
+    auto_weight_loss_seg,
+    binary_dice_loss,
+    compute_phase_shift,
+    compute_shift_lk,
+    compute_edge_error_correlation,
+    compute_alignment_qc,
+)
+from .provenance import (
+    read_srmodel,
+    save_siq_model,
+    load_siq_model,
+    default_siq_config,
+    extract_siq_loss_weights,
+)
+from .simulation import (
+    simulate_image,
+    simulate_image_multi_scale,
+    simulate_brain_procedural,
+    simulate_sinewave,
+    simulate_layered,
+    simulate_vessel_tubes,
+    simulate_cellular_voronoi,
+    simulate_geometric_phantoms,
+    simulate_grid_patterns,
+    simulate_fractal_noise,
+    add_rician_noise,
+)
+from .get_data import (
+    dbpn,
+    default_dbpn,
+    get_random_patch,
+    get_random_base_ind,
+    get_random_patch_pair,
+    image_patch_training_data_from_filenames,
+    seg_patch_training_data_from_filenames,
+    image_generator,
+    seg_generator,
+    numpy_generator,
+    read,
+    train,
+    train_seg,
+    compare_models,
+    optimize_upsampling_shape,
+    region_wise_super_resolution,
+    region_wise_super_resolution_blended,
+)
+from .alignment import (
+    augment_geometry_hr,
+    audit_pair_alignment,
+    decimation_offset,
+    reflection_shift,
+)
 from .auto import auto
-from .espcn import (create_espcn_3d, create_espcn_3d_residual, PixelShuffle3D,
-                    create_espcn_3d_attention, create_ldbpn_3d, LearnableScale,
-                    transfer_espcn_weights, transfer_dbpn_weights, transfer_dbpn_to_smaller, transfer_siq_weights,
-                    extract_siq_loss_weights,
-                    create_espcn_2d_attention, create_ldbpn_2d, PixelShuffle2D,
-                    create_wdsr_2d, create_wdsr_3d,
-                    create_rcan_2d, create_rcan_3d,
-                    create_carn_2d, create_carn_3d,
-                    create_espcn_2d_resize_conv, create_wdsr_2d_resize_conv,
-                    create_srfbn_2d, create_srfbn_3d,
-                    create_san_2d, create_san_3d,
-                    create_asdbpn_2d, create_asdbpn_3d,
-                    TrilinearUpSampling3D,
-                    LearnableSharpening, LearnableSharpening3D)
-from .blind_sr import (blind_sr_generator_simple, blind_sr_generator, 
-                       train_blind_espcn_perceptual, train_blind_sr_kitchen_sink)
-from .benchmark import (benchmark as sr_benchmark, build_cases, run_benchmark, SRMethod, compute_pcsc, sr_metrics,
-                        classical_methods, unsharp_methods, linear_ls_methods, siq_model_method,
-                        public_model_method, callable_method, list_public_models, estimate_phase_shift,
-                        format_markdown as format_benchmark_markdown, render_html_report,
-                        render_image_report, build_methods)
-from .curriculum import (train_blind_sr_curriculum, evaluate_model_2d, DEFAULT_STAGES)
-from .model_registry import (register_model, archive_model, list_models,
-                              get_best_model, summarize_registry)
+from .espcn import (
+    create_espcn_3d,
+    create_espcn_3d_residual,
+    PixelShuffle3D,
+    create_espcn_3d_attention,
+    create_ldbpn_3d,
+    LearnableScale,
+    transfer_espcn_weights,
+    transfer_dbpn_weights,
+    transfer_dbpn_to_smaller,
+    transfer_siq_weights,
+    create_espcn_2d_attention,
+    create_ldbpn_2d,
+    PixelShuffle2D,
+    create_wdsr_2d,
+    create_wdsr_3d,
+    create_rcan_2d,
+    create_rcan_3d,
+    create_carn_2d,
+    create_carn_3d,
+    create_espcn_2d_resize_conv,
+    create_wdsr_2d_resize_conv,
+    create_srfbn_2d,
+    create_srfbn_3d,
+    create_san_2d,
+    create_san_3d,
+    create_asdbpn_2d,
+    create_asdbpn_3d,
+    TrilinearUpSampling3D,
+    LearnableSharpening,
+    LearnableSharpening3D,
+)
+from .blind_sr import (
+    blind_sr_generator_simple,
+    blind_sr_generator,
+    train_blind_espcn_perceptual,
+    train_blind_sr_kitchen_sink,
+)
+from .benchmark import (
+    benchmark as sr_benchmark,
+    build_cases,
+    run_benchmark,
+    SRMethod,
+    compute_pcsc,
+    sr_metrics,
+    classical_methods,
+    unsharp_methods,
+    linear_ls_methods,
+    siq_model_method,
+    public_model_method,
+    callable_method,
+    list_public_models,
+    estimate_phase_shift,
+    format_markdown as format_benchmark_markdown,
+    render_html_report,
+    render_image_report,
+    build_methods,
+)
+from .curriculum import (
+    train_blind_sr_curriculum,
+    evaluate_model_2d,
+    DEFAULT_STAGES,
+)
+from .model_registry import (
+    register_model,
+    archive_model,
+    list_models,
+    get_best_model,
+    summarize_registry,
+)
