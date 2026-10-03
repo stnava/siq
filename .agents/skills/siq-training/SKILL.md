@@ -48,14 +48,30 @@ Pass the results as `--init-l1-weight W --init-feat-weight W --init-tv-weight W`
 to bypass auto-calibration and start training in the correct 30/65/5 ratio
 from iteration 1.
 
-**Last measured medians** (asdbpn_3d_best_psnr.keras, 10 Rician batches,
-rank-normalized, 2026-09-28):
+**ResNet Backend Medians** (asdbpn_3d_best_psnr.keras, 10 Rician batches, rank-normalized):
 
 | Component | Median raw | Weight | Target % |
 |-----------|-----------|--------|----------|
 | L1 (MAE)  | 0.079186  | 3.789  | 30%      |
 | Feat (ResNet) | 0.001150 | 565.1 | 65%   |
 | TV        | 0.108090  | 0.463  | 5%       |
+
+**VGG19 Backend Medians** (dbpn_3d_best_mdl.keras, 10 Rician batches, linear [0,1]):
+
+| Component | Median raw | Weight | Target % |
+|-----------|-----------|--------|----------|
+| L1 (MAE)  | 0.077598  | 3.866  | 30%      |
+| Feat (VGG L6) | 5680.2466 | 1.144e-4 | 65% |
+| TV        | 0.128233  | 0.390  | 5%       |
+| Edge      | —         | 0.0    | 0% (DBPN native back-projection) |
+| CBI       | —         | 0.0    | 0% (DBPN nearest-neighbor, no deconv) |
+
+## Tracking Quality: Keep CQS & PCS on Hand
+
+Always track model convergence using `siq.compute_cqs(y_true, y_pred)` and `siq.compute_pcs(y_true, y_pred)`:
+- **CQS** ($\text{SSIM} - \text{GMSD} - \text{CBI}$): Integrated structural fidelity, edge sharpness, and artifact cleanliness.
+- **PCS** ($\text{SSIM} + 0.5\cdot\text{Acutance} + 0.5\cdot\text{Laplacian} - \text{GMSD} - \text{CBI}$): High-frequency perceptual score for Stage 3 refinement.
+- Included automatically in `siq.compute_perceptual_metrics()`.
 
 ## Critical: ResNet Preprocessing (rank-normalization)
 

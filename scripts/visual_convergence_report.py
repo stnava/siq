@@ -608,10 +608,6 @@ class VisualConvergenceReporter:
             
         elapsed_eval = time.time() - t0
         
-        # 2. Checkpoint filenames
-        ckpt_filename = f"asdbpn_3d_step_{iteration:04d}.keras"
-        ckpt_path = os.path.join(self.checkpoint_dir, ckpt_filename)
-
         # Build provenance config — saved alongside every .keras file so
         # any reader knows exactly how to run inference correctly.
         import json, datetime
@@ -636,6 +632,8 @@ class VisualConvergenceReporter:
         ckpt_base = os.path.basename(self.checkpoint_dir)
         m_prefix = ckpt_base.split("_")[0] if "_" in ckpt_base else "asdbpn"
         dim_str = "2d" if (isinstance(_upfactor, (list, tuple)) and len(_upfactor) == 2) else "3d"
+        ckpt_filename = f"{m_prefix}_{dim_str}_step_{iteration:04d}.keras"
+        ckpt_path = os.path.join(self.checkpoint_dir, ckpt_filename)
         provenance_config = {
             "model_type": f"{m_prefix}_{dim_str}",
             "siq_version": _siq_ver,

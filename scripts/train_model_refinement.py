@@ -1072,7 +1072,12 @@ def main():
             output_model_path = os.path.join(workspace_dir, f"{prefix}_3d_refined.keras")
             best_model_path = os.path.join(workspace_dir, "exp_baseline_best.keras" if prefix == "ref_dbpn" else f"{prefix}_3d_best_mdl.keras")
         
-        if not args.from_scratch and os.path.exists(output_model_path) and not args.reset_history:
+        if not args.from_scratch and args.load_model and os.path.exists(args.load_model):
+            print(f"Loading DBPN model from explicit path: {args.load_model}...")
+            model = keras.models.load_model(args.load_model, compile=False)
+            if (args.start_stage and args.start_stage >= 3) or last_iteration >= stage2_max:
+                skip_stages_1_2 = True
+        elif not args.from_scratch and os.path.exists(output_model_path) and not args.reset_history:
             print(f"Resuming training: loading existing refined DBPN model from {output_model_path}...")
             model = keras.models.load_model(output_model_path, compile=False)
             if last_iteration >= stage2_max:

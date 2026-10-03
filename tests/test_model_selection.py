@@ -19,6 +19,22 @@ def test_cqs_penalizes_artifact_ringing():
     assert cqs_clean > cqs_ringing, f"Clean model CQS ({cqs_clean:.4f}) should exceed ringing model CQS ({cqs_ringing:.4f})"
 
 
+def test_siq_compute_cqs_and_pcs_functions():
+    import siq
+    img1 = np.ones((16, 16, 16), dtype=np.float32) * 0.5
+    img2 = img1.copy()
+    # Perfect match: SSIM=1.0, GMSD=0.0, CBI=0.0 -> CQS=1.0
+    cqs_perf = siq.compute_cqs(img1, img2)
+    assert abs(cqs_perf - 1.0) < 1e-4
+
+    # Degraded match
+    img_noise = img1 + np.random.normal(0, 0.05, img1.shape).astype(np.float32)
+    cqs_noise = siq.compute_cqs(img1, img_noise)
+    pcs_noise = siq.compute_pcs(img1, img_noise)
+    assert cqs_noise < cqs_perf
+    assert isinstance(pcs_noise, float)
+
+
 def test_stage_hierarchy_selection():
     stage_rank_map = {
         "Warmup Gate": 0, "Initial Warmup": 0, "Warmup": 0,

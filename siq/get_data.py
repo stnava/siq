@@ -586,6 +586,65 @@ def compute_lpips(y_true, y_pred, net='vgg', device=None, num_slices=16):
         raise ValueError(f"Unsupported dimensions for compute_lpips: {yt.ndim}")
 
 
+def compute_cqs(y_true, y_pred, factor=None):
+    """
+    Computes the Composite Quality Score (CQS):
+        CQS = SSIM - GMSD - CBI
+
+    Simultaneously rewards structural fidelity (SSIM in [0, 1]), gradient edge
+    sharpness (low GMSD), and artifact cleanliness (low CBI).
+
+    Parameters
+    ----------
+    y_true : np.ndarray or ANTsImage
+        Ground truth reference image/volume.
+    y_pred : np.ndarray or ANTsImage
+        Predicted / reconstructed super-resolution image/volume.
+    factor : int, tuple, or list, optional
+        Super-resolution upsampling factor (e.g. 2 or (1, 1, 2)).
+
+    Returns
+    -------
+    float
+        Composite Quality Score.
+    """
+    s = compute_ssim(y_true, y_pred)
+    g = compute_gmsd(y_true, y_pred)
+    c = compute_checkerboard_index(y_pred, y_true, factor=factor)
+    return float(s - g - c)
+
+
+def compute_pcs(y_true, y_pred, factor=None):
+    """
+    Computes the Perceptual Composite Score (PCS):
+        PCS = SSIM + 0.5 * Acutance + 0.5 * Laplacian - GMSD - CBI
+
+    Integrates structural preservation, 1st-order gradient edge sharpness (acutance),
+    and 2nd-order high-frequency Laplacian detail while penalizing gradient dispersion
+    and checkerboard ringing artifacts.
+
+    Parameters
+    ----------
+    y_true : np.ndarray or ANTsImage
+        Ground truth reference image/volume.
+    y_pred : np.ndarray or ANTsImage
+        Predicted / reconstructed super-resolution image/volume.
+    factor : int, tuple, or list, optional
+        Super-resolution upsampling factor (e.g. 2 or (1, 1, 2)).
+
+    Returns
+    -------
+    float
+        Perceptual Composite Score.
+    """
+    s = compute_ssim(y_true, y_pred)
+    a = compute_acutance_ratio(y_true, y_pred)
+    l = compute_laplacian_energy_ratio(y_true, y_pred)
+    g = compute_gmsd(y_true, y_pred)
+    c = compute_checkerboard_index(y_pred, y_true, factor=factor)
+    return float(s + 0.5 * a + 0.5 * l - g - c)
+
+
 def compute_perceptual_metrics(y_true, y_pred, factor=None):
     """
     Computes a comprehensive dictionary of quantitative quality and independent
@@ -604,16 +663,28 @@ def compute_perceptual_metrics(y_true, y_pred, factor=None):
         - lpips: Deep perceptual feature distance (lower is better)
         - gmsd: Gradient Magnitude Similarity Deviation
         - cbi: Checkerboard Index
+        - cqs: Composite Quality Score (SSIM - GMSD - CBI)
+        - pcs: Perceptual Composite Score (SSIM + 0.5*Acutance + 0.5*Laplacian - GMSD - CBI)
     """
+    ssim_val = compute_ssim(y_true, y_pred)
+    acutance_val = compute_acutance_ratio(y_true, y_pred)
+    laplacian_val = compute_laplacian_energy_ratio(y_true, y_pred)
+    gmsd_val = compute_gmsd(y_true, y_pred)
+    cbi_val = compute_checkerboard_index(y_pred, y_true, factor=factor)
+    cqs_val = float(ssim_val - gmsd_val - cbi_val)
+    pcs_val = float(ssim_val + 0.5 * acutance_val + 0.5 * laplacian_val - gmsd_val - cbi_val)
+
     res = {
         "psnr": compute_psnr(y_true, y_pred),
-        "ssim": compute_ssim(y_true, y_pred),
+        "ssim": ssim_val,
         "ms_ssim": compute_ms_ssim(y_true, y_pred),
-        "acutance_ratio": compute_acutance_ratio(y_true, y_pred),
-        "laplacian_ratio": compute_laplacian_energy_ratio(y_true, y_pred),
+        "acutance_ratio": acutance_val,
+        "laplacian_ratio": laplacian_val,
         "spectral_ratio": compute_spectral_energy_ratio(y_true, y_pred, factor=factor),
-        "gmsd": compute_gmsd(y_true, y_pred),
-        "cbi": compute_checkerboard_index(y_pred, y_true, factor=factor),
+        "gmsd": gmsd_val,
+        "cbi": cbi_val,
+        "cqs": cqs_val,
+        "pcs": pcs_val,
     }
     try:
         res["lpips"] = compute_lpips(y_true, y_pred)

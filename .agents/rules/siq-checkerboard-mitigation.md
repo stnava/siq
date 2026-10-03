@@ -10,9 +10,19 @@ The alternating-parity checkerboard filter ($K_{i,j,k} = \frac{1}{8}(-1)^{i+j+k}
 
 Natural anatomical edges produce high-frequency alternating-parity energy (~0.025–0.28) even in clean ground truth MRI. Evaluating on $(\hat{y} - y_{\text{true}})$ zeroes out true anatomy (`0.000`) and isolates 100% pure transposed-convolution artifact error.
 
-## Always Enable CBI Regularization During 3D Transposed-Conv Training
+## Always Enable CBI Regularization During 3D Transposed-Conv Training (AS-DBPN Only)
 
 When refining models with transposed-convolution layers (e.g. AS-DBPN 3D), always pass `--cbi-weight 2.0` (or set `cbi_weight_var > 0`). Without this loss term, raw model output exhibits severe checkerboard grid resonance ($\text{CBI} \approx 0.073$, $3.7\times$ ground truth).
+
+### Architecture Scope Invariant for CBI:
+- **Transposed-Convolution Models (AS-DBPN)**: Always enable `--cbi-weight 2.0`.
+- **Sub-Pixel & Nearest-Neighbor Back-Projection Models (DBPN, L-DBPN, ESPCN, WDSR)**: Always set `--cbi-weight 0.0`. These architectures do not use transposed convolutions and do not produce deconvolution checkerboard artifacts; applying CBI unnecessarily penalizes true anatomical gradient variations.
+
+## Keep CQS on Hand to Track Model Performance
+
+Whenever tracking, evaluating, or reporting model convergence and quality, always keep the **Composite Quality Score (CQS)** on hand as the primary unified performance metric:
+$$\text{CQS} = \text{val\_ssim} - \text{val\_gmsd} - \text{val\_cbi}$$
+Use native `siq.compute_cqs(y_true, y_pred, factor=factor)` or `siq.compute_perceptual_metrics()`. Never rely on PSNR alone. Always report CQS alongside its structural, edge, and artifact components.
 
 ## Data-Driven Anti-Checkerboard Filter (No Fixed Sigma)
 

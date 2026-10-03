@@ -11621,5 +11621,948 @@
       "cbi": 0.0
     },
     "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_2d_2x2_stage_3_refinement_01501_20260930_162732"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_initial_(pre-warmup)_00000_20261002_202431",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 0 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:24:31.318255+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_initial_(pre-warmup)_00000_20261002_202431/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_initial_(pre-warmup)_00000_20261002_202431/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Initial (Pre-Warmup)",
+    "iteration": 0,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 11.839124795590878,
+      "val_ssim": 0.3298403701332275,
+      "val_ms_ssim": 0.29414898612809715,
+      "val_acutance_ratio": 0.8057388468809901,
+      "val_laplacian_ratio": 0.9807139816934751,
+      "val_spectral_ratio": 0.8915698404231759,
+      "val_gmsd": 0.27677494287490845,
+      "val_cbi": 0.03963300585746765,
+      "val_cqs": 0.01343242140085138,
+      "val_pcs": 0.906658835688084,
+      "val_hfen": 1.2186912298202515
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_initial_(pre-warmup)_00000_20261002_202431"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00001_20261002_202454",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:24:54.851835+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00001_20261002_202454/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00001_20261002_202454/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 1,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 15.837045244933272,
+      "val_ssim": 0.4013262293059663,
+      "val_ms_ssim": 0.7595077558946864,
+      "val_acutance_ratio": 0.2453917257516582,
+      "val_laplacian_ratio": 0.10995615669573519,
+      "val_spectral_ratio": 0.054651169849647206,
+      "val_gmsd": 0.281877726316452,
+      "val_cbi": 0.031685493886470795,
+      "val_cqs": 0.08776300910304347,
+      "val_pcs": 0.2654369503267402,
+      "val_hfen": 0.9861363172531128
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00001_20261002_202454"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00040_20261002_203224",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 40 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:32:24.271426+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00040_20261002_203224/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00040_20261002_203224/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 40,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 19.20856835539087,
+      "val_ssim": 0.5179858574438563,
+      "val_ms_ssim": 0.8483336565609862,
+      "val_acutance_ratio": 0.2316793596360531,
+      "val_laplacian_ratio": 0.09857511564285763,
+      "val_spectral_ratio": 0.03827532710589481,
+      "val_gmsd": 0.25329065322875977,
+      "val_cbi": 0.031653765588998795,
+      "val_cqs": 0.23304143862609772,
+      "val_pcs": 0.3981686762655531,
+      "val_hfen": 0.8991352319717407
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00040_20261002_203224"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00050_20261002_203422",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 50 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:34:22.822979+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00050_20261002_203422/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00050_20261002_203422/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 50,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 19.25333432734528,
+      "val_ssim": 0.5558100541291857,
+      "val_ms_ssim": 0.85297279377593,
+      "val_acutance_ratio": 0.23076436858404006,
+      "val_laplacian_ratio": 0.09820724645038409,
+      "val_spectral_ratio": 0.03699120851726526,
+      "val_gmsd": 0.2535141110420227,
+      "val_cbi": 0.0316496342420578,
+      "val_cqs": 0.2706463088451052,
+      "val_pcs": 0.4351321163623173,
+      "val_hfen": 0.889971911907196
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00050_20261002_203422"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00060_20261002_203620",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 60 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:36:20.861431+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00060_20261002_203620/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00060_20261002_203620/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 60,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 21.667092557446857,
+      "val_ssim": 0.6625177546802332,
+      "val_ms_ssim": 0.897805796647467,
+      "val_acutance_ratio": 0.2339712816978492,
+      "val_laplacian_ratio": 0.10465002442835153,
+      "val_spectral_ratio": 0.046230988559960114,
+      "val_gmsd": 0.2331717312335968,
+      "val_cbi": 0.03164634108543396,
+      "val_cqs": 0.39769968236120246,
+      "val_pcs": 0.5670103354243028,
+      "val_hfen": 0.8260125517845154
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00060_20261002_203620"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00080_20261002_204019",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 80 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:40:19.637029+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00080_20261002_204019/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00080_20261002_204019/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 80,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 21.955296150023123,
+      "val_ssim": 0.7579498262796286,
+      "val_ms_ssim": 0.9235927437294068,
+      "val_acutance_ratio": 0.2214685325944643,
+      "val_laplacian_ratio": 0.09726139237410385,
+      "val_spectral_ratio": 0.0659881996536379,
+      "val_gmsd": 0.2270025759935379,
+      "val_cbi": 0.03164367377758026,
+      "val_cqs": 0.4993035765085104,
+      "val_pcs": 0.6586685389927945,
+      "val_hfen": 0.760989785194397
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00080_20261002_204019"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00100_20261002_204408",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 100 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:44:08.202149+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00100_20261002_204408/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00100_20261002_204408/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 100,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 23.44827819352939,
+      "val_ssim": 0.7827824983559653,
+      "val_ms_ssim": 0.9451156906507813,
+      "val_acutance_ratio": 0.27378955676801336,
+      "val_laplacian_ratio": 0.10817389038602335,
+      "val_spectral_ratio": 0.07089491848510408,
+      "val_gmsd": 0.21005207300186157,
+      "val_cbi": 0.03163231536746025,
+      "val_cqs": 0.5410981099866434,
+      "val_pcs": 0.7320798335636618,
+      "val_hfen": 0.6958792209625244
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00100_20261002_204408"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00120_20261002_204758",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 120 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:47:58.217487+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00120_20261002_204758/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00120_20261002_204758/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 120,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 23.024272104135086,
+      "val_ssim": 0.8242773285628471,
+      "val_ms_ssim": 0.9525979190257442,
+      "val_acutance_ratio": 0.3624393742827245,
+      "val_laplacian_ratio": 0.13124385271046468,
+      "val_spectral_ratio": 0.07400609467931635,
+      "val_gmsd": 0.19890135526657104,
+      "val_cbi": 0.031611621379852295,
+      "val_cqs": 0.5937643519164237,
+      "val_pcs": 0.8406059654130185,
+      "val_hfen": 0.635640025138855
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00120_20261002_204758"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00125_20261002_204904",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 125 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:49:04.439469+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00125_20261002_204904/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00125_20261002_204904/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 125,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 23.678342298660006,
+      "val_ssim": 0.7940917330638547,
+      "val_ms_ssim": 0.9611855137479298,
+      "val_acutance_ratio": 0.4321353413993618,
+      "val_laplacian_ratio": 0.15753731096563886,
+      "val_spectral_ratio": 0.08547870864577595,
+      "val_gmsd": 0.1952274590730667,
+      "val_cbi": 0.03160297870635986,
+      "val_cqs": 0.5672612952844281,
+      "val_pcs": 0.8620976214669287,
+      "val_hfen": 0.592414915561676
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00125_20261002_204904"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00160_20261002_205600",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 160 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T20:56:00.047602+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00160_20261002_205559/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00160_20261002_205559/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 160,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 24.094314823994697,
+      "val_ssim": 0.8631479055756668,
+      "val_ms_ssim": 0.959358869640461,
+      "val_acutance_ratio": 0.4321022039073192,
+      "val_laplacian_ratio": 0.15505763772671058,
+      "val_spectral_ratio": 0.0818239918310227,
+      "val_gmsd": 0.19324319064617157,
+      "val_cbi": 0.0315994992852211,
+      "val_cqs": 0.6383052156442741,
+      "val_pcs": 0.931885136461289,
+      "val_hfen": 0.5791437029838562
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00160_20261002_205559"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00180_20261002_210001",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 180 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:00:01.671470+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00180_20261002_210001/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00180_20261002_210001/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 180,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 24.928364324198103,
+      "val_ssim": 0.8708428182282228,
+      "val_ms_ssim": 0.9676383185005487,
+      "val_acutance_ratio": 0.4320219025433624,
+      "val_laplacian_ratio": 0.17955422197507162,
+      "val_spectral_ratio": 0.08597884676960448,
+      "val_gmsd": 0.19391164183616638,
+      "val_cbi": 0.03157896175980568,
+      "val_cqs": 0.6453522146322508,
+      "val_pcs": 0.9511402768914679,
+      "val_hfen": 0.5202301144599915
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00180_20261002_210001"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00225_20261002_210848",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 225 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:08:48.687106+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00225_20261002_210848/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00225_20261002_210848/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 225,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 22.060707486494707,
+      "val_ssim": 0.8798306795098342,
+      "val_ms_ssim": 0.9655042864452245,
+      "val_acutance_ratio": 0.5945510333816465,
+      "val_laplacian_ratio": 0.21459568125286482,
+      "val_spectral_ratio": 0.10555512003436616,
+      "val_gmsd": 0.18430465459823608,
+      "val_cbi": 0.03154410421848297,
+      "val_cqs": 0.6639819206931151,
+      "val_pcs": 1.0685552780103709,
+      "val_hfen": 0.47966232895851135
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00225_20261002_210848"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_warmup_00240_20261002_211144",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 240 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:11:44.281899+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00240_20261002_211144/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00240_20261002_211144/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Warmup",
+    "iteration": 240,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 19.917428988653803,
+      "val_ssim": 0.8696817466246123,
+      "val_ms_ssim": 0.9574064595694748,
+      "val_acutance_ratio": 0.6640674113764803,
+      "val_laplacian_ratio": 0.23513375031214254,
+      "val_spectral_ratio": 0.11246309921926022,
+      "val_gmsd": 0.1892768144607544,
+      "val_cbi": 0.03152839094400406,
+      "val_cqs": 0.6488765412198538,
+      "val_pcs": 1.0984771220641651,
+      "val_hfen": 0.47055020928382874
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_warmup_00240_20261002_211144"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00001_20261002_211610",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:16:10.828440+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00001_20261002_211610/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00001_20261002_211610/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 1,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 20.806971121618485,
+      "val_ssim": 0.6622024433058785,
+      "val_ms_ssim": 0.9309725246041016,
+      "val_acutance_ratio": 0.47685361233846857,
+      "val_laplacian_ratio": 0.22198798238655187,
+      "val_spectral_ratio": 0.10860074330725948,
+      "val_gmsd": 0.17766359448432922,
+      "val_cbi": 0.03152404725551605,
+      "val_cqs": 0.45301480156603324,
+      "val_pcs": 0.8024355989285434,
+      "val_hfen": 0.49899187684059143
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00001_20261002_211610"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00025_20261002_212105",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 25 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:21:05.117472+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00025_20261002_212104/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00025_20261002_212104/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 25,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 24.28007498863554,
+      "val_ssim": 0.8492489737229199,
+      "val_ms_ssim": 0.9629836042261674,
+      "val_acutance_ratio": 0.4044891977237294,
+      "val_laplacian_ratio": 0.1852773869150257,
+      "val_spectral_ratio": 0.09773393168580607,
+      "val_gmsd": 0.1667909026145935,
+      "val_cbi": 0.03154577314853668,
+      "val_cqs": 0.6509122979597897,
+      "val_pcs": 0.9457955902791673,
+      "val_hfen": 0.4807514250278473
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00025_20261002_212104"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00050_20261002_212609",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 50 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:26:09.550784+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00050_20261002_212609/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00050_20261002_212609/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 50,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 25.23785474563794,
+      "val_ssim": 0.8412902275781107,
+      "val_ms_ssim": 0.9712782234234839,
+      "val_acutance_ratio": 0.4599894887326135,
+      "val_laplacian_ratio": 0.19604871571423854,
+      "val_spectral_ratio": 0.10262463472435812,
+      "val_gmsd": 0.1610313355922699,
+      "val_cbi": 0.03151925280690193,
+      "val_cqs": 0.6487396391789388,
+      "val_pcs": 0.9767587414023651,
+      "val_hfen": 0.4514414072036743
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00050_20261002_212609"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00075_20261002_213116",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 75 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:31:16.649139+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00075_20261002_213116/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00075_20261002_213116/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 75,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 25.364795616232488,
+      "val_ssim": 0.8820279273980295,
+      "val_ms_ssim": 0.9722859692486302,
+      "val_acutance_ratio": 0.5966814265193416,
+      "val_laplacian_ratio": 0.2489125404878885,
+      "val_spectral_ratio": 0.12732520195698535,
+      "val_gmsd": 0.16097961366176605,
+      "val_cbi": 0.031490594148635864,
+      "val_cqs": 0.6895577195876276,
+      "val_pcs": 1.1123547030912426,
+      "val_hfen": 0.424140602350235
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00075_20261002_213116"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00100_20261002_213622",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 100 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:36:22.396416+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00100_20261002_213622/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00100_20261002_213622/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 100,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 24.076594676966465,
+      "val_ssim": 0.8940309319231993,
+      "val_ms_ssim": 0.9641760920206914,
+      "val_acutance_ratio": 0.5591176718066222,
+      "val_laplacian_ratio": 0.25922271602074026,
+      "val_spectral_ratio": 0.13279004670477404,
+      "val_gmsd": 0.14945590496063232,
+      "val_cbi": 0.03147362917661667,
+      "val_cqs": 0.7131013977859503,
+      "val_pcs": 1.1222715916996315,
+      "val_hfen": 0.4163569211959839
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 19.988723754882812,
+      "feat": 0.0,
+      "tv": 0.0,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00100_20261002_213622"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00175_20261002_215346",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 175 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T21:53:46.339708+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00175_20261002_215346/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00175_20261002_215346/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 175,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 23.207174074529448,
+      "val_ssim": 0.8634988407608059,
+      "val_ms_ssim": 0.9759473019960239,
+      "val_acutance_ratio": 0.754698547452614,
+      "val_laplacian_ratio": 0.3061351775740492,
+      "val_spectral_ratio": 0.1838442699954297,
+      "val_gmsd": 0.15467292070388794,
+      "val_cbi": 0.03137645497918129,
+      "val_cqs": 0.6774494650777366,
+      "val_pcs": 1.2078663275910682,
+      "val_hfen": 0.3620474636554718
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 18.724262237548828,
+      "feat": 1.0248594662698451e-05,
+      "tv": 0.012236800976097584,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00175_20261002_215346"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00225_20261002_220439",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 225 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T22:04:39.635010+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00225_20261002_220439/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00225_20261002_220439/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 225,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 26.329443413327752,
+      "val_ssim": 0.8702767399941793,
+      "val_ms_ssim": 0.9774267928037883,
+      "val_acutance_ratio": 0.7815050894206318,
+      "val_laplacian_ratio": 0.3451031860484026,
+      "val_spectral_ratio": 0.21563833414067118,
+      "val_gmsd": 0.15462753176689148,
+      "val_cbi": 0.03131996840238571,
+      "val_cqs": 0.6843292398249021,
+      "val_pcs": 1.2476333775594193,
+      "val_hfen": 0.3686070144176483
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 17.970415115356445,
+      "feat": 1.3154334737919271e-05,
+      "tv": 0.01627238467335701,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00225_20261002_220439"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_1_adaptation_00300_20261002_222247",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 300 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T22:22:47.788118+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00300_20261002_222247/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00300_20261002_222247/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 1 Adaptation",
+    "iteration": 300,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 25.06451442483843,
+      "val_ssim": 0.9079352972148128,
+      "val_ms_ssim": 0.9704495851152962,
+      "val_acutance_ratio": 0.8715485621013339,
+      "val_laplacian_ratio": 0.36069442398341106,
+      "val_spectral_ratio": 0.23937314524181363,
+      "val_gmsd": 0.14174769818782806,
+      "val_cbi": 0.03126474469900131,
+      "val_cqs": 0.7349228543279834,
+      "val_pcs": 1.351044347370356,
+      "val_hfen": 0.38217484951019287
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 16.619333267211914,
+      "feat": 1.3475262676365674e-05,
+      "tv": 0.018736042082309723,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_1_adaptation_00300_20261002_222247"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_2_robustness_00501_20261002_231115",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 501 by VisualConvergenceReporter",
+    "registered_at": "2026-10-02T23:11:15.291857+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_2_robustness_00501_20261002_231115/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_2_robustness_00501_20261002_231115/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 2 Robustness",
+    "iteration": 501,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 23.769344162558646,
+      "val_ssim": 0.9094536750324971,
+      "val_ms_ssim": 0.9793123571582872,
+      "val_acutance_ratio": 0.9812206120842628,
+      "val_laplacian_ratio": 0.4261176059105448,
+      "val_spectral_ratio": 0.34224602279898725,
+      "val_gmsd": 0.12653185427188873,
+      "val_cbi": 0.03103223629295826,
+      "val_cqs": 0.7518895844676501,
+      "val_pcs": 1.455558693465054,
+      "val_hfen": 0.33946898579597473
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 13.881253242492676,
+      "feat": 1.9006298316526227e-05,
+      "tv": 0.028666403144598007,
+      "edge": 2.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_2_robustness_00501_20261002_231115"
+  },
+  {
+    "entry_id": "dbpn_3d_2x2x2_stage_3_refinement_01501_20261003_000343",
+    "tag": "v0.10.16_2x2x2_cqs_champion",
+    "notes": "Auto-archived at iter 1501 by VisualConvergenceReporter",
+    "registered_at": "2026-10-03T00:03:43.982008+00:00",
+    "git_sha": "8edf22e",
+    "keras_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_3_refinement_01501_20261003_000343/dbpn_3d_best_cqs.keras",
+    "config_path": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_3_refinement_01501_20261003_000343/dbpn_3d_best_cqs_config.json",
+    "model_type": "dbpn_3d",
+    "upsample_factor": [
+      2,
+      2,
+      2
+    ],
+    "stage": "Stage 3 Refinement",
+    "iteration": 1501,
+    "siq_version": "0.10.16",
+    "val_metrics": {
+      "val_psnr": 24.981303343491007,
+      "val_ssim": 0.9158787329165169,
+      "val_ms_ssim": 0.982168566376493,
+      "val_acutance_ratio": 0.9282553872813021,
+      "val_laplacian_ratio": 0.41494769256325875,
+      "val_spectral_ratio": 0.3341127045321895,
+      "val_gmsd": 0.12532591819763184,
+      "val_cbi": 0.031029613688588142,
+      "val_cqs": 0.7595232010302969,
+      "val_pcs": 1.4311247409525774,
+      "val_hfen": 0.33073678612709045
+    },
+    "loss_weights": {
+      "msq": 0.0,
+      "l1": 3.866102933883667,
+      "feat": 0.00011443164839874953,
+      "tv": 0.38991498947143555,
+      "edge": 0.0,
+      "gms": 0.0,
+      "cbi": 0.0
+    },
+    "archive_dir": "/Users/stnava/code/siq/model_archive/dbpn_3d_2x2x2_stage_3_refinement_01501_20261003_000343"
   }
 ]

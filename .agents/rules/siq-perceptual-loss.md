@@ -60,10 +60,15 @@ For perceptual refinement stages, champion model selection must use PCS rather t
 $$\text{PCS} = \text{val\_ssim} + 0.5 \cdot \text{val\_acutance} + 0.5 \cdot \text{val\_laplacian} - \text{val\_gmsd} - \text{val\_cbi}$$
 PCS rewards structural preservation, anatomical edge sharpness, and high-frequency Laplacian detail while penalizing gradient dispersion and checkerboard artifacts.
 
-## Pointwise Directional Gradient & Acutance Loss
+## Pointwise Directional Gradient & Acutance Loss (Architecture Specific)
 
-Never compute edge loss on patch-averaged mean gradients (`ops.mean(ops.abs(dy))`). Patch-averaging reduces the loss to scalar brightness comparison and fails to synthesize spatial boundaries. Always compute **pointwise directional gradient $L_1$ error** plus **gradient magnitude acutance matching**:
-$$\mathcal{L}_{\text{edge}} = \frac{1}{N} \sum |\nabla y_{\text{true}} - \nabla y_{\text{pred}}| + \frac{1}{N} \sum |\|\nabla y_{\text{pred}}\| - \|\nabla y_{\text{true}}\||$$
+- **Feed-Forward Architectures (AS-DBPN)**: Always compute **pointwise directional gradient $L_1$ error** plus **gradient magnitude acutance matching** (`--edge-weight 2.0` in Stage 3):
+  $$\mathcal{L}_{\text{edge}} = \frac{1}{N} \sum |\nabla y_{\text{true}} - \nabla y_{\text{pred}}| + \frac{1}{N} \sum |\|\nabla y_{\text{pred}}\| - \|\nabla y_{\text{true}}\||$$
+- **Iterative Back-Projection Architectures (DBPN & L-DBPN)**: Always set `--edge-weight 0.0`. Iterative projection units natively minimize reconstruction residual errors; adding an external finite-difference edge loss steals ~30% of the gradient budget and blurs boundary reconstructions.
+
+## Keep CQS & PCS on Hand for Performance Tracking
+
+Never judge models by PSNR alone. Always keep **CQS** (Composite Quality Score: $\text{SSIM} - \text{GMSD} - \text{CBI}$) and **PCS** (Perceptual Composite Score: $\text{SSIM} + 0.5\cdot\text{Acutance} + 0.5\cdot\text{Laplacian} - \text{GMSD} - \text{CBI}$) on hand using native `siq.compute_cqs()` and `siq.compute_pcs()` to track model quality.
 
 ## 4-Stage Curriculum Staging Invariant (Never Truncate Stage 1 or 2)
 

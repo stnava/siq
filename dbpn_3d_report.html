@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="15">
+    <title>3D DBPN Convergence & Visual Quality Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #070b14;
+            --bg-secondary: #0f172a;
+            --accent-glow: #38bdf8;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #f43f5e;
+            --accent-purple: #8b5cf6;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --card-glass: rgba(15, 23, 42, 0.75);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(210, 100%, 40%, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(280, 100%, 50%, 0.08) 0px, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1.5rem;
+        }
+
+        header {
+            width: 100%;
+            max-width: 1300px;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-glow) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--accent-success);
+            color: var(--accent-success);
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1300px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .glass-card {
+            background: var(--card-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-diff {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.3rem;
+        }
+
+        .viewer-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .viewer-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 1rem;
+        }
+
+        .tab-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-glow);
+            color: #070b14;
+            border-color: var(--accent-glow);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.35);
+        }
+
+        .viewport-image {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border-glass);
+            background: #000;
+            display: block;
+        }
+
+        .grid-4way {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-4way {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card-4way {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-4way-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-4way-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .card-4way-badge {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-glass);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        .viewport-image-4way {
+            width: 100%;
+            aspect-ratio: 12 / 4.2;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            background: #000;
+            display: block;
+        }
+
+        .view-pane {
+            display: none;
+            position: relative;
+        }
+
+        .view-pane.active {
+            display: block;
+        }
+
+        .view-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border-glass);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .view-overlay strong {
+            color: var(--text-primary);
+        }
+
+        .grid-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        .history-table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-glass);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .history-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+
+        .history-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .stage-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-glow);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title-row">
+            <h1>3D DBPN Super-Resolution Convergence</h1>
+            <div class="badge-live">
+                <span class="pulse-dot"></span>
+                <span>TRAINING ACTIVE &bull; STAGE 3 REFINEMENT</span>
+            </div>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">
+            Continuous 3D refinement tracking across Warmup, Stage 1 (clean MSE/L1), Stage 2 (noise/blur robustness), and Stage 3 (dedicated refinement).
+        </p>
+    </header>
+
+    <main class="dashboard-container">
+        <!-- High-level Metric Cards -->
+        <section class="grid-stats">
+            <div class="glass-card">
+                <div class="stat-label">Global Step / Progress</div>
+                <div class="stat-value">1910 <span style="font-size: 1rem; color: #64748b;">(Iter 1650)</span></div>
+                <div class="stat-diff" style="color: #38bdf8;">Stage 3 Refinement</div>
+            </div>
+
+            <div class="glass-card">
+                <div class="stat-label">Composite Quality (CQS)</div>
+                <div class="stat-value" style="color: #38bdf8;">0.7120</div>
+                <div class="stat-diff" style="color: #64748b;">SSIM - GMSD - CBI (Peak: 0.7595)</div>
+            </div>
+            
+            
+            <div class="glass-card">
+                <div class="stat-label">Acutance Ratio</div>
+                <div class="stat-value" style="color: #ec4899;">0.6882</div>
+                <div class="stat-diff" style="color: #f59e0b;">-0.0266 vs Bilinear (0.7148)</div>
+            </div>
+            <div class="glass-card">
+                <div class="stat-label">Laplacian Detail</div>
+                <div class="stat-value" style="color: #06b6d4;">0.3561</div>
+                <div class="stat-diff" style="color: #f59e0b;">-0.0346 vs Bilinear (0.3908)</div>
+            </div>
+        
+
+            <div class="glass-card">
+                <div class="stat-label">Validation PSNR</div>
+                <div class="stat-value" style="color: #10b981;">26.91 <span style="font-size: 1rem;">dB</span></div>
+                <div class="stat-diff" style="color: #10b981;">+0.26 dB vs Bilinear (26.65)</div>
+            </div>
+
+            <div class="glass-card">
+                <div class="stat-label">Validation SSIM</div>
+                <div class="stat-value" style="color: #8b5cf6;">0.8806</div>
+                <div class="stat-diff" style="color: #64748b;">Bilinear Ref: 0.9318</div>
+            </div>
+
+            <div class="glass-card">
+                <div class="stat-label">Peak Champion (PCS)</div>
+                <div class="stat-value" style="color: #10b981;">1.4311</div>
+                <div class="stat-diff" style="color: #10b981;">Step 1761 &bull; Stage 3 Refinement</div>
+            </div>
+        </section>
+
+        <!-- Interactive In-Place Flicker Viewer & Error Analysis -->
+        <section class="glass-card viewer-card">
+            <div class="viewer-controls">
+                <div>
+                    <h2 style="font-size: 1.3rem; font-weight: 600;">Interactive In-Place Comparison (Flicker Viewer)</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
+                        💡 <strong>In-Place Flicker Navigation:</strong> Click tabs or press keyboard keys <span class="shortcut-key">1</span> (Original), <span class="shortcut-key">2</span> (Bilinear), <span class="shortcut-key">3</span> (Latest AS-DBPN) to rapidly flicker in-place and inspect edge sharpness and sub-voxel alignment.
+                    </p>
+                </div>
+                <div class="tab-group">
+                    
+        <button class="tab-btn" data-view="original" onclick="selectView('original')">1. Original Image (Ground Truth)</button>
+        <button class="tab-btn" data-view="linear" onclick="selectView('linear')">2. Linear Upsampled (26.65 dB &bull; SSIM 0.9318)</button>
+        <button class="tab-btn active" data-view="sr" onclick="selectView('sr')">3. Latest DBPN (26.91 dB &bull; SSIM 0.8806 &bull; CQS 0.7120 &bull; Acutance 0.688)</button>
+        <button class="tab-btn" data-view="best" onclick="selectView('best')">4. Peak Best Model (24.98 dB &bull; SSIM 0.9159 &bull; PCS 1.4311)</button>
+        <button class="tab-btn" data-view="diff" onclick="selectView('diff')">5. Error Map |SR - Original|</button>
+        <button class="tab-btn" data-view="downsampled" onclick="selectView('downsampled')">6. Downsampled Image (LR Input)</button>
+        <button class="tab-btn" data-view="comparison4way" onclick="selectView('comparison4way')">7. 4-Way Comparison (Stacked)</button>
+    
+                </div>
+            </div>
+
+            <div class="viewer-display">
+                <div id="view-original" class="view-pane">
+                    <img src="reports/dbpn_3d/val3d_original.png" alt="Original Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>1. Original Image (Ground Truth HR)</strong> &bull; Brain MRI Volume
+                    </div>
+                </div>
+
+                <div id="view-linear" class="view-pane">
+                    <img src="reports/dbpn_3d/val3d_linear_upsampled.png" alt="Linear Upsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>2. Linear Upsampled Image (Bilinear Baseline)</strong> &bull; PSNR: 26.65 dB &bull; SSIM: 0.9318
+                    </div>
+                </div>
+
+                <div id="view-sr" class="view-pane active">
+                    <img src="reports/dbpn_3d/val3d_sr_upsampled.png" alt="SR Upsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>3. Latest AS-DBPN Image (3D &bull; Step 1910 &bull; Iter 1650)</strong> &bull; PSNR: <strong>26.91 dB</strong> &bull; SSIM: <strong>0.8806</strong> &bull; CQS: <strong>0.7120</strong> &bull; Acutance: <strong>0.6882</strong> &bull; Laplacian: <strong>0.3561</strong> &bull; GMSD: <strong>0.1377</strong> &bull; CBI: <strong>0.0310</strong> &bull; HFEN: <strong>0.3217</strong>
+                    </div>
+                </div>
+
+                <div id="view-best" class="view-pane">
+                    <img src="reports/dbpn_3d/val3d_asdbpn_best.png" alt="Peak Champion Model Volume" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>4. Peak Champion Model (Step 1761 &bull; Iter 1501)</strong> &bull; PCS: <strong>1.4311</strong> &bull; PSNR: 24.98 dB &bull; CBI: 0.0310
+                    </div>
+                </div>
+
+                <div id="view-diff" class="view-pane">
+                    <img src="reports/dbpn_3d/step_1650_diff.png" alt="Residual Error Map" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>5. Residual Error Map |SR - Original| (Magma Colormap)</strong> &bull; High-frequency residual distribution
+                    </div>
+                </div>
+
+                <div id="view-downsampled" class="view-pane">
+                    <img src="reports/dbpn_3d/val3d_downsampled.png" alt="Downsampled Image" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>6. Downsampled Image (LR Input)</strong> &bull; Low-Resolution Input displayed at identical scale
+                    </div>
+                </div>
+
+                <div id="view-comparison4way" class="view-pane">
+                    <img src="reports/dbpn_3d/val3d_4way_comparison.png" alt="4-Way Stacked Comparison" class="viewport-image">
+                    <div class="view-overlay">
+                        <strong>7. Unified 4-Way Comparative Montage</strong> &bull; Original vs Downsampled vs Linear vs 3D AS-DBPN (Identical Scale &amp; Contrast)
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SVG Convergence Charts -->
+        <section class="grid-charts">
+            <div class="glass-card" style="padding: 1.2rem;">
+                <svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Composite Quality Score (CQS = SSIM - GMSD - CBI)</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">-0.06</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.16</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.39</text>
+  <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.61</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.84</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 65.2,155.9 69.7,159.0 70.8,155.6 74.3,132.5 76.6,126.4 79.0,105.9 82.5,104.6 83.6,89.5 88.3,82.8 93.0,74.3 94.1,78.6 97.6,71.9 99.9,73.5 102.3,67.1 105.8,68.0 106.9,66.0 111.6,65.0 116.3,83.0 117.4,63.0 120.9,65.4 123.2,69.1 125.6,70.5 125.8,97.0 131.4,65.1 137.2,65.4 143.0,58.9 148.9,55.1 154.7,53.6 160.5,57.6 166.3,60.8 172.2,53.6 178.0,59.7 183.8,59.4 189.6,56.5 195.5,51.5 201.3,52.3 207.1,57.3 212.9,53.8 218.8,56.4 224.6,53.4 230.4,54.6 236.2,50.4 242.1,47.1 242.3,48.8 475.3,47.6 480.9,49.4 486.7,53.2 492.5,55.0 498.4,54.1 504.2,53.5 510.0,55.2" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="65.2" cy="155.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="69.7" cy="159.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="70.8" cy="155.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="74.3" cy="132.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="76.6" cy="126.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="79.0" cy="105.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="82.5" cy="104.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="83.6" cy="89.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="88.3" cy="82.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="93.0" cy="74.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="94.1" cy="78.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="97.6" cy="71.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="99.9" cy="73.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="102.3" cy="67.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="105.8" cy="68.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="106.9" cy="66.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="111.6" cy="65.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="116.3" cy="83.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="117.4" cy="63.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="120.9" cy="65.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="123.2" cy="69.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="125.6" cy="70.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="125.8" cy="97.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="131.4" cy="65.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="137.2" cy="65.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="143.0" cy="58.9" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="148.9" cy="55.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="154.7" cy="53.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="160.5" cy="57.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="166.3" cy="60.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="172.2" cy="53.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="178.0" cy="59.7" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="183.8" cy="59.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="189.6" cy="56.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="195.5" cy="51.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="201.3" cy="52.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="207.1" cy="57.3" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="212.9" cy="53.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="218.8" cy="56.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="224.6" cy="53.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="230.4" cy="54.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="236.2" cy="50.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="242.1" cy="47.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="242.3" cy="48.8" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="475.3" cy="47.6" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="480.9" cy="49.4" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="486.7" cy="53.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="492.5" cy="55.0" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="498.4" cy="54.1" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="504.2" cy="53.5" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="510.0" cy="55.2" r="3.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+  <circle cx="510.0" cy="55.2" r="5.5" fill="#38bdf8" />
+  <text x="510" y="22" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.71</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+
+            </div>
+            <div class="glass-card" style="padding: 1.2rem;"><svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Acutance Ratio (Gradient Magnitude vs GT)</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.12</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.36</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.59</text>
+  <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.82</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">1.06</text>
+  <line x1="65" y1="88.3" x2="510" y2="88.3" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
+  <text x="510" y="83.3" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 0.71</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,74.2 65.2,160.9 69.7,162.9 70.8,163.7 74.3,163.0 76.6,163.1 79.0,162.7 82.5,167.9 83.6,164.6 88.3,156.5 93.0,142.8 94.1,132.0 97.6,148.2 99.9,148.2 102.3,132.0 105.8,142.3 106.9,132.0 111.6,138.8 116.3,120.7 117.4,106.9 120.9,96.1 123.2,131.4 125.6,118.5 125.8,125.1 131.4,136.3 137.2,127.7 143.0,106.6 148.9,112.4 154.7,124.4 160.5,125.3 166.3,82.1 172.2,116.4 178.0,78.0 183.8,115.8 189.6,115.8 195.5,64.0 201.3,78.2 207.1,116.9 212.9,111.4 218.8,104.6 224.6,95.5 230.4,72.7 236.2,80.9 242.1,84.2 242.3,47.1 475.3,55.3 480.9,78.6 486.7,75.0 492.5,89.6 498.4,82.8 504.2,78.0 510.0,92.4" fill="none" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="74.2" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="65.2" cy="160.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="69.7" cy="162.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="70.8" cy="163.7" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="74.3" cy="163.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="76.6" cy="163.1" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="79.0" cy="162.7" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="82.5" cy="167.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="83.6" cy="164.6" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="88.3" cy="156.5" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="93.0" cy="142.8" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="94.1" cy="132.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="97.6" cy="148.2" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="99.9" cy="148.2" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="102.3" cy="132.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="105.8" cy="142.3" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="106.9" cy="132.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="111.6" cy="138.8" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="116.3" cy="120.7" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="117.4" cy="106.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="120.9" cy="96.1" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="123.2" cy="131.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="125.6" cy="118.5" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="125.8" cy="125.1" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="131.4" cy="136.3" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="137.2" cy="127.7" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="143.0" cy="106.6" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="148.9" cy="112.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="154.7" cy="124.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="160.5" cy="125.3" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="166.3" cy="82.1" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="172.2" cy="116.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="178.0" cy="78.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="183.8" cy="115.8" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="189.6" cy="115.8" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="195.5" cy="64.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="201.3" cy="78.2" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="207.1" cy="116.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="212.9" cy="111.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="218.8" cy="104.6" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="224.6" cy="95.5" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="230.4" cy="72.7" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="236.2" cy="80.9" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="242.1" cy="84.2" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="242.3" cy="47.1" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="475.3" cy="55.3" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="480.9" cy="78.6" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="486.7" cy="75.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="492.5" cy="89.6" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="498.4" cy="82.8" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="504.2" cy="78.0" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="510.0" cy="92.4" r="3.5" fill="#0f172a" stroke="#ec4899" stroke-width="2" />
+  <circle cx="510.0" cy="92.4" r="5.5" fill="#ec4899" />
+  <text x="510" y="22" fill="#ec4899" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.69</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+</div>
+            <div class="glass-card" style="padding: 1.2rem;"><svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Laplacian Energy Ratio (High Freq Detail)</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.00</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.27</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.54</text>
+  <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.80</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">1.07</text>
+  <line x1="65" y1="127.1" x2="510" y2="127.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
+  <text x="510" y="122.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 0.39</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,47.1 65.2,165.2 69.7,167.9 70.8,167.6 74.3,166.8 76.6,166.8 79.0,166.0 82.5,167.4 83.6,167.0 88.3,165.5 93.0,162.3 94.1,158.8 97.6,162.8 99.9,162.3 102.3,159.1 105.8,159.2 106.9,155.8 111.6,157.4 116.3,151.5 117.4,151.0 120.9,148.2 123.2,155.4 125.6,153.0 125.8,150.0 131.4,155.0 137.2,153.6 143.0,146.4 148.9,145.0 154.7,150.8 160.5,149.8 166.3,138.6 172.2,145.1 178.0,133.3 183.8,146.3 189.6,144.3 195.5,131.2 201.3,132.4 207.1,146.2 212.9,142.6 218.8,140.1 224.6,137.6 230.4,129.7 236.2,131.7 242.1,129.5 242.3,122.3 475.3,123.9 480.9,129.1 486.7,128.2 492.5,132.7 498.4,130.3 504.2,128.1 510.0,131.8" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="47.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="65.2" cy="165.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="69.7" cy="167.9" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="70.8" cy="167.6" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="74.3" cy="166.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="76.6" cy="166.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="79.0" cy="166.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="82.5" cy="167.4" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="83.6" cy="167.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="88.3" cy="165.5" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="93.0" cy="162.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="94.1" cy="158.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="97.6" cy="162.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="99.9" cy="162.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="102.3" cy="159.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="105.8" cy="159.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="106.9" cy="155.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="111.6" cy="157.4" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="116.3" cy="151.5" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="117.4" cy="151.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="120.9" cy="148.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="123.2" cy="155.4" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="125.6" cy="153.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="125.8" cy="150.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="131.4" cy="155.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="137.2" cy="153.6" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="143.0" cy="146.4" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="148.9" cy="145.0" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="154.7" cy="150.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="160.5" cy="149.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="166.3" cy="138.6" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="172.2" cy="145.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="178.0" cy="133.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="183.8" cy="146.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="189.6" cy="144.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="195.5" cy="131.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="201.3" cy="132.4" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="207.1" cy="146.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="212.9" cy="142.6" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="218.8" cy="140.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="224.6" cy="137.6" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="230.4" cy="129.7" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="236.2" cy="131.7" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="242.1" cy="129.5" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="242.3" cy="122.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="475.3" cy="123.9" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="480.9" cy="129.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="486.7" cy="128.2" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="492.5" cy="132.7" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="498.4" cy="130.3" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="504.2" cy="128.1" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="510.0" cy="131.8" r="3.5" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <circle cx="510.0" cy="131.8" r="5.5" fill="#06b6d4" />
+  <text x="510" y="22" fill="#06b6d4" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.36</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+</div>
+            <div class="glass-card" style="padding: 1.2rem;">
+                <svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Validation PSNR Trajectory (dB)</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">10.32</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">14.87</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">19.42</text>
+  <line x1="65" y1="71.3" x2="510" y2="71.3" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.3" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">23.97</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">28.52</text>
+  <line x1="65" y1="49.9" x2="510" y2="49.9" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
+  <text x="510" y="44.9" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 26.65</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 65.2,136.1 69.7,135.4 70.8,130.3 74.3,109.2 76.6,108.8 79.0,89.6 82.5,94.6 83.6,87.3 88.3,75.4 93.0,78.8 94.1,73.6 97.6,76.0 99.9,71.7 102.3,70.2 105.8,67.1 106.9,63.6 111.6,63.0 116.3,65.6 117.4,86.5 120.9,103.5 123.2,75.4 125.6,79.8 125.8,96.4 131.4,68.8 137.2,61.1 143.0,60.1 148.9,70.4 154.7,54.4 160.5,63.3 166.3,77.3 172.2,54.0 178.0,52.4 183.8,58.4 189.6,55.7 195.5,62.5 201.3,52.9 207.1,56.5 212.9,50.1 218.8,48.0 224.6,52.3 230.4,63.6 236.2,51.0 242.1,49.5 242.3,72.8 475.3,63.2 480.9,47.1 486.7,51.4 492.5,48.8 498.4,51.1 504.2,53.7 510.0,47.8" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="65.2" cy="136.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="69.7" cy="135.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="70.8" cy="130.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="74.3" cy="109.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="76.6" cy="108.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="79.0" cy="89.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="82.5" cy="94.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="83.6" cy="87.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="88.3" cy="75.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="93.0" cy="78.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="94.1" cy="73.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="97.6" cy="76.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="99.9" cy="71.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="102.3" cy="70.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="105.8" cy="67.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="106.9" cy="63.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="111.6" cy="63.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="116.3" cy="65.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="117.4" cy="86.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="120.9" cy="103.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="123.2" cy="75.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="125.6" cy="79.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="125.8" cy="96.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="131.4" cy="68.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="137.2" cy="61.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="143.0" cy="60.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="148.9" cy="70.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="154.7" cy="54.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="160.5" cy="63.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="166.3" cy="77.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="172.2" cy="54.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="178.0" cy="52.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="183.8" cy="58.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="189.6" cy="55.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="195.5" cy="62.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="201.3" cy="52.9" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="207.1" cy="56.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="212.9" cy="50.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="218.8" cy="48.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="224.6" cy="52.3" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="230.4" cy="63.6" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="236.2" cy="51.0" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="242.1" cy="49.5" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="242.3" cy="72.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="475.3" cy="63.2" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="480.9" cy="47.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="486.7" cy="51.4" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="492.5" cy="48.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="498.4" cy="51.1" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="504.2" cy="53.7" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="47.8" r="3.5" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+  <circle cx="510.0" cy="47.8" r="5.5" fill="#10b981" />
+  <text x="510" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 26.91</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+
+            </div>
+            <div class="glass-card" style="padding: 1.2rem;">
+                <svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Validation SSIM Progression</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.27</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.45</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.63</text>
+  <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.81</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.99</text>
+  <line x1="65" y1="47.1" x2="510" y2="47.1" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />
+  <text x="510" y="42.1" fill="#f59e0b" font-family="sans-serif" font-size="10" font-weight="600" text-anchor="end">Bilinear: 0.93</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,167.9 65.2,153.6 69.7,157.4 70.8,153.9 74.3,130.2 76.6,122.6 79.0,101.1 82.5,98.7 83.6,82.0 88.3,77.0 93.0,68.7 94.1,74.7 97.6,65.1 99.9,66.9 102.3,60.9 105.8,61.3 106.9,59.3 111.6,58.7 116.3,84.8 117.4,57.5 120.9,59.6 123.2,62.8 125.6,64.6 125.8,101.2 131.4,63.7 137.2,65.3 143.0,57.1 148.9,54.7 154.7,52.8 160.5,55.5 166.3,60.8 172.2,54.6 178.0,59.4 183.8,60.3 189.6,55.7 195.5,51.9 201.3,53.4 207.1,56.2 212.9,55.5 218.8,57.6 224.6,54.8 230.4,58.6 236.2,50.8 242.1,50.0 242.3,51.6 475.3,50.3 480.9,51.9 486.7,55.7 492.5,57.2 498.4,56.3 504.2,55.7 510.0,57.4" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="167.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="65.2" cy="153.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="69.7" cy="157.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="70.8" cy="153.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="74.3" cy="130.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="76.6" cy="122.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="79.0" cy="101.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="82.5" cy="98.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="83.6" cy="82.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="88.3" cy="77.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="93.0" cy="68.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="94.1" cy="74.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="97.6" cy="65.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="99.9" cy="66.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="102.3" cy="60.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="105.8" cy="61.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="106.9" cy="59.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="111.6" cy="58.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="116.3" cy="84.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="117.4" cy="57.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="120.9" cy="59.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="123.2" cy="62.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="125.6" cy="64.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="125.8" cy="101.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="131.4" cy="63.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="137.2" cy="65.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="143.0" cy="57.1" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="148.9" cy="54.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="154.7" cy="52.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="160.5" cy="55.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="166.3" cy="60.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="172.2" cy="54.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="178.0" cy="59.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="183.8" cy="60.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="189.6" cy="55.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="195.5" cy="51.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="201.3" cy="53.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="207.1" cy="56.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="212.9" cy="55.5" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="218.8" cy="57.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="224.6" cy="54.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="230.4" cy="58.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="236.2" cy="50.8" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="242.1" cy="50.0" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="242.3" cy="51.6" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="475.3" cy="50.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="480.9" cy="51.9" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="486.7" cy="55.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="492.5" cy="57.2" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="498.4" cy="56.3" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="504.2" cy="55.7" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="57.4" r="3.5" fill="#0f172a" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="510.0" cy="57.4" r="5.5" fill="#8b5cf6" />
+  <text x="510" y="22" fill="#8b5cf6" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 0.88</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+
+            </div>
+            <div class="glass-card" style="padding: 1.2rem;">
+                <svg viewBox="0 0 540 220" class="chart-svg" style="width: 100%; height: auto; display: block;">
+  <rect width="540" height="220" fill="#0f172a" rx="8" />
+  <text x="65" y="22" fill="#e2e8f0" font-family="Outfit, sans-serif" font-size="13" font-weight="600">Hybrid Training Loss</text>
+  <line x1="65" y1="180.0" x2="510" y2="180.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="184.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">-0.33</text>
+  <line x1="65" y1="143.8" x2="510" y2="143.8" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="147.8" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">0.81</text>
+  <line x1="65" y1="107.5" x2="510" y2="107.5" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="111.5" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">1.95</text>
+  <line x1="65" y1="71.2" x2="510" y2="71.2" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="75.2" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">3.10</text>
+  <line x1="65" y1="35.0" x2="510" y2="35.0" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="57" y="39.0" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">4.24</text>
+  <line x1="65.2" y1="35" x2="65.2" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="69.2" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Warmup</text>
+  <line x1="125.8" y1="35" x2="125.8" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="129.8" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 1 Adaptation</text>
+  <line x1="242.3" y1="35" x2="242.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="246.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 2 Robustness</text>
+  <line x1="475.3" y1="35" x2="475.3" y2="180" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.65" />
+  <text x="479.3" y="49" fill="#94a3b8" font-family="Outfit, sans-serif" font-size="9" font-weight="600">Stage 3 Refinement</text>
+  <polyline points="65.0,137.7 65.2,162.0 69.7,159.5 70.8,161.3 74.3,163.9 76.6,164.8 79.0,165.5 82.5,166.1 83.6,166.3 88.3,166.7 93.0,167.0 94.1,167.1 97.6,167.3 99.9,167.4 102.3,167.5 105.8,167.5 106.9,167.6 111.6,167.7 116.3,167.8 117.4,167.8 120.9,167.8 123.2,167.9 125.6,167.9 125.8,150.8 131.4,91.2 137.2,97.9 143.0,105.0 148.9,104.1 154.7,107.1 160.5,107.1 166.3,107.3 172.2,107.8 178.0,106.8 183.8,107.4 189.6,107.4 195.5,107.7 201.3,108.6 207.1,108.8 212.9,109.5 218.8,110.1 224.6,111.4 230.4,110.9 236.2,110.5 242.1,111.4 242.3,47.1 475.3,155.4 480.9,119.7 486.7,114.8 492.5,118.4 498.4,116.5 504.2,111.6 510.0,113.3" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="65.0" cy="137.7" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="65.2" cy="162.0" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="69.7" cy="159.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="70.8" cy="161.3" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="74.3" cy="163.9" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="76.6" cy="164.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="79.0" cy="165.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="82.5" cy="166.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="83.6" cy="166.3" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="88.3" cy="166.7" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="93.0" cy="167.0" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="94.1" cy="167.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="97.6" cy="167.3" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="99.9" cy="167.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="102.3" cy="167.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="105.8" cy="167.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="106.9" cy="167.6" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="111.6" cy="167.7" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="116.3" cy="167.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="117.4" cy="167.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="120.9" cy="167.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="123.2" cy="167.9" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="125.6" cy="167.9" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="125.8" cy="150.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="131.4" cy="91.2" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="137.2" cy="97.9" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="143.0" cy="105.0" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="148.9" cy="104.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="154.7" cy="107.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="160.5" cy="107.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="166.3" cy="107.3" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="172.2" cy="107.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="178.0" cy="106.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="183.8" cy="107.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="189.6" cy="107.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="195.5" cy="107.7" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="201.3" cy="108.6" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="207.1" cy="108.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="212.9" cy="109.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="218.8" cy="110.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="224.6" cy="111.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="230.4" cy="110.9" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="236.2" cy="110.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="242.1" cy="111.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="242.3" cy="47.1" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="475.3" cy="155.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="480.9" cy="119.7" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="486.7" cy="114.8" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="492.5" cy="118.4" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="498.4" cy="116.5" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="504.2" cy="111.6" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="510.0" cy="113.3" r="3.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <circle cx="510.0" cy="113.3" r="5.5" fill="#f59e0b" />
+  <text x="510" y="22" fill="#f59e0b" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">Current: 1.77</text>
+  <text x="65" y="208" fill="#64748b" font-family="monospace" font-size="10">Global Step 0</text>
+  <text x="510" y="208" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Global Step 1910</text>
+</svg>
+
+            </div>
+        </section>
+
+        <!-- Checkpoint History Table -->
+        <section class="glass-card" style="padding: 1.5rem; overflow-x: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                <h3 style="font-size: 1.15rem; font-weight: 600;">Convergence Checkpoint History</h3>
+                <span style="font-size: 0.85rem; color: #64748b;">Auto-refreshes every 15s</span>
+            </div>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Global Step (Iter)</th>
+                        <th>Stage</th>
+                        <th>Val PSNR (dB)</th>
+                        <th>Val SSIM</th>
+                        <th>CQS (★)</th>
+                        <th>Val Acutance</th>
+                        <th>Val Laplacian</th>
+                        <th>Val CBI</th>
+                        <th>Val GMSD</th>
+                        <th>Val HFEN</th>
+                        <th>Val Corr</th>
+                        <th>Loss</th>
+                        <th>Artifacts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr>
+            <td><strong>Step 1910</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1650)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #10b981; font-weight: bold;">26.91 dB <span style="font-size: 0.8em; opacity: 0.8;">(+0.26)</span></td>
+            <td>0.8806</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7120</td>
+            <td style="color: #ec4899; font-weight: 600;">0.6882</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3561</td>
+            <td>0.0310</td>
+            <td>0.1377</td>
+            <td>0.3217</td>
+            <td>0.9822</td>
+            <td style="font-family: monospace;">1.77107</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1650_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1650_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1650.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1885</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1625)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.18 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.48)</span></td>
+            <td>0.8887</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7228</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7811</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3835</td>
+            <td>0.0310</td>
+            <td>0.1349</td>
+            <td>0.3137</td>
+            <td>0.9823</td>
+            <td style="font-family: monospace;">1.82245</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1625_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1625_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1625.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1860</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1600)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.50 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.15)</span></td>
+            <td>0.8860</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7189</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7502</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3675</td>
+            <td>0.0310</td>
+            <td>0.1361</td>
+            <td>0.3167</td>
+            <td>0.9823</td>
+            <td style="font-family: monospace;">1.66899</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1600_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1600_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1600.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1835</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1575)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #10b981; font-weight: bold;">26.78 dB <span style="font-size: 0.8em; opacity: 0.8;">(+0.13)</span></td>
+            <td>0.8814</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7132</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7063</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3496</td>
+            <td>0.0310</td>
+            <td>0.1372</td>
+            <td>0.3185</td>
+            <td>0.9823</td>
+            <td style="font-family: monospace;">1.61028</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1575_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1575_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1575.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1810</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1550)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.46 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.19)</span></td>
+            <td>0.8891</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7249</td>
+            <td style="color: #ec4899; font-weight: 600;">0.8010</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3826</td>
+            <td>0.0310</td>
+            <td>0.1332</td>
+            <td>0.3110</td>
+            <td>0.9825</td>
+            <td style="font-family: monospace;">1.72364</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1550_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1550_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1550.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1785</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1525)</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #10b981; font-weight: bold;">27.00 dB <span style="font-size: 0.8em; opacity: 0.8;">(+0.35)</span></td>
+            <td>0.9077</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7482</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7773</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3760</td>
+            <td>0.0310</td>
+            <td>0.1285</td>
+            <td>0.3151</td>
+            <td>0.9825</td>
+            <td style="font-family: monospace;">1.56855</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1525_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1525_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/dbpn_3d_step_1525.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1761</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1501)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 3 Refinement</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.98 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.67)</span></td>
+            <td>0.9159</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7595</td>
+            <td style="color: #ec4899; font-weight: 600;">0.9283</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.4149</td>
+            <td>0.0310</td>
+            <td>0.1253</td>
+            <td>0.3307</td>
+            <td>0.9822</td>
+            <td style="font-family: monospace;">0.44193</td>
+            <td>
+                <a href="reports/dbpn_3d/step_1501_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_1501_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 761</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 501)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 2 Robustness</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.77 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.88)</span></td>
+            <td>0.9095</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7519</td>
+            <td style="color: #ec4899; font-weight: 600;">0.9812</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.4261</td>
+            <td>0.0310</td>
+            <td>0.1265</td>
+            <td>0.3395</td>
+            <td>0.9822</td>
+            <td style="font-family: monospace;">3.85906</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0501_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0501_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 760</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 500)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #10b981; font-weight: bold;">26.70 dB <span style="font-size: 0.8em; opacity: 0.8;">(+0.05)</span></td>
+            <td>0.9173</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7626</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7413</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3732</td>
+            <td>0.0310</td>
+            <td>0.1238</td>
+            <td>0.3174</td>
+            <td>0.9824</td>
+            <td style="font-family: monospace;">1.82969</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0500_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0500_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0500.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 735</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 475)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.51 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.15)</span></td>
+            <td>0.9132</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7419</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7626</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3572</td>
+            <td>0.0311</td>
+            <td>0.1402</td>
+            <td>0.3437</td>
+            <td>0.9811</td>
+            <td style="font-family: monospace;">1.85836</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0475_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0475_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0475.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 710</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 450)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.93 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.72)</span></td>
+            <td>0.8746</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7159</td>
+            <td style="color: #ec4899; font-weight: 600;">0.8156</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3719</td>
+            <td>0.0311</td>
+            <td>0.1276</td>
+            <td>0.3275</td>
+            <td>0.9817</td>
+            <td style="font-family: monospace;">1.84583</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0450_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0450_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0450.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 685</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 425)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.34 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.31)</span></td>
+            <td>0.8933</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7233</td>
+            <td style="color: #ec4899; font-weight: 600;">0.6679</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3136</td>
+            <td>0.0312</td>
+            <td>0.1388</td>
+            <td>0.3343</td>
+            <td>0.9813</td>
+            <td style="font-family: monospace;">1.82859</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0425_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0425_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0425.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 660</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 400)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #10b981; font-weight: bold;">26.89 dB <span style="font-size: 0.8em; opacity: 0.8;">(+0.24)</span></td>
+            <td>0.8795</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7045</td>
+            <td style="color: #ec4899; font-weight: 600;">0.6094</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2954</td>
+            <td>0.0312</td>
+            <td>0.1438</td>
+            <td>0.3370</td>
+            <td>0.9818</td>
+            <td style="font-family: monospace;">1.86988</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0400_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0400_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0400.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 635</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 375)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.63 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.03)</span></td>
+            <td>0.8897</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7212</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5653</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2768</td>
+            <td>0.0312</td>
+            <td>0.1373</td>
+            <td>0.3580</td>
+            <td>0.9806</td>
+            <td style="font-family: monospace;">1.89043</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0375_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0375_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0375.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 610</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 350)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.82 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.83)</span></td>
+            <td>0.8863</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6993</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5295</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2501</td>
+            <td>0.0313</td>
+            <td>0.1557</td>
+            <td>0.4065</td>
+            <td>0.9777</td>
+            <td style="font-family: monospace;">1.91191</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0350_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0350_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0350.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 585</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 325)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.27 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.38)</span></td>
+            <td>0.9006</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7304</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7797</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3517</td>
+            <td>0.0313</td>
+            <td>0.1389</td>
+            <td>0.3656</td>
+            <td>0.9798</td>
+            <td style="font-family: monospace;">1.91886</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0325_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0325_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0325.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 560</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 300)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.06 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.59)</span></td>
+            <td>0.9079</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7349</td>
+            <td style="color: #ec4899; font-weight: 600;">0.8715</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3607</td>
+            <td>0.0313</td>
+            <td>0.1417</td>
+            <td>0.3822</td>
+            <td>0.9769</td>
+            <td style="font-family: monospace;">1.94787</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0300_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0300_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0300.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 535</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 275)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.93 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.73)</span></td>
+            <td>0.8889</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7045</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5369</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2641</td>
+            <td>0.0313</td>
+            <td>0.1531</td>
+            <td>0.4034</td>
+            <td>0.9777</td>
+            <td style="font-family: monospace;">1.95727</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0275_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0275_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0275.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 510</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 250)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.58 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.07)</span></td>
+            <td>0.8660</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6863</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5369</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2494</td>
+            <td>0.0314</td>
+            <td>0.1484</td>
+            <td>0.4014</td>
+            <td>0.9774</td>
+            <td style="font-family: monospace;">1.95446</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0250_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0250_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0250.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 485</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 225)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.33 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.32)</span></td>
+            <td>0.8703</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6843</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7815</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3451</td>
+            <td>0.0313</td>
+            <td>0.1546</td>
+            <td>0.3686</td>
+            <td>0.9790</td>
+            <td style="font-family: monospace;">1.97593</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0225_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0225_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0225.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 460</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 200)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.14 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.51)</span></td>
+            <td>0.8944</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7223</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5331</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2583</td>
+            <td>0.0314</td>
+            <td>0.1407</td>
+            <td>0.3793</td>
+            <td>0.9793</td>
+            <td style="font-family: monospace;">1.94177</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0200_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0200_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0200.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 435</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 175)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.21 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.45)</span></td>
+            <td>0.8635</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6774</td>
+            <td style="color: #ec4899; font-weight: 600;">0.7547</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.3061</td>
+            <td>0.0314</td>
+            <td>0.1547</td>
+            <td>0.3620</td>
+            <td>0.9789</td>
+            <td style="font-family: monospace;">1.95903</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0175_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0175_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0175.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 410</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 150)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.97 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.68)</span></td>
+            <td>0.8898</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6975</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4757</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2235</td>
+            <td>0.0315</td>
+            <td>0.1609</td>
+            <td>0.4420</td>
+            <td>0.9747</td>
+            <td style="font-family: monospace;">1.96685</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0150_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0150_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0150.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 385</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 125)</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">26.09 dB <span style="font-size: 0.8em; opacity: 0.8;">(-0.57)</span></td>
+            <td>0.9032</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7219</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4812</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2162</td>
+            <td>0.0315</td>
+            <td>0.1498</td>
+            <td>0.3950</td>
+            <td>0.9779</td>
+            <td style="font-family: monospace;">1.96683</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0125_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0125_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0125.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 360</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 100)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.08 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.58)</span></td>
+            <td>0.8940</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.7131</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5591</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2592</td>
+            <td>0.0315</td>
+            <td>0.1495</td>
+            <td>0.4164</td>
+            <td>0.9763</td>
+            <td style="font-family: monospace;">2.05988</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0100_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0100_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0100.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 335</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 75)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.36 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.29)</span></td>
+            <td>0.8820</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6896</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5967</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2489</td>
+            <td>0.0315</td>
+            <td>0.1610</td>
+            <td>0.4241</td>
+            <td>0.9754</td>
+            <td style="font-family: monospace;">2.03102</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0075_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0075_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0075.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 310</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 50)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.24 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.41)</span></td>
+            <td>0.8413</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6487</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4600</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1960</td>
+            <td>0.0315</td>
+            <td>0.1610</td>
+            <td>0.4514</td>
+            <td>0.9743</td>
+            <td style="font-family: monospace;">2.25467</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0050_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0050_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0050.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 285</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 25)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.28 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.37)</span></td>
+            <td>0.8492</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6509</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4045</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1853</td>
+            <td>0.0315</td>
+            <td>0.1668</td>
+            <td>0.4808</td>
+            <td>0.9737</td>
+            <td style="font-family: monospace;">2.46675</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0025_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0025_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0025.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 261</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Stage 1 Adaptation</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">20.81 dB <span style="font-size: 0.8em; opacity: 0.8;">(-5.85)</span></td>
+            <td>0.6622</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.4530</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4769</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2220</td>
+            <td>0.0315</td>
+            <td>0.1777</td>
+            <td>0.4990</td>
+            <td>0.9668</td>
+            <td style="font-family: monospace;">0.58782</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0001_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0001_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 260</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 260)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">22.90 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.75)</span></td>
+            <td>0.8445</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6173</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5191</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2004</td>
+            <td>0.0315</td>
+            <td>0.1957</td>
+            <td>0.4659</td>
+            <td>0.9727</td>
+            <td style="font-family: monospace;">0.04651</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0260_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0260_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 250</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 250)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.45 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.20)</span></td>
+            <td>0.8533</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6258</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4360</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1822</td>
+            <td>0.0315</td>
+            <td>0.1959</td>
+            <td>0.4831</td>
+            <td>0.9716</td>
+            <td style="font-family: monospace;">0.04781</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0250_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0250_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0250.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 240</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 240)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">19.92 dB <span style="font-size: 0.8em; opacity: 0.8;">(-6.73)</span></td>
+            <td>0.8697</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6489</td>
+            <td style="color: #ec4899; font-weight: 600;">0.6641</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2351</td>
+            <td>0.0315</td>
+            <td>0.1893</td>
+            <td>0.4706</td>
+            <td>0.9734</td>
+            <td style="font-family: monospace;">0.04875</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0240_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0240_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 225</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 225)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">22.06 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.59)</span></td>
+            <td>0.8798</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6640</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5946</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2146</td>
+            <td>0.0315</td>
+            <td>0.1843</td>
+            <td>0.4797</td>
+            <td>0.9732</td>
+            <td style="font-family: monospace;">0.05025</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0225_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0225_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0225.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 220</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 220)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.68 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.98)</span></td>
+            <td>0.7437</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.5400</td>
+            <td style="color: #ec4899; font-weight: 600;">0.5050</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.2112</td>
+            <td>0.0315</td>
+            <td>0.1722</td>
+            <td>0.4938</td>
+            <td>0.9725</td>
+            <td style="font-family: monospace;">0.05094</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0220_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0220_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 200</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 200)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">25.01 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.65)</span></td>
+            <td>0.8741</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6514</td>
+            <td style="color: #ec4899; font-weight: 600;">0.3882</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1677</td>
+            <td>0.0316</td>
+            <td>0.1911</td>
+            <td>0.5208</td>
+            <td>0.9715</td>
+            <td style="font-family: monospace;">0.05313</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0200_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0200_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0200.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 180</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 180)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.93 dB <span style="font-size: 0.8em; opacity: 0.8;">(-1.72)</span></td>
+            <td>0.8708</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6454</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4320</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1796</td>
+            <td>0.0316</td>
+            <td>0.1939</td>
+            <td>0.5202</td>
+            <td>0.9712</td>
+            <td style="font-family: monospace;">0.05681</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0180_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0180_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 175</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 175)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.49 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.16)</span></td>
+            <td>0.8608</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6331</td>
+            <td style="color: #ec4899; font-weight: 600;">0.3656</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1548</td>
+            <td>0.0316</td>
+            <td>0.1961</td>
+            <td>0.5439</td>
+            <td>0.9696</td>
+            <td style="font-family: monospace;">0.05819</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0175_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0175_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0175.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 160</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 160)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">24.09 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.56)</span></td>
+            <td>0.8631</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6383</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4321</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1551</td>
+            <td>0.0316</td>
+            <td>0.1932</td>
+            <td>0.5791</td>
+            <td>0.9663</td>
+            <td style="font-family: monospace;">0.06098</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0160_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0160_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 150</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 150)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.92 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.74)</span></td>
+            <td>0.8330</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.5989</td>
+            <td style="color: #ec4899; font-weight: 600;">0.3276</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1314</td>
+            <td>0.0316</td>
+            <td>0.2025</td>
+            <td>0.6050</td>
+            <td>0.9661</td>
+            <td style="font-family: monospace;">0.06375</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0150_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0150_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0150.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 140</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 140)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.37 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.28)</span></td>
+            <td>0.8419</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.6088</td>
+            <td style="color: #ec4899; font-weight: 600;">0.3274</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1282</td>
+            <td>0.0316</td>
+            <td>0.2015</td>
+            <td>0.6194</td>
+            <td>0.9654</td>
+            <td style="font-family: monospace;">0.06649</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0140_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0140_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 125</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 125)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.68 dB <span style="font-size: 0.8em; opacity: 0.8;">(-2.97)</span></td>
+            <td>0.7941</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.5673</td>
+            <td style="color: #ec4899; font-weight: 600;">0.4321</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1575</td>
+            <td>0.0316</td>
+            <td>0.1952</td>
+            <td>0.5924</td>
+            <td>0.9672</td>
+            <td style="font-family: monospace;">0.07259</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0125_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0125_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0125.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 120</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 120)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.02 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.63)</span></td>
+            <td>0.8243</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.5938</td>
+            <td style="color: #ec4899; font-weight: 600;">0.3624</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1312</td>
+            <td>0.0316</td>
+            <td>0.1989</td>
+            <td>0.6356</td>
+            <td>0.9645</td>
+            <td style="font-family: monospace;">0.07454</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0120_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0120_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 100</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 100)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">23.45 dB <span style="font-size: 0.8em; opacity: 0.8;">(-3.20)</span></td>
+            <td>0.7828</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.5411</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2738</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1082</td>
+            <td>0.0316</td>
+            <td>0.2101</td>
+            <td>0.6959</td>
+            <td>0.9609</td>
+            <td style="font-family: monospace;">0.08414</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0100_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0100_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0100.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 80</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 80)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">21.96 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.70)</span></td>
+            <td>0.7579</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.4993</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2215</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0973</td>
+            <td>0.0316</td>
+            <td>0.2270</td>
+            <td>0.7610</td>
+            <td>0.9541</td>
+            <td style="font-family: monospace;">0.09883</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0080_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0080_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 75</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 75)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">21.04 dB <span style="font-size: 0.8em; opacity: 0.8;">(-5.61)</span></td>
+            <td>0.6749</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.4060</td>
+            <td style="color: #ec4899; font-weight: 600;">0.1999</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0944</td>
+            <td>0.0316</td>
+            <td>0.2373</td>
+            <td>0.7955</td>
+            <td>0.9491</td>
+            <td style="font-family: monospace;">0.10234</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0075_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0075_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0075.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 60</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 60)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">21.67 dB <span style="font-size: 0.8em; opacity: 0.8;">(-4.99)</span></td>
+            <td>0.6625</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.3977</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2340</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1047</td>
+            <td>0.0316</td>
+            <td>0.2332</td>
+            <td>0.8260</td>
+            <td>0.9471</td>
+            <td style="font-family: monospace;">0.12355</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0060_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0060_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 50</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 50)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">19.25 dB <span style="font-size: 0.8em; opacity: 0.8;">(-7.40)</span></td>
+            <td>0.5558</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.2706</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2308</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0982</td>
+            <td>0.0316</td>
+            <td>0.2535</td>
+            <td>0.8900</td>
+            <td>0.9338</td>
+            <td style="font-family: monospace;">0.14327</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0050_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0050_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0050.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 40</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 40)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">19.21 dB <span style="font-size: 0.8em; opacity: 0.8;">(-7.44)</span></td>
+            <td>0.5180</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.2330</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2317</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0986</td>
+            <td>0.0317</td>
+            <td>0.2533</td>
+            <td>0.8991</td>
+            <td>0.9309</td>
+            <td style="font-family: monospace;">0.17283</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0040_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0040_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 25</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 25)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">16.56 dB <span style="font-size: 0.8em; opacity: 0.8;">(-10.10)</span></td>
+            <td>0.3997</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.0899</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2273</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0926</td>
+            <td>0.0317</td>
+            <td>0.2782</td>
+            <td>0.9654</td>
+            <td>0.9086</td>
+            <td style="font-family: monospace;">0.25574</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0025_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0025_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0025.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 20</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 20)</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">15.92 dB <span style="font-size: 0.8em; opacity: 0.8;">(-10.74)</span></td>
+            <td>0.3822</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.0687</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2323</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.0902</td>
+            <td>0.0317</td>
+            <td>0.2818</td>
+            <td>0.9792</td>
+            <td>0.9005</td>
+            <td style="font-family: monospace;">0.31054</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0020_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0020_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 1</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 1)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Warmup</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">15.84 dB <span style="font-size: 0.8em; opacity: 0.8;">(-10.82)</span></td>
+            <td>0.4013</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.0878</td>
+            <td style="color: #ec4899; font-weight: 600;">0.2454</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.1100</td>
+            <td>0.0317</td>
+            <td>0.2819</td>
+            <td>0.9861</td>
+            <td>0.9015</td>
+            <td style="font-family: monospace;">0.23194</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0001_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0001_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_refined.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+        <tr>
+            <td><strong>Step 0</strong> <span style="font-size: 0.78rem; color: #64748b;">(Iter 0)</span> <span style="background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">★ Champion</span></td>
+            <td><span class="stage-badge">Initial (Pre-Warmup)</span></td>
+            <td style="color: #e2e8f0; font-weight: bold;">11.84 dB <span style="font-size: 0.8em; opacity: 0.8;">(-14.81)</span></td>
+            <td>0.3298</td>
+            <td style="color: #38bdf8; font-weight: 600;">0.0134</td>
+            <td style="color: #ec4899; font-weight: 600;">0.8057</td>
+            <td style="color: #06b6d4; font-weight: 600;">0.9807</td>
+            <td>0.0396</td>
+            <td>0.2768</td>
+            <td>1.2187</td>
+            <td>0.4474</td>
+            <td style="font-family: monospace;">1.00000</td>
+            <td>
+                <a href="reports/dbpn_3d/step_0000_ortho.png" target="_blank" style="color: #38bdf8; text-decoration: none; margin-right: 8px;">📷 Ortho</a>
+                <a href="reports/dbpn_3d/step_0000_diff.png" target="_blank" style="color: #f87171; text-decoration: none; margin-right: 8px;">🔥 Error</a>
+                <a href="checkpoints/dbpn_3d/asdbpn_3d_step_0000.keras" style="color: #94a3b8; text-decoration: none; font-size: 0.85em;">💾 Keras</a>
+            </td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>siq 3D Deep Back-Projection Network (AS-DBPN) Super-Resolution Suite &bull; 2026-10-02 20:37:00</p>
+    </footer>
+
+    <script>
+        const views = {
+            'original': 'view-original',
+            'linear': 'view-linear',
+            'sr': 'view-sr',
+            'best': 'view-best',
+            'diff': 'view-diff',
+            'downsampled': 'view-downsampled',
+            'comparison4way': 'view-comparison4way'
+        };
+
+        function selectView(key) {
+            Object.values(views).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+            const target = document.getElementById(views[key]);
+            if (target) target.classList.add('active');
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`.tab-btn[data-view="${key}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // Keyboard shortcuts 1-7 for in-place flickering
+        document.addEventListener('keydown', (e) => {
+            const keyMap = {
+                '1': 'original',
+                '2': 'linear',
+                '3': 'sr',
+                '4': 'best',
+                '5': 'diff',
+                '6': 'downsampled',
+                '7': 'comparison4way'
+            };
+            if (keyMap[e.key]) {
+                selectView(keyMap[e.key]);
+            }
+        });
+    </script>
+</body>
+</html>
