@@ -12,7 +12,7 @@
         "acutance": 1.0110334552069487,
         "laplacian": 1.6953060862992668,
         "_group": "classical",
-        "_seconds": 0.00858306884765625,
+        "_seconds": 0.010277032852172852,
         "_meta": {}
       },
       "bilinear": {
@@ -26,7 +26,7 @@
         "acutance": 0.8271324835779074,
         "laplacian": 0.608590093165172,
         "_group": "classical",
-        "_seconds": 0.00867605209350586,
+        "_seconds": 0.008898735046386719,
         "_meta": {}
       },
       "bspline": {
@@ -40,7 +40,7 @@
         "acutance": 0.9706557599316832,
         "laplacian": 0.7185281374390197,
         "_group": "classical",
-        "_seconds": 0.008434057235717773,
+        "_seconds": 0.009083271026611328,
         "_meta": {}
       },
       "windowed-sinc": {
@@ -54,7 +54,7 @@
         "acutance": 0.9917595277597802,
         "laplacian": 0.7515162792118656,
         "_group": "classical",
-        "_seconds": 0.007761955261230469,
+        "_seconds": 0.008404016494750977,
         "_meta": {}
       },
       "linear-LS REAL (K=9)": {
@@ -68,7 +68,7 @@
         "acutance": 0.7501124346853711,
         "laplacian": 0.7909184739798665,
         "_group": "linear",
-        "_seconds": 0.01363682746887207,
+        "_seconds": 0.012181997299194336,
         "_meta": {}
       },
       "linear-LS oracle in-sample (K=9)": {
@@ -82,39 +82,39 @@
         "acutance": 0.8926371509869018,
         "laplacian": 0.6754181290548775,
         "_group": "linear",
-        "_seconds": 0.013341188430786133,
+        "_seconds": 0.013963699340820312,
         "_meta": {
           "oracle": true
         }
       },
       "MODEL real_mse_matched": {
-        "psnr": 30.669400812618118,
-        "ssim": 0.9694783780017542,
-        "gmsd": 0.11588242650032043,
-        "cbi": 0.024250037968158722,
-        "cqs": 0.829345913533275,
-        "pcs": 1.6401708395498096,
-        "pcsc": 0.6401708395498096,
-        "acutance": 0.9120174147370308,
-        "laplacian": 0.7096324372960383,
+        "psnr": 23.350185237366404,
+        "ssim": 0.9599734486728693,
+        "gmsd": 0.11708071827888489,
+        "cbi": 0.024123989045619965,
+        "cqs": 0.8187687413483644,
+        "pcs": 1.5240553293692622,
+        "pcsc": 0.5240553293692622,
+        "acutance": 0.7619377040703214,
+        "laplacian": 0.6486354719714744,
         "_group": "model",
-        "_seconds": 0.6897411346435547,
+        "_seconds": 0.6814603805541992,
         "_meta": {
           "path": "results/2d_matched_real_mse/dbpn_small_2d_matched_real_mse_latest.keras"
         }
       },
       "MODEL fast_curriculum_procedural": {
-        "psnr": 28.392381846345323,
-        "ssim": 0.961846169840701,
-        "gmsd": 0.13339151442050934,
-        "cbi": 0.02759680710732937,
-        "cqs": 0.8008578483128623,
-        "pcs": 1.7036161944126957,
-        "pcsc": 0.7036161944126957,
-        "acutance": 0.9322995665041159,
-        "laplacian": 0.8732171256955507,
+        "psnr": 28.18752299108231,
+        "ssim": 0.9614475496230785,
+        "gmsd": 0.13357609510421753,
+        "cbi": 0.027548061683773994,
+        "cqs": 0.800323392835087,
+        "pcs": 1.6972855383453616,
+        "pcsc": 0.6972855383453616,
+        "acutance": 0.9243635200287704,
+        "laplacian": 0.8695607709917788,
         "_group": "model",
-        "_seconds": 0.8359658718109131,
+        "_seconds": 0.8229203224182129,
         "_meta": {
           "path": "results/2d_curriculum/fast_s0/dbpn_small_2d_fast_s0_latest.keras"
         }
@@ -130,7 +130,7 @@
         "acutance": 1.3009522436519634,
         "laplacian": 1.3037411893623707,
         "_group": "public",
-        "_seconds": 0.0565948486328125,
+        "_seconds": 0.059129953384399414,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -151,7 +151,7 @@
         "acutance": 1.3264169069191396,
         "laplacian": 1.3635413764498587,
         "_group": "public",
-        "_seconds": 0.12618112564086914,
+        "_seconds": 0.12967300415039062,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -172,7 +172,7 @@
         "acutance": 0.9991228870162426,
         "laplacian": 0.7351172026887738,
         "_group": "unsharp",
-        "_seconds": 0.008414983749389648,
+        "_seconds": 0.008537054061889648,
         "_meta": {}
       },
       "bil+unsharp best-PCSc (s=1.0,a=1.0)": {
@@ -186,7 +186,7 @@
         "acutance": 1.1497383512378068,
         "laplacian": 1.0156518479639802,
         "_group": "unsharp",
-        "_seconds": 0.007657051086425781,
+        "_seconds": 0.00689387321472168,
         "_meta": {}
       }
     },
@@ -202,7 +202,7 @@
         "acutance": 1.0056928735201325,
         "laplacian": 1.1736295723082542,
         "_group": "classical",
-        "_seconds": 0.2941749095916748,
+        "_seconds": 0.29106593132019043,
         "_meta": {}
       },
       "bilinear": {
@@ -216,7 +216,7 @@
         "acutance": 0.7116994912379152,
         "laplacian": 0.44893707103172087,
         "_group": "classical",
-        "_seconds": 0.290086030960083,
+        "_seconds": 0.33086109161376953,
         "_meta": {}
       },
       "bspline": {
@@ -230,7 +230,7 @@
         "acutance": 0.9053597923327995,
         "laplacian": 0.5641027299860734,
         "_group": "classical",
-        "_seconds": 0.2837860584259033,
+        "_seconds": 0.33513498306274414,
         "_meta": {}
       },
       "windowed-sinc": {
@@ -244,7 +244,7 @@
         "acutance": 0.9387728128285114,
         "laplacian": 0.5890276210153368,
         "_group": "classical",
-        "_seconds": 0.31627798080444336,
+        "_seconds": 0.33057689666748047,
         "_meta": {}
       },
       "linear-LS REAL (K=9)": {
@@ -258,7 +258,7 @@
         "acutance": 0.665402720531989,
         "laplacian": 0.5566751013318024,
         "_group": "linear",
-        "_seconds": 0.5031068325042725,
+        "_seconds": 0.5155251026153564,
         "_meta": {}
       },
       "linear-LS oracle in-sample (K=9)": {
@@ -272,39 +272,39 @@
         "acutance": 0.7921622894352399,
         "laplacian": 0.551249875146622,
         "_group": "linear",
-        "_seconds": 0.4967169761657715,
+        "_seconds": 0.5194451808929443,
         "_meta": {
           "oracle": true
         }
       },
       "MODEL real_mse_matched": {
-        "psnr": 26.38268092698334,
-        "ssim": 0.9358572872450049,
-        "gmsd": 0.12381568737328053,
-        "cbi": 0.05672320630401373,
-        "cqs": 0.7553183935677107,
-        "pcs": 1.6031814359710255,
-        "pcsc": 0.4953487175955022,
-        "acutance": 1.0878443382203637,
-        "laplacian": 0.6078817465862656,
+        "psnr": 28.331004008718896,
+        "ssim": 0.9370392027662691,
+        "gmsd": 0.12763788333783546,
+        "cbi": 0.05623364308848977,
+        "cqs": 0.7531676763399439,
+        "pcs": 1.3841183107220971,
+        "pcsc": 0.38411831072209734,
+        "acutance": 0.754568113398102,
+        "laplacian": 0.5073331553662048,
         "_group": "model",
-        "_seconds": 3.634329080581665,
+        "_seconds": 3.4720048904418945,
         "_meta": {
           "path": "results/2d_matched_real_mse/dbpn_small_2d_matched_real_mse_latest.keras"
         }
       },
       "MODEL fast_curriculum_procedural": {
-        "psnr": 23.97692326128333,
-        "ssim": 0.8861853849060378,
-        "gmsd": 0.13996660119543472,
-        "cbi": 0.06201968947425485,
-        "cqs": 0.6841990942363482,
-        "pcs": 1.679574410780735,
-        "pcsc": 0.4469376829832989,
-        "acutance": 1.2323051889290848,
-        "laplacian": 0.758445444159689,
+        "psnr": 28.006987105795204,
+        "ssim": 0.8866447149031553,
+        "gmsd": 0.1457379311323166,
+        "cbi": 0.05996669766803583,
+        "cqs": 0.6809400861028029,
+        "pcs": 1.440354511986099,
+        "pcsc": 0.4403545119860988,
+        "acutance": 0.8794181818715048,
+        "laplacian": 0.6394106698950869,
         "_group": "model",
-        "_seconds": 3.610962152481079,
+        "_seconds": 3.4601001739501953,
         "_meta": {
           "path": "results/2d_curriculum/fast_s0/dbpn_small_2d_fast_s0_latest.keras"
         }
@@ -320,7 +320,7 @@
         "acutance": 1.7847489004355772,
         "laplacian": 1.296434089971583,
         "_group": "public",
-        "_seconds": 2.1389968395233154,
+        "_seconds": 2.2829222679138184,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -341,7 +341,7 @@
         "acutance": 1.779632917149914,
         "laplacian": 1.3034615463625265,
         "_group": "public",
-        "_seconds": 3.959564208984375,
+        "_seconds": 4.0159900188446045,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -362,7 +362,7 @@
         "acutance": 0.9425062951101384,
         "laplacian": 0.5551806832011875,
         "_group": "unsharp",
-        "_seconds": 0.30326080322265625,
+        "_seconds": 0.3153049945831299,
         "_meta": {}
       },
       "bil+unsharp best-PCSc (s=1.0,a=0.5)": {
@@ -376,7 +376,7 @@
         "acutance": 0.9512775419812091,
         "laplacian": 0.6186048284688588,
         "_group": "unsharp",
-        "_seconds": 0.30153703689575195,
+        "_seconds": 0.31744909286499023,
         "_meta": {}
       }
     },
@@ -392,7 +392,7 @@
         "acutance": 0.45053597028555825,
         "laplacian": 0.6971224318118111,
         "_group": "classical",
-        "_seconds": 0.3320779800415039,
+        "_seconds": 0.34332799911499023,
         "_meta": {}
       },
       "bilinear": {
@@ -406,7 +406,7 @@
         "acutance": 0.3779087265796106,
         "laplacian": 0.2256343882833419,
         "_group": "classical",
-        "_seconds": 0.2973942756652832,
+        "_seconds": 0.33827877044677734,
         "_meta": {}
       },
       "bspline": {
@@ -420,7 +420,7 @@
         "acutance": 0.44429635311007076,
         "laplacian": 0.2586619937760211,
         "_group": "classical",
-        "_seconds": 0.32541513442993164,
+        "_seconds": 0.3611769676208496,
         "_meta": {}
       },
       "windowed-sinc": {
@@ -434,7 +434,7 @@
         "acutance": 0.45413018705996283,
         "laplacian": 0.2712991664093361,
         "_group": "classical",
-        "_seconds": 0.308438777923584,
+        "_seconds": 0.34075164794921875,
         "_meta": {}
       },
       "linear-LS REAL (K=9)": {
@@ -448,7 +448,7 @@
         "acutance": 0.355603787163749,
         "laplacian": 0.304510182008429,
         "_group": "linear",
-        "_seconds": 0.5258669853210449,
+        "_seconds": 0.5965390205383301,
         "_meta": {}
       },
       "linear-LS oracle in-sample (K=9)": {
@@ -462,39 +462,39 @@
         "acutance": 0.828240440976769,
         "laplacian": 0.569877951312887,
         "_group": "linear",
-        "_seconds": 0.5735180377960205,
+        "_seconds": 0.6011788845062256,
         "_meta": {
           "oracle": true
         }
       },
       "MODEL real_mse_matched": {
-        "psnr": 18.931614441992227,
-        "ssim": 0.8762393046764618,
-        "gmsd": 0.1628787306447824,
-        "cbi": 0.06182377537091573,
-        "cqs": 0.6515367986607639,
-        "pcs": 1.2846118294655657,
-        "pcsc": 0.2697488821025178,
-        "acutance": 0.8884682167981816,
-        "laplacian": 0.3776818448114225,
+        "psnr": 26.4806382094317,
+        "ssim": 0.8974060718607396,
+        "gmsd": 0.1749387097855409,
+        "cbi": 0.06310575176030397,
+        "cqs": 0.6593616103148947,
+        "pcs": 0.9771558027240793,
+        "pcsc": -0.0228441972759207,
+        "acutance": 0.3846729738115429,
+        "laplacian": 0.2509154110068263,
         "_group": "model",
-        "_seconds": 3.0264177322387695,
+        "_seconds": 2.9205901622772217,
         "_meta": {
           "path": "results/2d_matched_real_mse/dbpn_small_2d_matched_real_mse_latest.keras"
         }
       },
       "MODEL fast_curriculum_procedural": {
-        "psnr": 18.232793085375736,
-        "ssim": 0.8426892286736659,
-        "gmsd": 0.1584451049566269,
-        "cbi": 0.06255290114010374,
-        "cqs": 0.6216912225769353,
-        "pcs": 1.3686695542340577,
-        "pcsc": 0.29529956860094586,
-        "acutance": 0.9963271429281005,
-        "laplacian": 0.49762952038614433,
+        "psnr": 27.28314642394218,
+        "ssim": 0.8567322930706948,
+        "gmsd": 0.18092911628385386,
+        "cbi": 0.0627667832498749,
+        "cqs": 0.6130363935369659,
+        "pcs": 1.0072989892503392,
+        "pcsc": 0.007298989250339216,
+        "acutance": 0.4539201345114263,
+        "laplacian": 0.3346050569153201,
         "_group": "model",
-        "_seconds": 3.0143818855285645,
+        "_seconds": 2.9140679836273193,
         "_meta": {
           "path": "results/2d_curriculum/fast_s0/dbpn_small_2d_fast_s0_latest.keras"
         }
@@ -510,7 +510,7 @@
         "acutance": 0.5195641044476003,
         "laplacian": 0.33785249676191453,
         "_group": "public",
-        "_seconds": 1.4946129322052002,
+        "_seconds": 1.6141538619995117,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -531,7 +531,7 @@
         "acutance": 0.5199969149618576,
         "laplacian": 0.33695663021827654,
         "_group": "public",
-        "_seconds": 3.8038489818573,
+        "_seconds": 3.9859619140625,
         "_meta": {
           "phase_shift": [
             -0.5,
@@ -552,7 +552,7 @@
         "acutance": 0.7881679155167483,
         "laplacian": 0.41902673938659074,
         "_group": "unsharp",
-        "_seconds": 0.29441308975219727,
+        "_seconds": 0.36533498764038086,
         "_meta": {}
       },
       "bil+unsharp best-PCSc (s=2.0,a=1.0)": {
@@ -566,7 +566,7 @@
         "acutance": 0.7881679155167483,
         "laplacian": 0.41902673938659074,
         "_group": "unsharp",
-        "_seconds": 0.29441308975219727,
+        "_seconds": 0.36533498764038086,
         "_meta": {}
       }
     }
@@ -574,16 +574,16 @@
   "verdicts": {
     "r16c": {
       "MODEL real_mse_matched": {
-        "d_cqs_vs_bilinear": 0.013267842767810567,
-        "d_cqs_vs_best_classical": -0.00685944553190776,
-        "d_cqs_vs_linear_ceiling": -0.005485408269540359,
+        "d_cqs_vs_bilinear": 0.0026906705828999566,
+        "d_cqs_vs_best_classical": -0.01743661771681837,
+        "d_cqs_vs_linear_ceiling": -0.01606258045445097,
         "beats_best_classical": false,
         "beats_linear_ceiling": false
       },
       "MODEL fast_curriculum_procedural": {
-        "d_cqs_vs_bilinear": -0.015220222452602128,
-        "d_cqs_vs_best_classical": -0.035347510752320455,
-        "d_cqs_vs_linear_ceiling": -0.033973473489953054,
+        "d_cqs_vs_bilinear": -0.015754677930377436,
+        "d_cqs_vs_best_classical": -0.03588196623009576,
+        "d_cqs_vs_linear_ceiling": -0.03450792896772836,
         "beats_best_classical": false,
         "beats_linear_ceiling": false
       },
@@ -604,16 +604,16 @@
     },
     "heldout": {
       "MODEL real_mse_matched": {
-        "d_cqs_vs_bilinear": 0.0157366065031197,
-        "d_cqs_vs_best_classical": 0.009121652291900428,
-        "d_cqs_vs_linear_ceiling": 0.010119477340777894,
+        "d_cqs_vs_bilinear": 0.01358588927535287,
+        "d_cqs_vs_best_classical": 0.006970935064133599,
+        "d_cqs_vs_linear_ceiling": 0.007968760113011064,
         "beats_best_classical": true,
         "beats_linear_ceiling": true
       },
       "MODEL fast_curriculum_procedural": {
-        "d_cqs_vs_bilinear": -0.05538269282824282,
-        "d_cqs_vs_best_classical": -0.06199764703946209,
-        "d_cqs_vs_linear_ceiling": -0.060999821990584624,
+        "d_cqs_vs_bilinear": -0.05864170096178811,
+        "d_cqs_vs_best_classical": -0.06525665517300738,
+        "d_cqs_vs_linear_ceiling": -0.06425883012412992,
         "beats_best_classical": false,
         "beats_linear_ceiling": false
       },
@@ -634,16 +634,16 @@
     },
     "heldout_aa": {
       "MODEL real_mse_matched": {
-        "d_cqs_vs_bilinear": -0.0011649036510773536,
-        "d_cqs_vs_best_classical": -0.07418234032599302,
-        "d_cqs_vs_linear_ceiling": -0.11113318008473361,
+        "d_cqs_vs_bilinear": 0.006659908003053494,
+        "d_cqs_vs_best_classical": -0.06635752867186218,
+        "d_cqs_vs_linear_ceiling": -0.10330836843060276,
         "beats_best_classical": false,
         "beats_linear_ceiling": false
       },
       "MODEL fast_curriculum_procedural": {
-        "d_cqs_vs_bilinear": -0.031010479734905894,
-        "d_cqs_vs_best_classical": -0.10402791640982156,
-        "d_cqs_vs_linear_ceiling": -0.14097875616856215,
+        "d_cqs_vs_bilinear": -0.039665308774875285,
+        "d_cqs_vs_best_classical": -0.11268274544979096,
+        "d_cqs_vs_linear_ceiling": -0.14963358520853154,
         "beats_best_classical": false,
         "beats_linear_ceiling": false
       },

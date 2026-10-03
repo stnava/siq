@@ -190,12 +190,36 @@ def linear_ls_methods(train_cache="results/real_slice_cache.npy", K=9, n_fit_bat
 
 
 def siq_model_method(name, path):
-    """Wrap a saved siq model (``.keras`` + ``_config.json``) as a pure-SR method (no linear blend)."""
-    from . import load_siq_model, inference
+    """Wrap a saved siq model (``.keras`` + ``_config.json``) as a pure-SR method (no linear blend).
+
+    Benchmark cases are already truncated/normalised to [0, 1] and have identity direction, so the
+    model is run directly. Going through ``inference()`` here re-applies TruncateIntensity+Normalize
+    (and a min-max Normalize on the output when ``linear_blend`` is set), which lifted slice intensity
+    ~19% (PSNR ~18 dB) for models that were fine on the raw forward pass (MSE below bilinear).
+    The architecture-aware phase shift is kept (transposed-conv models only)."""
+    from . import load_siq_model
+    from .get_data import _model_has_transposed_conv
+    from scipy.ndimage import shift as ndshift
     model, cfg = load_siq_model(path)
-    return SRMethod("MODEL " + name, lambda l, g: inference(
-        l, model, config=cfg, verbose=False, poly_order=None, anti_checkerboard=False,
-        linear_blend=1.0).numpy(), "model", {"path": path})
+    has_tc = _model_has_transposed_conv(model)
+    up = cfg.get("upsample_factor", 2)
+
+    def run(l, g):
+        x = l.numpy().astype("float32")
+        flips = tuple(i for i in range(x.ndim) if float(l.direction[i, i]) < 0)   # direction-cosine sign invariant
+        if flips: x = np.flip(x, axis=flips).copy()
+        out = model.predict(x[None, ..., None], verbose=0)[0, ..., 0]
+        if flips: out = np.flip(out, axis=flips).copy()
+        f = list(up) if isinstance(up, (list, tuple)) else [up] * x.ndim
+        if has_tc:
+            sh = [-(fd - 1) / 2.0 if fd > 1 else 0.0 for fd in f]
+        else:     # discrete reflection compensation on flipped axes
+            sh = [-(fd - 1.0) if (d in flips and fd > 1) else 0.0 for d, fd in enumerate(f)]
+        if any(abs(s) > 1e-4 for s in sh):
+            out = ndshift(out, sh, order=3, mode="nearest")
+        return np.clip(out, 0.0, 1.0)
+    return SRMethod("MODEL " + name, run, "model", {"path": path})
+
 
 
 def callable_method(name, fn, group="other", phase=None, factor=(2, 2), calibration_cases=None):
