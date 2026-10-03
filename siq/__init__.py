@@ -80,7 +80,7 @@ from .blind_sr import (blind_sr_generator_simple, blind_sr_generator,
 from .benchmark import (benchmark as sr_benchmark, build_cases, run_benchmark, SRMethod, compute_pcsc, sr_metrics,
                         classical_methods, unsharp_methods, linear_ls_methods, siq_model_method,
                         public_model_method, callable_method, list_public_models, estimate_phase_shift,
-                        format_markdown as format_benchmark_markdown)
+                        format_markdown as format_benchmark_markdown, render_html_report)
 from .curriculum import (train_blind_sr_curriculum, evaluate_model_2d, DEFAULT_STAGES)
 from .model_registry import (register_model, archive_model, list_models,
                               get_best_model, summarize_registry)

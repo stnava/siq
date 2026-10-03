@@ -375,6 +375,7 @@ def save_results(results, out_dir="results/sr_reference", name="reference"):
     md = format_markdown(results)
     with open(os.path.join(out_dir, f"{name}.md"), "w") as fh:
         fh.write(md + "\n")
+    render_html_report(results, os.path.join(out_dir, f"{name}.html"))
     return md
 
 
@@ -394,3 +395,84 @@ def benchmark(models=None, public=None, factor=(2, 2), phase="half-pixel", case_
         methods.append(public_model_method(pid, factor, phase, calibration_cases=calib))
     results = run_benchmark(methods, cases, factor, verbose)
     return results, save_results(results, out_dir, name)
+
+
+def render_html_report(results, path, title="siq SR reference benchmark", notes_html=""):
+    """Self-contained HTML (no external assets): one tab per case set (keys 1..n), methods sorted by CQS,
+    best value per column highlighted, CQS bars, and the verdict table.  ``results`` is the output of
+    :func:`run_benchmark` or the ``results`` dict of a saved ``*.json``."""
+    import html as _h
+    res_all = {c: collapse_unsharp(r) for c, r in results.items()}
+    higher_better = {"psnr": True, "ssim": True, "cqs": True, "pcs": True, "pcsc": True,
+                     "gmsd": False, "cbi": False}
+    colors = {"classical": "#64748b", "unsharp": "#a16207", "linear": "#0e7490", "model": "#7c3aed",
+              "public": "#be185d", "other": "#475569"}
+    tabs, panels = [], []
+    for i, (cname, res) in enumerate(res_all.items()):
+        ok = {k: v for k, v in res.items() if "_error" not in v}
+        order = sorted(ok, key=lambda k: -ok[k]["cqs"])
+        best = {c: (max if hb else min)(v[c] for v in ok.values()) for c, hb in higher_better.items()}
+        cq = [v["cqs"] for v in ok.values()]; lo, hi = min(cq) - 0.02, max(cq)
+        rows = []
+        for k in order:
+            v = ok[k]; col = colors.get(v["_group"], "#475569")
+            cells = []
+            for c in METRIC_COLS:
+                txt = f"{v[c]:.2f}" if c == "psnr" else f"{v[c]:.4f}"
+                cls = "best" if c in best and abs(v[c] - best[c]) < 1e-12 else ""
+                if c == "cqs":
+                    w = 100 * (v["cqs"] - lo) / max(hi - lo, 1e-9)
+                    cells.append(f'<td class="{cls}"><div class="bar" style="width:{w:.0f}%;background:{col}33"></div>'
+                                 f'<span>{txt}</span></td>')
+                else:
+                    cells.append(f'<td class="{cls}">{txt}</td>')
+            rows.append(f'<tr><td class="name"><span class="dot" style="background:{col}"></span>{_h.escape(k)}</td>'
+                        + "".join(cells) + "</tr>")
+        for k, v in res.items():
+            if "_error" in v:
+                rows.append(f'<tr><td class="name">{_h.escape(k)}</td><td colspan="{len(METRIC_COLS)}" class="err">'
+                            f'ERROR: {_h.escape(v["_error"][:120])}</td></tr>')
+        vd = verdicts(res)
+        vrows = []
+        f = lambda x: "n/a" if x is None else (f"{x:+.4f}" if isinstance(x, float) else ("yes" if x else "no"))
+        for k, v in vd.items():
+            tag = lambda b: f'<td class="{"yes" if b else "no"}">{f(b)}</td>' if b is not None else "<td>n/a</td>"
+            vrows.append(f"<tr><td class='name'>{_h.escape(k)}</td><td>{f(v['d_cqs_vs_bilinear'])}</td>"
+                         f"<td>{f(v['d_cqs_vs_best_classical'])}</td><td>{f(v['d_cqs_vs_linear_ceiling'])}</td>"
+                         f"{tag(v['beats_best_classical'])}{tag(v['beats_linear_ceiling'])}</tr>")
+        head = "".join(f"<th>{c}</th>" for c in METRIC_COLS)
+        n = ""
+        panels.append(f'<section id="p{i}" class="panel{" on" if i == 0 else ""}"><h2>{_h.escape(cname)}</h2>'
+                      f'<table><thead><tr><th>method (sorted by CQS)</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
+                      + (f'<h3>Verdicts vs references (CQS)</h3><table class="v"><thead><tr><th>method</th><th>&Delta; vs bilinear</th>'
+                         f'<th>&Delta; vs best classical</th><th>&Delta; vs linear ceiling</th><th>beats classical</th>'
+                         f'<th>beats ceiling</th></tr></thead><tbody>{"".join(vrows)}</tbody></table>' if vrows else "")
+                      + "</section>")
+        tabs.append(f'<button class="tab{" on" if i == 0 else ""}" data-i="{i}">{i + 1} &middot; {_h.escape(cname)}</button>')
+    legend = "".join(f'<span><span class="dot" style="background:{c}"></span>{g}</span>' for g, c in colors.items() if g != "other")
+    doc = f"""<!doctype html><html><head><meta charset="utf-8"><title>{_h.escape(title)}</title><style>
+body{{font:14px -apple-system,Segoe UI,sans-serif;margin:24px;color:#0f172a;background:#f8fafc}}
+h1{{margin:0 0 4px}} .sub{{color:#475569;margin-bottom:14px}} .legend span{{margin-right:14px}}
+.tabs{{margin:12px 0}} .tab{{border:1px solid #cbd5e1;background:#fff;padding:7px 14px;margin-right:6px;border-radius:6px;cursor:pointer;font-size:14px}}
+.tab.on{{background:#0f172a;color:#fff;border-color:#0f172a}} .panel{{display:none}} .panel.on{{display:block}}
+table{{border-collapse:collapse;background:#fff;margin:8px 0 18px;box-shadow:0 1px 2px #0001}}
+th,td{{padding:6px 10px;border-bottom:1px solid #e2e8f0;text-align:right;position:relative;font-variant-numeric:tabular-nums}}
+th{{background:#f1f5f9;position:sticky;top:0}} td.name,th:first-child{{text-align:left;white-space:nowrap}}
+td.best{{font-weight:700;background:#dcfce7}} .bar{{position:absolute;left:0;top:0;bottom:0;z-index:0}} td span{{position:relative;z-index:1}}
+.dot{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}}
+.yes{{color:#166534;font-weight:700}} .no{{color:#991b1b}} .err{{color:#991b1b;text-align:left}}
+.note{{max-width:1000px;color:#334155;line-height:1.5}} code{{background:#e2e8f0;padding:1px 4px;border-radius:3px}}
+</style></head><body><h1>{_h.escape(title)}</h1>
+<div class="sub">CQS decides (PSNR is informational &mdash; it rewards blur). Green = best in column. PCSc bounds the sharpness reward that raw PCS leaves unbounded. Keys 1&ndash;{len(res_all)} switch case sets.</div>
+<div class="legend">{legend}</div><div class="tabs">{"".join(tabs)}</div>{"".join(panels)}
+<div class="note">{notes_html}</div>
+<script>
+const T=[...document.querySelectorAll('.tab')],P=[...document.querySelectorAll('.panel')];
+function show(i){{if(i<0||i>=P.length)return;T.forEach((t,j)=>t.classList.toggle('on',j==i));P.forEach((p,j)=>p.classList.toggle('on',j==i));}}
+T.forEach((t,i)=>t.onclick=()=>show(i));
+document.addEventListener('keydown',e=>{{const n=parseInt(e.key);if(n)show(n-1);}});
+</script></body></html>"""
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w") as fh:
+        fh.write(doc)
+    return path

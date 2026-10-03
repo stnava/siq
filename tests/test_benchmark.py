@@ -91,3 +91,14 @@ def test_public_model_smoke_runs_offline_cache_only():
         pytest.skip(f"weights unavailable: {e}")
     out = m.run(*cases[0])
     assert out.shape == cases[0][1].shape
+
+
+def test_html_report_is_self_contained_and_tabbed(tmp_path):
+    cases = {"toy": _case(2), "toy2": _case(2, seed=1)}
+    methods = B.classical_methods() + B.unsharp_methods() + B.linear_ls_methods(train_cache=None) + [
+        B.SRMethod("MODEL perfect", lambda l, g: g.numpy(), "model")]
+    res = B.run_benchmark(methods, cases, (2, 2), verbose=False)
+    p = B.render_html_report(res, str(tmp_path / "r.html"), "t")
+    html = open(p).read()
+    assert html.count('class="tab') >= 2 and "MODEL perfect" in html and "Verdicts" in html
+    assert "http://" not in html and "https://" not in html          # no external assets
