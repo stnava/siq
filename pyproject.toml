@@ -30,3 +30,8 @@ Homepage = "https://github.com/stnava/siq"
 packages = ["siq"]
 zip-safe = false
 license-files = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
